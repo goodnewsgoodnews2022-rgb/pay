@@ -10,6 +10,8 @@ import '../../../features/splash/presentation/screens/splash_screen.dart';
 import '../../../features/settings/presentation/screens/settings_screen.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
+import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
 
 class AppRouter {
   // Named Route Location Identifiers
@@ -17,6 +19,7 @@ class AppRouter {
   static const String signup = '/signup';
   static const String login = '/login';
   static const String dashboard = '/dashboard';
+  static const String cryptoWallet = '/wallet'; // Added Track 3 wallet path
   static const String settings = '/settings';
 
   /// Centralized Navigator Key tracking for global notifications/dialog overlays
@@ -78,31 +81,19 @@ class AppRouter {
           // ------------------------------------------------------------------
           GoRoute(
             path: login,
-            builder: (context, state) =>  LoginScreen(), // Developer 2 Screen
+            builder: (context, state) => LoginScreen(), // Developer 2 Screen
           ),
+          
+          // ------------------------------------------------------------------
+          // Track 3 Feature Screens (Your Workspace Modules)
+          // ------------------------------------------------------------------
           GoRoute(
             path: dashboard,
-            builder: (context, state) => Scaffold(
-              backgroundColor: const Color(0xFF0A0E17),
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Unified Portfolio Dashboard\n(Developer 3 Work Area)', 
-                      textAlign: TextAlign.center, 
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF161F30)),
-                      onPressed: () => context.push(settings),
-                      child: const Text('Open Settings Shell', style: TextStyle(color: Colors.white)),
-                    )
-                  ],
-                ),
-              ),
-            ),
+            builder: (context, state) => const DashboardScreen(), // Linked to your custom dashboard
+          ),
+          GoRoute(
+            path: cryptoWallet,
+            builder: (context, state) => const CryptoWalletScreen(), // Linked to your custom wallet screen
           ),
         ],
       ),
