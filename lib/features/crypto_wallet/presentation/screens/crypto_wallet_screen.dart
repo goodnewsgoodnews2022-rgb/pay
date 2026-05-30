@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../data/models/crypto_asset_model.dart';
 import '../widgets/address_frame.dart';
 import '../widgets/crypto_asset_tile.dart';
 
@@ -7,6 +8,31 @@ class CryptoWalletScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Simulated list parsing using your new immutable CryptoAssetModel structure
+    const List<CryptoAssetModel> userAssets = [
+      CryptoAssetModel(
+        id: '1',
+        name: 'Ethereum',
+        symbol: 'ETH',
+        balance: 1.4502,
+        currentPriceUsd: 3344.50,
+      ),
+      CryptoAssetModel(
+        id: '2',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        balance: 2500.00,
+        currentPriceUsd: 1.00,
+      ),
+      CryptoAssetModel(
+        id: '3',
+        name: 'Solana',
+        symbol: 'SOL',
+        balance: 18.75,
+        currentPriceUsd: 102.42,
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -29,7 +55,6 @@ class CryptoWalletScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
-              // Centered display of your custom truncated address widget
               const Center(
                 child: AddressFrame(
                   fullAddress: '0x7a89c31415926cdeba34b2f1122a90b8f3914b2f',
@@ -46,33 +71,34 @@ class CryptoWalletScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              // Scrollable list displaying your custom token asset rows
               Expanded(
-                child: ListView(
+                child: ListView.builder(
                   physics: const BouncingScrollPhysics(),
-                  children: const [
-                    CryptoAssetTile(
-                      tokenName: 'Ethereum',
-                      tokenSymbol: 'ETH',
-                      cryptoBalance: 1.4502,
-                      fiatValue: 4850.25,
-                      tokenIcon: Icons.currency_bitcoin,
-                    ),
-                    CryptoAssetTile(
-                      tokenName: 'USD Coin',
-                      tokenSymbol: 'USDC',
-                      cryptoBalance: 2500.00,
-                      fiatValue: 2500.00,
-                      tokenIcon: Icons.monetization_on,
-                    ),
-                    CryptoAssetTile(
-                      tokenName: 'Solana',
-                      tokenSymbol: 'SOL',
-                      cryptoBalance: 18.75,
-                      fiatValue: 1920.40,
-                      tokenIcon: Icons.token,
-                    ),
-                  ],
+                  itemCount: userAssets.length,
+                  itemBuilder: (context, index) {
+                    final asset = userAssets[index];
+                    
+                    // Choosing display context icons based on asset symbols safely
+                    IconData displayIcon;
+                    switch (asset.symbol) {
+                      case 'ETH':
+                        displayIcon = Icons.currency_bitcoin;
+                        break;
+                      case 'USDC':
+                        displayIcon = Icons.monetization_on;
+                        break;
+                      default:
+                        displayIcon = Icons.token;
+                    }
+
+                    return CryptoAssetTile(
+                      tokenName: asset.name,
+                      tokenSymbol: asset.symbol,
+                      cryptoBalance: asset.balance,
+                      fiatValue: asset.totalFiatValue, // Automatically utilizes model math calculations
+                      tokenIcon: displayIcon,
+                    );
+                  },
                 ),
               ),
             ],
