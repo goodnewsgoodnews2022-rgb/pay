@@ -1,6 +1,5 @@
-// ignore_for_file: prefer_const_constructors, unused_import
+// lib/main.dart
 
-import 'package:fintech/app/app.dart';
 import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/app/config/environment.dart';
 import 'package:fintech/core/theme/app_theme.dart';
@@ -12,15 +11,33 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // 1. Anchor framework engine channels before execution loops begin
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   
-  await Supabase.initialize(
-    url: Environment.supabaseUrl,
-    anonKey: Environment.supabaseAnonKey,
-  );
-  setupDependencies();  // registers AuthBloc and others with GetIt
+  // Prevent the app from drawing frames until initialization finishes completely
+  widgetsBinding.deferFirstFrame();
 
-  runApp(MyApp());
+  try {
+    // 2. Load API credentials securely via your isolated environment configuration
+    await Supabase.initialize(
+      url: Environment.supabaseUrl,
+      anonKey: Environment.supabaseAnonKey,
+    );
+
+    // 3. Complete structural dependency registrations via GetIt locator
+    setupDependencies();
+    
+    // Ensure getIt is entirely stabilized before rendering
+    await getIt.allReady();
+
+  } catch (e) {
+    debugPrint('❌ [CRITICAL INITIALIZATION ERROR]: $e');
+  } finally {
+    // 4. Safely allow the framework engine to start drawing screen layout frames
+    widgetsBinding.allowFirstFrame();
+  }
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -28,15 +45,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => getIt<AuthBloc>()..add(AuthCheckStatus())),
-        // Add other blocs later (NotificationBloc, FiatWalletBloc, etc.)
+        // Lazily triggers lazy state evaluation after structural guarantees are locked in
+        BlocProvider<AuthBloc>(
+          create: (_) => getIt<AuthBloc>()..add(AuthCheckStatus()),
+        ),
+        // Future global feature BLoCs (NotificationBloc, FiatWalletBloc, etc.) can be declared safely here
       ],
       child: MaterialApp.router(
-        routerConfig: AppRouter.router,  // your GoRouter instance
-        title: 'Fintech App',
+        routerConfig: AppRouter.router,
+        debugShowCheckedModeBanner: false,
+        title: 'Pay Fintech',
         theme: AppTheme.darkTheme,
       ),
     );
