@@ -21,6 +21,8 @@ dependencies:
   http: ^1.6.0
   flutter_local_notifications: ^21.0.0
 
+  image_picker: ^1.1.2
+
   # State Management & Architecture (Shared Team Modules)
   bloc: ^9.2.1
   flutter_bloc: ^9.1.1
