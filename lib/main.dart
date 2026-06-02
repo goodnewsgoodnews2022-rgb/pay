@@ -7,6 +7,7 @@ import 'package:fintech/core/theme/app_theme.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
+import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart' as di;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,12 +32,13 @@ class MyApp extends StatelessWidget {
     
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => getIt<AuthBloc>()..add(AuthCheckStatus())),
+        BlocProvider(create: (_) => di.getIt<AuthBloc>()..add(AuthCheckStatus())),
         // Add other blocs later (NotificationBloc, FiatWalletBloc, etc.)
       ],
       child: MaterialApp.router(
         routerConfig: AppRouter.router,  // your GoRouter instance
         title: 'Fintech App',
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
       ),
     );
