@@ -1,9 +1,14 @@
 // lib/app/config/app_router.dart
 
+// ignore_for_file: prefer_const_constructors, duplicate_import
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+// lib/app/config/app_router.dart
+
+import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart'; // 🚨 MUST MATCH MAIN
 
 // Feature Imports (Using package paths for professionalism)
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
