@@ -1,6 +1,6 @@
 // lib/app/config/app_router.dart
 
-// ignore_for_file: duplicate_import
+// ignore_for_file: prefer_const_constructors, duplicate_import
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
