@@ -19,7 +19,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // 🚀 Privacy state controller across all dashboard balance components
+  // Privacy state controller across all dashboard balance components
   bool _isBalanceHidden = false;
 
   String _getFirstName(String fullName) {
@@ -39,9 +39,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       balance: 12450.00,
       cardType: 'Visa',
     );
-
-    // Static math placeholder mapping your dynamic combined net worth
-    const double staticNetWorth = 14210.80; 
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
@@ -84,45 +81,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          // 🚀 FIX 2: Swapped Column framework with a SingleChildScrollView container 
+          // This allows users to read every item under Recent Activity smoothly
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  
-                  // ====================================================================
-                  // TOTAL NET WORTH BANNER (With Dynamic Privacy Eye Icon Toggle)
-                  // ====================================================================
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'TOTAL NET WORTH',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isBalanceHidden ? '••••••' : '\$${staticNetWorth.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ====================================================================
+                    // DYNAMIC PRIVACY TOGGLE OVERRIDE HUB (First duplicate title removed)
+                    // ====================================================================
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
                         icon: Icon(
                           _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           color: Colors.grey,
@@ -134,52 +108,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           });
                         },
                       ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  // ====================================================================
-                  // PORTFOLIO CARDS (Passing visibility configuration parameters downstream)
-                  // ====================================================================
-                  PortfolioCard(
-                    fiatBalance: userAccount.balance,
-                    fiatAccountNumber: userAccount.lastFourDigits,
-                    cryptoBalance: 0.844,
-                    cryptoSymbol: 'ETH',
-                    cryptoFiatValue: 2120.80,
-                    cryptoAddress: '0x7a...4e9f',
-                    isBalanceHidden: _isBalanceHidden, // 🚀 Dynamic sync flag
-                    onFiatTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
-                    onCryptoTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
-                  ),
-                  
-                  const SizedBox(height: 24),
+                    ),
+                    
+                    // ====================================================================
+                    // PORTFOLIO CARDS (Handles primary NET WORTH text representation)
+                    // ====================================================================
+                    PortfolioCard(
+                      fiatBalance: userAccount.balance,
+                      fiatAccountNumber: userAccount.lastFourDigits,
+                      cryptoBalance: 0.844,
+                      cryptoSymbol: 'ETH',
+                      cryptoFiatValue: 2120.80,
+                      cryptoAddress: '0x7a...4e9f',
+                      isBalanceHidden: _isBalanceHidden,
+                      onFiatTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
+                      onCryptoTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
+                    ),
+                    
+                    const SizedBox(height: 24),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const ActionPlaceholderScreen(title: 'Send Money')),
-                      _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const ActionPlaceholderScreen(title: 'Receive Assets')),
-                      _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const ActionPlaceholderScreen(title: 'Instant Swap DEX')),
-                      _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const ActionPlaceholderScreen(title: 'Fiat CashOut Off-Ramp')),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                  const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                  const SizedBox(height: 12),
-
-                  Expanded(
-                    child: ListView(
-                      physics: const BouncingScrollPhysics(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
-                        _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
+                        _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const ActionPlaceholderScreen(title: 'Send Money')),
+                        _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const ActionPlaceholderScreen(title: 'Receive Assets')),
+                        _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const ActionPlaceholderScreen(title: 'Instant Swap DEX')),
+                        _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const ActionPlaceholderScreen(title: 'Fiat CashOut Off-Ramp')),
                       ],
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 24),
+                    const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                    const SizedBox(height: 12),
+
+                    // 🚀 FIX: Removed the Expanded container that was breaking limits on Web,
+                    // letting items draw seamlessly down the page workspace window
+                    _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
+                    _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
+                    
+                    // Extra spacing padding context at the bottom to ensure smooth scrolling
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ),
