@@ -6,7 +6,7 @@ import '../../data/models/bank_card_model.dart';
 import '../widgets/portfolio_card.dart';
 import 'extended_screens.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
 
   const DashboardScreen({
@@ -14,7 +14,14 @@ class DashboardScreen extends StatelessWidget {
     required this.onNavigateToSubScreen,
   });
 
-  /// Helper function to parse and capitalize just the first name from a full name string
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  // 🚀 Privacy state controller across all dashboard balance components
+  bool _isBalanceHidden = false;
+
   String _getFirstName(String fullName) {
     if (fullName.isEmpty) return 'User';
     final firstPart = fullName.trim().split(' ').first;
@@ -33,9 +40,11 @@ class DashboardScreen extends StatelessWidget {
       cardType: 'Visa',
     );
 
+    // Static math placeholder mapping your dynamic combined net worth
+    const double staticNetWorth = 14210.80; 
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        // Fetch dynamic name if authenticated, otherwise fallback gracefully
         String displayName = 'User';
         if (state is AuthAuthenticated) {
           displayName = _getFirstName(state.user.fullName ?? 'User');
@@ -47,7 +56,7 @@ class DashboardScreen extends StatelessWidget {
             backgroundColor: Colors.black,
             elevation: 0,
             leading: GestureDetector(
-              onTap: () => onNavigateToSubScreen(const UserProfileScreen()),
+              onTap: () => widget.onNavigateToSubScreen(const UserProfileScreen()),
               child: const Padding(
                 padding: EdgeInsets.all(10.0),
                 child: CircleAvatar(
@@ -56,7 +65,6 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // Dynamic BLoC Session Greeting standard
             title: Text(
               'Hello $displayName',
               style: const TextStyle(
@@ -68,11 +76,11 @@ class DashboardScreen extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.notifications_none, color: Colors.white),
-                onPressed: () => onNavigateToSubScreen(const NotificationsScreen()),
+                onPressed: () => widget.onNavigateToSubScreen(const NotificationsScreen()),
               ),
               IconButton(
                 icon: const Icon(Icons.help_outline, color: Colors.white),
-                onPressed: () => onNavigateToSubScreen(const CustomerCareScreen()),
+                onPressed: () => widget.onNavigateToSubScreen(const CustomerCareScreen()),
               ),
             ],
           ),
@@ -84,6 +92,56 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 16),
                   
+                  // ====================================================================
+                  // TOTAL NET WORTH BANNER (With Dynamic Privacy Eye Icon Toggle)
+                  // ====================================================================
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'TOTAL NET WORTH',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isBalanceHidden ? '••••••' : '\$${staticNetWorth.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isBalanceHidden = !_isBalanceHidden;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // ====================================================================
+                  // PORTFOLIO CARDS (Passing visibility configuration parameters downstream)
+                  // ====================================================================
                   PortfolioCard(
                     fiatBalance: userAccount.balance,
                     fiatAccountNumber: userAccount.lastFourDigits,
@@ -91,8 +149,9 @@ class DashboardScreen extends StatelessWidget {
                     cryptoSymbol: 'ETH',
                     cryptoFiatValue: 2120.80,
                     cryptoAddress: '0x7a...4e9f',
-                    onFiatTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
-                    onCryptoTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
+                    isBalanceHidden: _isBalanceHidden, // 🚀 Dynamic sync flag
+                    onFiatTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
+                    onCryptoTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
                   ),
                   
                   const SizedBox(height: 24),
@@ -131,7 +190,7 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildActionButton(BuildContext context, IconData icon, String label, Color accentColor, Widget targetScreen) {
     return GestureDetector(
-      onTap: () => onNavigateToSubScreen(targetScreen),
+      onTap: () => widget.onNavigateToSubScreen(targetScreen),
       child: Column(
         children: [
           Container(
