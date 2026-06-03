@@ -1,5 +1,5 @@
-import 'package:fintech/features/authentication/domain/entities/app_user.dart';
 import 'package:fintech/features/authentication/domain/entities/repositories/auth_repository.dart';
+import '../entities/app_user.dart';
 
 class SignIn {
   final AuthRepository repository;

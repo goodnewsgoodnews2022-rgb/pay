@@ -1,12 +1,11 @@
-import 'package:fintech/features/authentication/domain/usecases/sign_up.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fintech/features/authentication/domain/usecases/get_current_user.dart'; 
 import 'package:fintech/features/authentication/domain/usecases/sign_in.dart';
-import 'package:fintech/features/authentication/domain/usecases/sign_out.dart';
-import 'package:fintech/features/authentication/domain/usecases/get_current_user.dart';
+import 'package:fintech/features/authentication/domain/usecases/sign_out.dart'; 
+import 'package:fintech/features/authentication/domain/usecases/sign_up.dart';
 import 'package:fintech/features/authentication/domain/usecases/send_password_reset.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
-import 'package:bloc/bloc.dart';
-
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignUp signUp;
@@ -36,9 +35,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       final user = await signUp(
-        event.email,
-        event.password,
-        event.fullName,
+        email: event.email,
+        password: event.password,
+        fullName: event.fullName,
+        mobileNumber: event.mobileNumber,
+        gender: event.gender,
+        dateOfBirth: event.dateOfBirth,
+        address: event.address,
       );
       emit(AuthAuthenticated(user));
     } catch (e) {

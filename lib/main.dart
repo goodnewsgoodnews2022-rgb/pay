@@ -4,6 +4,7 @@ import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/app/config/environment.dart';
 import 'package:fintech/core/theme/app_theme.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
+import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart' as di;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -43,6 +44,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     // 🚀 CLEANUP: Removed MultiBlocProvider from here.
     // The AppRouter's ShellRoute now manages scoped injections cleanly 
     // to prevent ProviderNotFoundErrors and race conditions.
@@ -51,6 +53,20 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Pay Fintech',
       theme: AppTheme.darkTheme,
+=======
+    
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => di.getIt<AuthBloc>()..add(AuthCheckStatus())),
+        // Add other blocs later (NotificationBloc, FiatWalletBloc, etc.)
+      ],
+      child: MaterialApp.router(
+        routerConfig: AppRouter.router,  // your GoRouter instance
+        title: 'Fintech App',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+      ),
+>>>>>>> 482dc5230ffc1b3ec5012260180624e9b2faa18b
     );
   }
 }
