@@ -33,13 +33,15 @@ class AuthRepositoryImpl implements AuthRepository {
       final user = response.user;
       if (user == null) throw const AuthException('Registration returned an empty user payload.');
 
-<<<<<<< HEAD
-      // 2. Explicitly create the public profile document entry
-      // Using an isolated call ensuring errors here are explicitly caught
+      // 2. Explicitly create the public profile document entry safely
       try {
         await _supabase.from('profiles').insert({
           'id': user.id,
           'full_name': fullName,
+          'mobile_number': mobileNumber,
+          'gender': gender,
+          'date_of_birth': dateOfBirth,
+          'address': address,
           'kyc_status': 'pending',
         });
       } catch (dbError) {
@@ -47,19 +49,8 @@ class AuthRepositoryImpl implements AuthRepository {
           'Auth account created, but profile generation failed. RLS policies or schema columns might be mismatched: $dbError',
         );
       }
-=======
-      await _supabase.from('profiles').insert({
-        'id': user.id,
-        'full_name': fullName,
-        'mobile_number': mobileNumber,
-        'gender': gender,
-        'date_of_birth': dateOfBirth,
-        'address': address,
-        // 'kyc_status': 'pending',
-      });
->>>>>>> 482dc5230ffc1b3ec5012260180624e9b2faa18b
 
-      // Fetch the created profile to get generated account_number
+      // 3. Fetch the created profile to get generated account_number
       final profile = await _supabase
           .from('profiles')
           .select()
@@ -74,7 +65,7 @@ class AuthRepositoryImpl implements AuthRepository {
         dateOfBirth: dateOfBirth,
         address: address,
         accountNumber: profile['account_number'],
-        // kycStatus: 'pending',
+        kycStatus: 'pending',
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -95,36 +86,27 @@ class AuthRepositoryImpl implements AuthRepository {
       final user = response.user;
       if (user == null) throw const AuthException('Login failed: user payload missing.');
 
-<<<<<<< HEAD
       // 2. Fetch the corresponding profile document defensively
-      // Swapping out .single() for .maybeSingle() prevents hard crashes (PGRST116)
-=======
->>>>>>> 482dc5230ffc1b3ec5012260180624e9b2faa18b
       final profile = await _supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
-      // Fallback gracefully if the profile record is entirely missing
+      // Fallback gracefully if the profile record is entirely missing or null
       final String finalFullName = profile?['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User');
       final String finalKycStatus = profile?['kyc_status'] ?? 'pending';
 
       return AppUserModel.fromSupabaseUser(
         user,
-<<<<<<< HEAD
         fullName: finalFullName,
+        mobileNumber: profile?['mobile_number'],
+        gender: profile?['gender'],
+        dateOfBirth: profile?['date_of_birth'],
+        address: profile?['address'],
+        avatarUrl: profile?['avatar_url'],
+        accountNumber: profile?['account_number'],
         kycStatus: finalKycStatus,
-=======
-        fullName: profile['full_name'],
-        mobileNumber: profile['mobile_number'],
-        gender: profile['gender'],
-        dateOfBirth: profile['date_of_birth'],
-        address: profile['address'],
-        avatarUrl: profile['avatar_url'],
-        accountNumber: profile['account_number'],
-        // kycStatus: profile['kyc_status'],
->>>>>>> 482dc5230ffc1b3ec5012260180624e9b2faa18b
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -155,31 +137,23 @@ class AuthRepositoryImpl implements AuthRepository {
           .eq('id', user.id)
           .maybeSingle();
 
-<<<<<<< HEAD
+      if (profile == null) return null;
+
       return AppUserModel.fromSupabaseUser(
         user,
-        fullName: profile?['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User'),
-        kycStatus: profile?['kyc_status'] ?? 'pending',
+        fullName: profile['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User'),
+        mobileNumber: profile['mobile_number'],
+        gender: profile['gender'],
+        dateOfBirth: profile['date_of_birth'],
+        address: profile['address'],
+        avatarUrl: profile['avatar_url'],
+        accountNumber: profile['account_number'],
+        kycStatus: profile['kyc_status'] ?? 'pending',
       );
     } catch (e) {
       // Return null to drop session gracefully instead of crashing global BLoC lifecycle
       return null;
     }
-=======
-    if (profile == null) return null;
-
-    return AppUserModel.fromSupabaseUser(
-      user,
-      fullName: profile['full_name'],
-      mobileNumber: profile['mobile_number'],
-      gender: profile['gender'],
-      dateOfBirth: profile['date_of_birth'],
-      address: profile['address'],
-      avatarUrl: profile['avatar_url'],
-      accountNumber: profile['account_number'],
-      // kycStatus: profile['kyc_status'],
-    );
->>>>>>> 482dc5230ffc1b3ec5012260180624e9b2faa18b
   }
 
   @override

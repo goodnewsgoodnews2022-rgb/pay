@@ -154,6 +154,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
+                      // ignore: deprecated_member_use
                       value: _selectedGender,
                       dropdownColor: AppColors.bgSurface,
                       style: const TextStyle(color: AppColors.textPrimary),

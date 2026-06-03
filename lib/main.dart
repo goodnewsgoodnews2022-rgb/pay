@@ -1,10 +1,7 @@
-// lib/main.dart
-
 import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/app/config/environment.dart';
 import 'package:fintech/core/theme/app_theme.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
-import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart' as di;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,7 +20,6 @@ void main() async {
     );
 
     // 3. Complete structural dependency registrations via GetIt locator
-    // This now safely registers usecases, repositories, and your Splash features!
     setupDependencies();
     
     // Ensure getIt is entirely stabilized before rendering widgets
@@ -44,29 +40,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    // 🚀 CLEANUP: Removed MultiBlocProvider from here.
-    // The AppRouter's ShellRoute now manages scoped injections cleanly 
-    // to prevent ProviderNotFoundErrors and race conditions.
+    // Cleaned up merge conflict: Providers are handled elegantly inside the AppRouter ShellRoute context.
     return MaterialApp.router(
       routerConfig: AppRouter.router,
       debugShowCheckedModeBanner: false,
       title: 'Pay Fintech',
       theme: AppTheme.darkTheme,
-=======
-    
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(create: (_) => di.getIt<AuthBloc>()..add(AuthCheckStatus())),
-        // Add other blocs later (NotificationBloc, FiatWalletBloc, etc.)
-      ],
-      child: MaterialApp.router(
-        routerConfig: AppRouter.router,  // your GoRouter instance
-        title: 'Fintech App',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-      ),
->>>>>>> 482dc5230ffc1b3ec5012260180624e9b2faa18b
     );
   }
 }
