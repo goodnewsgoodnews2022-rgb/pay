@@ -1,27 +1,22 @@
-// lib/app/config/app_router.dart
-
 // ignore_for_file: prefer_const_constructors, duplicate_import
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// lib/app/config/app_router.dart
 
+// Dependency Injector Configuration
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart'; // 🚨 MUST MATCH MAIN
 
-// Feature Imports (Using package paths for professionalism)
+// Feature Screens & Shell Importations
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
 import 'package:fintech/features/authentication/presentation/screens/signup_screen.dart';
 import 'package:fintech/features/splash/screens/splash_screen.dart';
 import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
-import 'package:fintech/features/settings/presentation/screens/settings_screen.dart';
-import 'package:fintech/features/dashboard/presentation/screens/dashboard_screen.dart';
-import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart'; // 🚀 Added navigation shell reference
 
-// Bloc & Dependency Imports
+// Bloc Layer Assets
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
-import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 
 class AppRouter {
   // Named Route Location Identifiers
@@ -29,8 +24,6 @@ class AppRouter {
   static const String signup = '/signup';
   static const String login = '/login';
   static const String dashboard = '/dashboard';
-  static const String cryptoWallet = '/wallet';
-  static const String settings = '/settings';
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -64,7 +57,7 @@ class AppRouter {
     routes: [
       ShellRoute(
         builder: (context, state, child) {
-          // 🚀 Injecting MULTIPLE providers to the route tree
+          // Injecting MULTIPLE providers to the overall route tree frame
           return MultiBlocProvider(
             providers: [
               // Authentication Session Tracker
@@ -75,7 +68,6 @@ class AppRouter {
               BlocProvider(
                 create: (context) => getIt<SplashNavigationCubit>()..initializeAppGatewaySequence(),
               ),
-              // Future global Blocs (NotificationBloc, etc.) go here
             ],
             child: child,
           );
@@ -90,27 +82,26 @@ class AppRouter {
             builder: (context, state) => const SignupScreen(),
           ),
           GoRoute(
-            path: settings,
-            builder: (context, state) => const SettingsScreen(),
-          ),
-          GoRoute(
             path: login,
-            builder: (context, state) =>  LoginScreen(),
+            builder: (context, state) => LoginScreen(),
           ),
+          // 🚀 CRITICAL UPDATE: Pointing root core path directly to your navigation shell
           GoRoute(
             path: dashboard,
-            builder: (context, state) => const DashboardScreen(),
-          ),
-          GoRoute(
-            path: cryptoWallet,
-            builder: (context, state) => const CryptoWalletScreen(),
+            builder: (context, state) => const AppNavigationShell(),
           ),
         ],
       ),
     ],
     
     errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('Routing Path Error: ${state.error}')),
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Text(
+          'Routing Path Error: ${state.error}',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
     ),
   );
 }
