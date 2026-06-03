@@ -9,6 +9,8 @@ class PortfolioCard extends StatelessWidget {
   final String cryptoAddress;
   final VoidCallback onFiatTap;
   final VoidCallback onCryptoTap;
+  // 🚀 Added configuration flag to catch privacy updates from dashboard state loops
+  final bool isBalanceHidden;
 
   const PortfolioCard({
     super.key,
@@ -20,6 +22,7 @@ class PortfolioCard extends StatelessWidget {
     required this.cryptoAddress,
     required this.onFiatTap,
     required this.onCryptoTap,
+    this.isBalanceHidden = false, // Defaults to visible for clean backward compatibility
   });
 
   @override
@@ -42,8 +45,11 @@ class PortfolioCard extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Synchronized with privacy mask toggling rules
             Text(
-              '\$${(fiatBalance + cryptoFiatValue).toStringAsFixed(2)}',
+              isBalanceHidden 
+                  ? '••••••' 
+                  : '\$${(fiatBalance + cryptoFiatValue).toStringAsFixed(2)}',
               style: const TextStyle(
                 color: Colors.white, 
                 fontSize: 32, 
@@ -108,7 +114,6 @@ class PortfolioCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // FIXED TYPO HERE: Changed from Colors.whiteAA to a crisp constant style
                           const Text(
                             'FIAT WALLET', 
                             style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
@@ -116,8 +121,9 @@ class PortfolioCard extends StatelessWidget {
                           Icon(Icons.contactless, color: Colors.white.withValues(alpha: 0.6), size: 22),
                         ],
                       ),
+                      // Conditional Privacy Mask implementation
                       Text(
-                        '\$${fiatBalance.toStringAsFixed(2)}', 
+                        isBalanceHidden ? '••••••' : '\$${fiatBalance.toStringAsFixed(2)}', 
                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
                       ),
                       Row(
@@ -166,7 +172,6 @@ class PortfolioCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // FIXED TYPO HERE: Changed from Colors.whiteAA to Colors.white70
                           const Text(
                             'WEB3 SMART WALLET', 
                             style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
@@ -177,12 +182,14 @@ class PortfolioCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Token Balance Mask Rule
                           Text(
-                            '$cryptoBalance $cryptoSymbol', 
+                            isBalanceHidden ? '••••••' : '$cryptoBalance $cryptoSymbol', 
                             style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
                           ),
+                          // Sub-Value Fiat Calculation Mask Rule
                           Text(
-                            '\$${cryptoFiatValue.toStringAsFixed(2)} USD', 
+                            isBalanceHidden ? '••••••' : '\$${cryptoFiatValue.toStringAsFixed(2)} USD', 
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
                           ),
                         ],
