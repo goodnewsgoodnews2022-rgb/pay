@@ -4,11 +4,13 @@ import '../widgets/portfolio_card.dart';
 import 'extended_screens.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  // Callback function to let the shell manage sub-screens smoothly
+  final Function(Widget) onNavigateToSubScreen;
 
-  void _navigateTo(BuildContext context, Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
-  }
+  const DashboardScreen({
+    super.key,
+    required this.onNavigateToSubScreen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +29,8 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        // 2. Profile icon under Pay Fintech title path
         leading: GestureDetector(
-          onTap: () => _navigateTo(context, const UserProfileScreen()),
+          onTap: () => onNavigateToSubScreen(const UserProfileScreen()),
           child: const Padding(
             padding: EdgeInsets.all(10.0),
             child: CircleAvatar(
@@ -40,15 +41,13 @@ class DashboardScreen extends StatelessWidget {
         ),
         title: const Text('Pay Fintech', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
         actions: [
-          // 3. Notification Hub Path
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () => _navigateTo(context, const NotificationsScreen()),
+            onPressed: () => onNavigateToSubScreen(const NotificationsScreen()),
           ),
-          // 4. Replaced Settings with Help Icon -> Customer Care
           IconButton(
             icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: () => _navigateTo(context, const CustomerCareScreen()),
+            onPressed: () => onNavigateToSubScreen(const CustomerCareScreen()),
           ),
         ],
       ),
@@ -60,7 +59,6 @@ class DashboardScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 16),
               
-              // 5. Beautiful ATM Cards with explicit view handlers
               PortfolioCard(
                 fiatBalance: userAccount.balance,
                 fiatAccountNumber: userAccount.lastFourDigits,
@@ -68,13 +66,12 @@ class DashboardScreen extends StatelessWidget {
                 cryptoSymbol: 'ETH',
                 cryptoFiatValue: 2120.80,
                 cryptoAddress: '0x7a...4e9f',
-                onFiatTap: () => _navigateTo(context, const ActionPlaceholderScreen(title: 'Fiat Details')),
-                onCryptoTap: () => _navigateTo(context, const ActionPlaceholderScreen(title: 'Web3 Details')),
+                onFiatTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
+                onCryptoTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
               ),
               
               const SizedBox(height: 24),
 
-              // 6 & 7. Professional Functional Utility Action Hub
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -107,7 +104,7 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildActionButton(BuildContext context, IconData icon, String label, Color accentColor, Widget targetScreen) {
     return GestureDetector(
-      onTap: () => _navigateTo(context, targetScreen),
+      onTap: () => onNavigateToSubScreen(targetScreen),
       child: Column(
         children: [
           Container(
@@ -116,7 +113,7 @@ class DashboardScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.grey[950],
               shape: BoxShape.circle,
-              border: Border.all(color: accentColor.withValues(alpha: 0.15), width: 1),
+              border: Border.all(color: accentColor.withAlpha(38), width: 1),
             ),
             child: Icon(icon, color: accentColor, size: 22),
           ),
