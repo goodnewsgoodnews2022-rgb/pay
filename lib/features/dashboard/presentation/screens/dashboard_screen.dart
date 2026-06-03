@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../features/authentication/presentation/bloc/auth_bloc.dart';
+import '../../../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../data/models/bank_card_model.dart';
 import '../widgets/portfolio_card.dart';
 import 'extended_screens.dart';
 
 class DashboardScreen extends StatelessWidget {
-  // Callback function to let the shell manage sub-screens smoothly
   final Function(Widget) onNavigateToSubScreen;
 
   const DashboardScreen({
     super.key,
     required this.onNavigateToSubScreen,
   });
+
+  /// Helper function to parse and capitalize just the first name from a full name string
+  String _getFirstName(String fullName) {
+    if (fullName.isEmpty) return 'User';
+    final firstPart = fullName.trim().split(' ').first;
+    return firstPart[0].toUpperCase() + firstPart.substring(1).toLowerCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,81 +33,99 @@ class DashboardScreen extends StatelessWidget {
       cardType: 'Visa',
     );
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: GestureDetector(
-          onTap: () => onNavigateToSubScreen(const UserProfileScreen()),
-          child: const Padding(
-            padding: EdgeInsets.all(10.0),
-            child: CircleAvatar(
-              backgroundColor: Color(0xFF1A1A1A),
-              child: Icon(Icons.person, color: Colors.grey, size: 18),
-            ),
-          ),
-        ),
-        title: const Text('Pay Fintech', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () => onNavigateToSubScreen(const NotificationsScreen()),
-          ),
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: () => onNavigateToSubScreen(const CustomerCareScreen()),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              
-              PortfolioCard(
-                fiatBalance: userAccount.balance,
-                fiatAccountNumber: userAccount.lastFourDigits,
-                cryptoBalance: 0.844,
-                cryptoSymbol: 'ETH',
-                cryptoFiatValue: 2120.80,
-                cryptoAddress: '0x7a...4e9f',
-                onFiatTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
-                onCryptoTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
-              ),
-              
-              const SizedBox(height: 24),
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        // Fetch dynamic name if authenticated, otherwise fallback gracefully
+        String displayName = 'User';
+        if (state is AuthAuthenticated) {
+          displayName = _getFirstName(state.user.fullName ?? 'User');
+        }
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const ActionPlaceholderScreen(title: 'Send Money')),
-                  _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const ActionPlaceholderScreen(title: 'Receive Assets')),
-                  _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const ActionPlaceholderScreen(title: 'Instant Swap DEX')),
-                  _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const ActionPlaceholderScreen(title: 'Fiat CashOut Off-Ramp')),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-              const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-              const SizedBox(height: 12),
-
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                    _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
-                    _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
-                  ],
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            leading: GestureDetector(
+              onTap: () => onNavigateToSubScreen(const UserProfileScreen()),
+              child: const Padding(
+                padding: EdgeInsets.all(10.0),
+                child: CircleAvatar(
+                  backgroundColor: Color(0xFF1A1A1A),
+                  child: Icon(Icons.person, color: Colors.grey, size: 18),
                 ),
+              ),
+            ),
+            // Dynamic BLoC Session Greeting standard
+            title: Text(
+              'Hello $displayName',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.white),
+                onPressed: () => onNavigateToSubScreen(const NotificationsScreen()),
+              ),
+              IconButton(
+                icon: const Icon(Icons.help_outline, color: Colors.white),
+                onPressed: () => onNavigateToSubScreen(const CustomerCareScreen()),
               ),
             ],
           ),
-        ),
-      ),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  
+                  PortfolioCard(
+                    fiatBalance: userAccount.balance,
+                    fiatAccountNumber: userAccount.lastFourDigits,
+                    cryptoBalance: 0.844,
+                    cryptoSymbol: 'ETH',
+                    cryptoFiatValue: 2120.80,
+                    cryptoAddress: '0x7a...4e9f',
+                    onFiatTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
+                    onCryptoTap: () => onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const ActionPlaceholderScreen(title: 'Send Money')),
+                      _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const ActionPlaceholderScreen(title: 'Receive Assets')),
+                      _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const ActionPlaceholderScreen(title: 'Instant Swap DEX')),
+                      _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const ActionPlaceholderScreen(title: 'Fiat CashOut Off-Ramp')),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+                  const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 12),
+
+                  Expanded(
+                    child: ListView(
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
+                        _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
