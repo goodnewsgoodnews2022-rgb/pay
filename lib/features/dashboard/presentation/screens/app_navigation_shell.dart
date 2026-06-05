@@ -1,5 +1,6 @@
 // ignore_for_file: unused_import
 
+import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'extended_screens.dart' hide SettingsScreen;
@@ -29,7 +30,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       ),
       const AnalysisScreen(),
       const TransactionLedgerScreen(),
-      const SettingsScreen(), // This is where your nested settings configuration views live
+      const MoreScreen(), // This is where your nested settings configuration views live
     ];
 
     return Scaffold(
