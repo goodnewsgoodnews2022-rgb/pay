@@ -1,5 +1,3 @@
-// lib/main.dart
-
 import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/app/config/environment.dart';
 import 'package:fintech/core/theme/app_theme.dart';
@@ -22,8 +20,8 @@ void main() async {
     );
 
     // 3. Complete structural dependency registrations via GetIt locator
-    // 💡 Added 'await' because SharedPreferences initialization inside is asynchronous
-    await setupDependencies();
+    // This now safely registers usecases, repositories, and your Splash features!
+    setupDependencies();
     
     // Ensure getIt locator registries are entirely stabilized before rendering widgets
     await getIt.allReady();
@@ -43,7 +41,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 CLEANUP: Managed via AppRouter's ShellRoute context injection tracking
+    // 🚀 CLEANUP: Removed MultiBlocProvider from here.
+    // The AppRouter's ShellRoute now manages scoped injections cleanly 
+    // to prevent ProviderNotFoundErrors and race conditions.
     return MaterialApp.router(
       routerConfig: AppRouter.router,
       debugShowCheckedModeBanner: false,

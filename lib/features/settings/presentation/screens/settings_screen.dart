@@ -1,6 +1,7 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: unused_import, deprecated_member_use
 
 import 'package:fintech/app/config/app_router.dart';
+import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -61,6 +62,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
+              // CARD 0: EDIT PROFILE (Navigation to Profile Sub-system)
+              _buildSettingsCard(
+                title: 'Edit User Profile',
+                subtitle: 'Modify personal info and avatar',
+                icon: Icons.person_outline_rounded,
+                trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+
               // CARD 1: BIOMETRIC HANDSHAKE (Fully Wired to state pipeline)
               _buildSettingsCard(
                 title: 'Biometric Handshake',
@@ -116,21 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // Wipe navigation history stack and re-guard the app viewport
                       context.go('/login'); 
                     }
-                      const SizedBox(height: 32);
-                      _buildSettingsCard(
-                        title: 'Edit User Profile',
-                        subtitle: 'Modify your personal information, contact methods, and avatar',
-                        icon: Icons.person_outline_rounded,
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-                        onTap: () {
-    // 🚀 Clean, compile-safe explicit navigation path context trigger
-                        context.push(AppRouter.profile);
-  },
-);
-                      const SizedBox(height: 12);
                   },
-                   
-
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(

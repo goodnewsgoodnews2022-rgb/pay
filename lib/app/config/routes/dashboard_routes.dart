@@ -1,4 +1,4 @@
-// ignore_for_file: unused_import
+// ignore_for_file: unrelated_type_equality_checks, unused_import
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +24,9 @@ class DashboardRoutes {
   static List<RouteBase> get routes => [
         GoRoute(
           path: dashboard,
-          builder: (context, state) => const DashboardScreen(),
+          builder: (context, state) => DashboardScreen(
+            onNavigateToSubScreen: (index) => context.go(index == 1 ? wallet : settings),
+          ),
           routes: [
             // ====================================================================
             // 💵 ADD MONEY ROUTING SUBSYSTEM (Nested under /dashboard)

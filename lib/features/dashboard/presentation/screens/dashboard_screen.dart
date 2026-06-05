@@ -1,16 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../features/authentication/presentation/bloc/auth_bloc.dart';
+import '../../../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../data/models/bank_card_model.dart';
 import '../widgets/portfolio_card.dart';
+import 'extended_screens.dart';
 
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+class DashboardScreen extends StatefulWidget {
+  final Function(Widget) onNavigateToSubScreen;
+
+  const DashboardScreen({
+    super.key,
+    required this.onNavigateToSubScreen,
+  });
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  // Privacy state controller across all dashboard balance components
+  bool _isBalanceHidden = false;
+
+  String _getFirstName(String fullName) {
+    if (fullName.isEmpty) return 'User';
+    final firstPart = fullName.trim().split(' ').first;
+    return firstPart[0].toUpperCase() + firstPart.substring(1).toLowerCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Custom premium emerald color mapping
     const Color emeraldColor = Color(0xFF10B981);
-
-    // Model Instance matching your exact specifications
     const BankCardModel userAccount = BankCardModel(
       id: 'fiat-8921',
       cardHolderName: 'LAWRENCE',
@@ -20,198 +40,156 @@ class DashboardScreen extends StatelessWidget {
       cardType: 'Visa',
     );
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: const Padding(
-          padding: EdgeInsets.all(10.0),
-          child: CircleAvatar(
-            backgroundColor: Color(0xFF1A1A1A),
-            child: Icon(Icons.person, color: Colors.grey, size: 18),
-          ),
-        ),
-        title: const Text(
-          'Pay Fintech',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              
-              // Dynamic Multi-Currency Balance Component Frame
-              PortfolioCard(
-                fiatBalance: userAccount.balance,
-                fiatAccountNumber: userAccount.lastFourDigits,
-                cryptoBalance: 0.844,
-                cryptoSymbol: 'ETH',
-                cryptoFiatValue: 2120.80,
-                cryptoAddress: '0x7a...4e9f',
-              ),
-              
-              const SizedBox(height: 24),
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        String displayName = 'User';
+        if (state is AuthAuthenticated) {
+          displayName = _getFirstName(state.user.fullName ?? 'User');
+        }
 
-              // ------------------------------------------------------------------
-              // QUICK ACTION BUTTONS HUB
-              // ------------------------------------------------------------------
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildActionButton(Icons.call_made, 'Send', Colors.blueAccent),
-                  _buildActionButton(Icons.call_received, 'Receive', emeraldColor), // FIXED color parameter
-                  _buildActionButton(Icons.swap_horiz, 'Swap', Colors.purpleAccent),
-                  _buildActionButton(Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // SECTION HEADER LABEL BLOCK
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'RECENT ACTIVITY',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      'View All',
-                      style: TextStyle(color: Colors.purpleAccent, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-
-              // ------------------------------------------------------------------
-              // UNIFIED MULTI-ENGINE ACTIVITY LEDGER STREAM
-              // ------------------------------------------------------------------
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                    _buildLedgerRow(
-                      icon: Icons.movie_filter,
-                      iconColor: Colors.blueAccent,
-                      title: 'Netflix Subscription',
-                      subtitle: 'Debit Card • 2 mins ago',
-                      amount: '-\$14.99',
-                      isCrypto: false,
-                    ),
-                    _buildLedgerRow(
-                      icon: Icons.token,
-                      iconColor: Colors.purpleAccent,
-                      title: 'Minted NFT #4412 (Gas: \$4.20)',
-                      subtitle: 'Status: Confirmed • 15 mins ago',
-                      amount: '-0.002 ETH',
-                      isCrypto: true,
-                    ),
-                    _buildLedgerRow(
-                      icon: Icons.work_outline,
-                      iconColor: Colors.blueAccent,
-                      title: 'Received Salary (Tech Corp)',
-                      subtitle: 'Direct Deposit • 2 hours ago',
-                      amount: '+\$4,500.00',
-                      isCrypto: false,
-                      isPositive: true,
-                      positiveColor: emeraldColor, // Passed fixed custom color
-                    ),
-                    _buildLedgerRow(
-                      icon: Icons.currency_exchange,
-                      iconColor: Colors.purpleAccent,
-                      title: 'Swapped USDC to ETH',
-                      subtitle: 'Tx: Successfully Executed • 1 day ago',
-                      amount: '+0.25 ETH',
-                      isCrypto: true,
-                      isPositive: true,
-                      positiveColor: emeraldColor, // Passed fixed custom color
-                    ),
-                  ],
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            leading: GestureDetector(
+              onTap: () => widget.onNavigateToSubScreen(const UserProfileScreen()),
+              child: const Padding(
+                padding: EdgeInsets.all(10.0),
+                child: CircleAvatar(
+                  backgroundColor: Color(0xFF1A1A1A),
+                  child: Icon(Icons.person, color: Colors.grey, size: 18),
                 ),
+              ),
+            ),
+            title: Text(
+              'Hello $displayName',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Colors.white),
+                onPressed: () => widget.onNavigateToSubScreen(const NotificationsScreen()),
+              ),
+              IconButton(
+                icon: const Icon(Icons.help_outline, color: Colors.white),
+                onPressed: () => widget.onNavigateToSubScreen(const CustomerCareScreen()),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
+          // 🚀 FIX 2: Swapped Column framework with a SingleChildScrollView container 
+          // This allows users to read every item under Recent Activity smoothly
+          body: SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ====================================================================
+                    // DYNAMIC PRIVACY TOGGLE OVERRIDE HUB (First duplicate title removed)
+                    // ====================================================================
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
+                        icon: Icon(
+                          _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isBalanceHidden = !_isBalanceHidden;
+                          });
+                        },
+                      ),
+                    ),
+                    
+                    // ====================================================================
+                    // PORTFOLIO CARDS (Handles primary NET WORTH text representation)
+                    // ====================================================================
+                    PortfolioCard(
+                      fiatBalance: userAccount.balance,
+                      fiatAccountNumber: userAccount.lastFourDigits,
+                      cryptoBalance: 0.844,
+                      cryptoSymbol: 'ETH',
+                      cryptoFiatValue: 2120.80,
+                      cryptoAddress: '0x7a...4e9f',
+                      isBalanceHidden: _isBalanceHidden,
+                      onFiatTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
+                      onCryptoTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
+                    ),
+                    
+                    const SizedBox(height: 24),
 
-  // Quick Action Component Generator Helper
-  Widget _buildActionButton(IconData icon, String label, Color accentColor) {
-    return Column(
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.grey[950],
-            shape: BoxShape.circle,
-            border: Border.all(color: accentColor.withValues(alpha: 0.15), width: 1),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const ActionPlaceholderScreen(title: 'Send Money')),
+                        _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const ActionPlaceholderScreen(title: 'Receive Assets')),
+                        _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const ActionPlaceholderScreen(title: 'Instant Swap DEX')),
+                        _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const ActionPlaceholderScreen(title: 'Fiat CashOut Off-Ramp')),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+                    const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                    const SizedBox(height: 12),
+
+                    // 🚀 FIX: Removed the Expanded container that was breaking limits on Web,
+                    // letting items draw seamlessly down the page workspace window
+                    _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
+                    _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
+                    
+                    // Extra spacing padding context at the bottom to ensure smooth scrolling
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
           ),
-          child: Icon(icon, color: accentColor, size: 22),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  // Unified Multi-Engine Ledger Row Component Builder
-  Widget _buildLedgerRow({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required String amount,
-    required bool isCrypto,
-    bool isPositive = false,
-    Color positiveColor = Colors.green,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[950],
-        borderRadius: BorderRadius.circular(14),
+  Widget _buildActionButton(BuildContext context, IconData icon, String label, Color accentColor, Widget targetScreen) {
+    return GestureDetector(
+      onTap: () => widget.onNavigateToSubScreen(targetScreen),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey[950],
+              shape: BoxShape.circle,
+              border: Border.all(color: accentColor.withAlpha(38), width: 1),
+            ),
+            child: Icon(icon, color: accentColor, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+        ],
       ),
+    );
+  }
+
+  Widget _buildLedgerRow(IconData icon, Color iconColor, String title, String subtitle, String amount, bool isCrypto) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.grey[950], borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 14),
@@ -219,30 +197,13 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                ),
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
+                Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            amount,
-            style: TextStyle(
-              color: isPositive ? positiveColor : Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
-            ),
-          ),
+          Text(amount, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
         ],
       ),
     );

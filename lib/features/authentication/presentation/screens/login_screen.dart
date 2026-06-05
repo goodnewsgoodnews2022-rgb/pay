@@ -36,6 +36,26 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  InputDecoration _buildInputDecoration(String labelText) {
+    return InputDecoration(
+      filled: true,
+      fillColor: AppColors.bgSurface,
+      labelText: labelText,
+      labelStyle: const TextStyle(color: AppColors.textSecondary),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: AppColors.dev2Green,
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
               
               return Center(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -79,10 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: TextStyle(color: AppColors.textSecondary),
-                        ),
+                        decoration: _buildInputDecoration('Email'),
                       ),
                       const SizedBox(height: 20),
                       TextField(
@@ -90,17 +108,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: true,
                         textInputAction: TextInputAction.done,
                         style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: TextStyle(color: AppColors.textSecondary),
-                        ),
+                        decoration: _buildInputDecoration('Password'),
                       ),
                       const SizedBox(height: 30),
                       GreenButton(
                         label: 'Sign In',
                         isLoading: isLoading,
                         onPressed: () {
-                          // Prevent triggering empty payloads
+                          // Prevent triggering empty payloads defensively
                           if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Please fill in all fields')),

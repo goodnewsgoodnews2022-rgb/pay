@@ -1,34 +1,47 @@
+import 'package:fintech/features/authentication/data/datasources/models/app_user_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fintech/features/authentication/domain/entities/app_user.dart';
 import 'package:fintech/features/authentication/domain/entities/repositories/auth_repository.dart';
-import 'package:fintech/features/authentication/data/datasources/models/app_user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
-  Future<AppUser> signUp(
-    String email,
-    String password,
-    String fullName,
-  ) async {
+  Future<AppUser> signUp({
+    required String email,
+    required String password,
+    required String fullName,
+    String? mobileNumber,
+    String? gender,
+    String? dateOfBirth,
+    String? address,
+  }) async {
     try {
       // 1. Create the Auth User with Metadata
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'full_name': fullName},
+        data: {
+          'full_name': fullName,
+          'mobile_number': mobileNumber,
+          'gender': gender,
+          'date_of_birth': dateOfBirth,
+          'address': address,
+        },
       );
       
       final user = response.user;
       if (user == null) throw const AuthException('Registration returned an empty user payload.');
 
-      // 2. Explicitly create the public profile document entry
-      // Using an isolated call ensuring errors here are explicitly caught
+      // 2. Explicitly create the public profile document entry safely
       try {
         await _supabase.from('profiles').insert({
           'id': user.id,
           'full_name': fullName,
+          'mobile_number': mobileNumber,
+          'gender': gender,
+          'date_of_birth': dateOfBirth,
+          'address': address,
           'kyc_status': 'pending',
         });
       } catch (dbError) {
@@ -37,9 +50,21 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
+      // 3. Fetch the created profile to get generated account_number
+      final profile = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .single();
+
       return AppUserModel.fromSupabaseUser(
         user,
         fullName: fullName,
+        mobileNumber: mobileNumber,
+        gender: gender,
+        dateOfBirth: dateOfBirth,
+        address: address,
+        accountNumber: profile['account_number'],
         kycStatus: 'pending',
       );
     } on AuthException catch (e) {
@@ -62,20 +87,25 @@ class AuthRepositoryImpl implements AuthRepository {
       if (user == null) throw const AuthException('Login failed: user payload missing.');
 
       // 2. Fetch the corresponding profile document defensively
-      // Swapping out .single() for .maybeSingle() prevents hard crashes (PGRST116)
       final profile = await _supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
-      // Fallback gracefully if the profile record is entirely missing
+      // Fallback gracefully if the profile record is entirely missing or null
       final String finalFullName = profile?['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User');
       final String finalKycStatus = profile?['kyc_status'] ?? 'pending';
 
       return AppUserModel.fromSupabaseUser(
         user,
         fullName: finalFullName,
+        mobileNumber: profile?['mobile_number'],
+        gender: profile?['gender'],
+        dateOfBirth: profile?['date_of_birth'],
+        address: profile?['address'],
+        avatarUrl: profile?['avatar_url'],
+        accountNumber: profile?['account_number'],
         kycStatus: finalKycStatus,
       );
     } on AuthException catch (e) {
@@ -107,10 +137,18 @@ class AuthRepositoryImpl implements AuthRepository {
           .eq('id', user.id)
           .maybeSingle();
 
+      if (profile == null) return null;
+
       return AppUserModel.fromSupabaseUser(
         user,
-        fullName: profile?['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User'),
-        kycStatus: profile?['kyc_status'] ?? 'pending',
+        fullName: profile['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User'),
+        mobileNumber: profile['mobile_number'],
+        gender: profile['gender'],
+        dateOfBirth: profile['date_of_birth'],
+        address: profile['address'],
+        avatarUrl: profile['avatar_url'],
+        accountNumber: profile['account_number'],
+        kycStatus: profile['kyc_status'] ?? 'pending',
       );
     } catch (e) {
       // Return null to drop session gracefully instead of crashing global BLoC lifecycle

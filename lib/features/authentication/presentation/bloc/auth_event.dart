@@ -4,7 +4,20 @@ class AuthSignUpRequested extends AuthEvent {
   final String email;
   final String password;
   final String fullName;
-  AuthSignUpRequested(this.email, this.password, this.fullName);
+  final String? mobileNumber;
+  final String? gender;
+  final String? dateOfBirth;
+  final String? address;
+
+  AuthSignUpRequested({
+    required this.email,
+    required this.password,
+    required this.fullName,
+    this.mobileNumber,
+    this.gender,
+    this.dateOfBirth,
+    this.address,
+  });
 }
 
 class AuthSignInRequested extends AuthEvent {

@@ -1,4 +1,4 @@
-import 'package:fintech/features/authentication/domain/entities/app_user.dart';
+import '../../domain/entities/app_user.dart';
 
 abstract class AuthState {}
 
