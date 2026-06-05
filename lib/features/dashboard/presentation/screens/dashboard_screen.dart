@@ -1,3 +1,4 @@
+import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../features/authentication/presentation/bloc/auth_bloc.dart';
@@ -53,7 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             backgroundColor: Colors.black,
             elevation: 0,
             leading: GestureDetector(
-              onTap: () => widget.onNavigateToSubScreen(const UserProfileScreen()),
+              onTap: () => widget.onNavigateToSubScreen(const ProfileScreen()),
               child: const Padding(
                 padding: EdgeInsets.all(10.0),
                 child: CircleAvatar(

@@ -1,6 +1,5 @@
 // ignore_for_file: deprecated_member_use, prefer_const_constructors
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,7 +18,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   
   bool _isLoading = false;
-  File? _pickedImageFile;
+  
+  // 🟢 WEB FIXED: Swapped out dart:io File for raw platform-agnostic byte segments
+  Uint8List? _pickedImageBytes; 
   String? _serverImageUrl;
 
   // Form Controllers
@@ -63,7 +64,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       _userEmail = user.email ?? '';
 
-      // Pull additional banking parameters from the public profiles data block
       final profile = await _supabase
           .from('profiles')
           .select()
@@ -79,7 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _selectedGender = profile['gender'] ?? 'Male';
           _serverImageUrl = profile['avatar_url'];
           
-          // Generate an account number if the field is blank in the database row
           _accountNumberController.text = profile['account_number'] ?? 
               '102${(user.id.hashCode % 10000000).toString().padLeft(7, '0')}';
         });
@@ -91,48 +90,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// 🖼️ Select image from device gallery directly
+  /// 🖼️ Select image from device gallery safely using memory bytes
   Future<void> _pickImageFromGallery() async {
     final picker = ImagePicker();
     try {
       final pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 70, // Compresses image slightly for faster uploads
+        imageQuality: 70, 
         maxWidth: 510,
       );
 
       if (pickedFile != null) {
+        // 🟢 WEB FIXED: Read the data stream out as safe web bytes instead of file paths
+        final bytes = await pickedFile.readAsBytes();
+        
         setState(() {
-          _pickedImageFile = File(pickedFile.path);
+          _pickedImageBytes = bytes;
         });
-        // Upload immediately to keep UI lifecycle smooth
-        await _uploadAvatarToSupabaseBucket();
+        
+        // Pass the picked file handle to handle extensions gracefully inside the loader
+        await _uploadAvatarToSupabaseBucket(pickedFile);
       }
     } catch (e) {
       _showSnackbar('Image collection rejected: $e', isError: true);
     }
   }
 
-  /// 🚀 Upload image binary to Supabase Storage Bucket
-  Future<void> _uploadAvatarToSupabaseBucket() async {
-    if (_pickedImageFile == null) return;
+  /// 🚀 Upload image binary directly to Supabase Storage Bucket
+  Future<void> _uploadAvatarToSupabaseBucket(XFile pickedFile) async {
+    if (_pickedImageBytes == null) return;
     
     setState(() => _isLoading = true);
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final fileExtension = _pickedImageFile!.path.split('.').last;
+      final fileExtension = pickedFile.name.split('.').last;
       final pathName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-      // 1. Upload to your public bucket named 'avatars'
-      await _supabase.storage.from('avatars').upload(
+      // 🟢 WEB FIXED: Swapped out .upload() for .uploadBinary() to feed the raw memory bytes
+      await _supabase.storage.from('avatars').uploadBinary(
             pathName,
-            _pickedImageFile!,
+            _pickedImageBytes!,
             fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
           );
 
-      // 2. Fetch the permanent CDN link URL
       final String publicUrl = _supabase.storage.from('avatars').getPublicUrl(pathName);
 
       setState(() {
@@ -197,19 +199,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
                 children: [
-                  // ==========================================
-                  // AVATAR CANVAS GENERATOR BLOCK
-                  // ==========================================
                   Center(
                     child: Stack(
                       children: [
                         CircleAvatar(
                           radius: 64,
                           backgroundColor: AppColors.bgSurface,
-                          backgroundImage: _pickedImageFile != null
-                              ? FileImage(_pickedImageFile!)
+                          // 🟢 WEB FIXED: Swapped out FileImage for MemoryImage to parse bytes natively
+                          backgroundImage: _pickedImageBytes != null
+                              ? MemoryImage(_pickedImageBytes!)
                               : (_serverImageUrl != null ? NetworkImage(_serverImageUrl!) : null) as ImageProvider?,
-                          child: _pickedImageFile == null && _serverImageUrl == null
+                          child: _pickedImageBytes == null && _serverImageUrl == null
                               ? const Icon(Icons.person_rounded, size: 60, color: AppColors.textSecondary)
                               : null,
                         ),
@@ -230,9 +230,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // ==========================================
-                  // SECURE ACCOUNT COPY BOARD ROW
-                  // ==========================================
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -263,14 +260,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ==========================================
-                  // PROFILE EDITABLE INPUT FIELD ELEMENTS
-                  // ==========================================
                   _buildSectionLabel('PERSONAL INFORMATION'),
                   _buildInputField(label: 'Full Name', controller: _fullNameController, icon: Icons.badge_outlined),
                   _buildInputField(label: 'Mobile Number', controller: _phoneController, icon: Icons.phone_android, keyboardType: TextInputType.phone),
                   
-                  // Gender Picker Modal Option Set
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: DropdownButtonFormField<String>(
@@ -285,7 +278,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
-                  // Date of Birth Field with Modal Calendar Picker
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: TextFormField(
@@ -300,12 +292,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildInputField(label: 'Residential Address', controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
 
                   _buildSectionLabel('SYSTEM GATEWAY INTEGRATION'),
-                  // Email is explicitly disabled (read-only) for core security reasons
                   TextFormField(
-                    initialValue: _userEmail,
+                    // 🟢 FIX: Handled initialization cleanly through a controller pattern or direct string values 
+                    controller: TextEditingController(text: _userEmail),
                     readOnly: true,
                     style: TextStyle(color: AppColors.textPrimary.withOpacity(0.5)),
-                    decoration: _inputDecoration('Registered Email Address Address Address', Icons.email_outlined).copyWith(
+                    decoration: _inputDecoration('Registered Email Address', Icons.email_outlined).copyWith(
                       filled: true,
                       fillColor: Colors.white10,
                       helperText: 'Email parameters cannot be changed manually without system authorization.',
@@ -314,7 +306,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // SAVE BUTTON TRIGGER
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.dev1Silver,
@@ -333,7 +324,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Helper for calendar view generation
   Future<void> _selectDateOfBirth() async {
     DateTime? picked = await showDatePicker(
       context: context,
