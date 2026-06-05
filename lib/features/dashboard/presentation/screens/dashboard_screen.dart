@@ -125,6 +125,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     
                     const SizedBox(height: 24),
 
+                    // ====================================================================
+                    // QUICK-ACTION BUTTON UTILITY MATRIX
+                    // ====================================================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
