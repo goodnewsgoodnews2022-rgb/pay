@@ -81,8 +81,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          // 🚀 FIX 2: Swapped Column framework with a SingleChildScrollView container 
-          // This allows users to read every item under Recent Activity smoothly
           body: SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -92,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ====================================================================
-                    // DYNAMIC PRIVACY TOGGLE OVERRIDE HUB (First duplicate title removed)
+                    // DYNAMIC PRIVACY TOGGLE OVERRIDE HUB
                     // ====================================================================
                     Align(
                       alignment: Alignment.topRight,
@@ -111,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     
                     // ====================================================================
-                    // PORTFOLIO CARDS (Handles primary NET WORTH text representation)
+                    // PORTFOLIO CARDS (🚀 Made fully static as requested by mentor)
                     // ====================================================================
                     PortfolioCard(
                       fiatBalance: userAccount.balance,
@@ -121,12 +119,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       cryptoFiatValue: 2120.80,
                       cryptoAddress: '0x7a...4e9f',
                       isBalanceHidden: _isBalanceHidden,
-                      onFiatTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Fiat Details')),
-                      onCryptoTap: () => widget.onNavigateToSubScreen(const ActionPlaceholderScreen(title: 'Web3 Details')),
+                      onFiatTap: () {},   // Static link
+                      onCryptoTap: () {}, // Static link
                     ),
                     
                     const SizedBox(height: 24),
 
+                    // ====================================================================
+                    // QUICK-ACTION BUTTON UTILITY MATRIX
+                    // ====================================================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -141,12 +142,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                     const SizedBox(height: 12),
 
-                    // 🚀 FIX: Removed the Expanded container that was breaking limits on Web,
-                    // letting items draw seamlessly down the page workspace window
                     _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
                     _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
                     
-                    // Extra spacing padding context at the bottom to ensure smooth scrolling
                     const SizedBox(height: 40),
                   ],
                 ),

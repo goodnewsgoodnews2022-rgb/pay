@@ -1,6 +1,6 @@
 // lib/app/config/app_router.dart
 
-// ignore_for_file: unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
+// ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,10 +15,12 @@ import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dar
 import 'package:fintech/features/settings/presentation/screens/settings_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart'; // 🚀 Import your parent tab navigator shell
 
 // Bloc & Dependency Imports
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
+import 'package:fintech/features/settings/presentation/bloc/settings_bloc.dart'; 
 
 class AppRouter {
   // Named Route Location Identifiers for Clean Architecture Reference
@@ -71,11 +73,22 @@ class AppRouter {
                 value: getIt<AuthBloc>(),
               ),
               // Splash Sequence Process Controller 
+<<<<<<< HEAD
               // 🟢 FIXED: Removed the cascade invocation '..initializeAppGatewaySequence()' 
               // to stop asynchronous frame hit-test race-condition errors.
+=======
+              // 🚀 FIX: Create the Cubit and trigger the gateway sequence cleanly via context cascade
+>>>>>>> 4bbca9878a66443623f7e3e67bf98daf7ee14b12
               BlocProvider<SplashNavigationCubit>(
                 create: (context) => getIt<SplashNavigationCubit>(),
               ),
+<<<<<<< HEAD
+=======
+              // Inject SettingsBloc into the parent tree root to prevent provider missing crashes
+              BlocProvider<SettingsBloc>(
+                create: (context) => getIt<SettingsBloc>(),
+              ),
+>>>>>>> 4bbca9878a66443623f7e3e67bf98daf7ee14b12
             ],
             child: child,
           );
@@ -99,9 +112,9 @@ class AppRouter {
           ),
           GoRoute(
             path: dashboard,
-            builder: (context, state) => DashboardScreen(
-              onNavigateToSubScreen: (index) => context.go(index == 1 ? cryptoWallet : settings),
-            ),
+            // 🚀 CRITICAL NAVIGATION RESTORE: Route directly to the AppNavigationShell container!
+            // This displays your bottom bar tabs (Dashboard, Analysis, Ledger, More) perfectly.
+            builder: (context, state) => const AppNavigationShell(),
           ),
           GoRoute(
             path: cryptoWallet,
