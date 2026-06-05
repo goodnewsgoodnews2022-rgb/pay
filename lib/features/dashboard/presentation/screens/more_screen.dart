@@ -23,9 +23,9 @@ class MoreScreen extends StatelessWidget {
           _buildSectionHeader('👤 PROFILE'),
           _buildMenuTile(
             icon: Icons.person_outline_rounded,
-            title: 'Personal Information',
-            subtitle: 'Profile photo, email address, phone number, and KYC status',
-            onTap: () => context.push('/profile'), // Navigates to your existing profile screen
+            title: 'PROFILE',
+            // 🟢 FIXED: Lowercase clean routing pattern to prevent route mismatches
+            onTap: () => context.push('/profile'), 
           ),
           const Divider(color: Colors.white10),
 
@@ -34,13 +34,11 @@ class MoreScreen extends StatelessWidget {
           _buildMenuTile(
             icon: Icons.settings_outlined,
             title: 'App Preferences',
-            subtitle: 'Appearance options (Light, Dark, System Default) & privacy logs',
             onTap: () => context.push('/settings'),
           ),
           _buildMenuTile(
             icon: Icons.security_rounded,
             title: 'Security Settings',
-            subtitle: 'Change password, update transaction PIN, toggle Biometrics or 2FA',
             onTap: () => context.push('/security-settings'),
           ),
           const Divider(color: Colors.white10),
@@ -50,13 +48,11 @@ class MoreScreen extends StatelessWidget {
           _buildMenuTile(
             icon: Icons.account_balance_wallet_outlined,
             title: 'Bank Accounts & Cards',
-            subtitle: 'Manage tied bank accounts and connected debit card parameters',
             onTap: () => context.push('/linked-accounts'),
           ),
           _buildMenuTile(
             icon: Icons.language_rounded,
             title: 'Web3 & Crypto Ecosystem',
-            subtitle: 'Connected smart wallets, addresses, and conversion histories',
             onTap: () => context.push('/web3-settings'),
           ),
           const Divider(color: Colors.white10),
@@ -66,7 +62,6 @@ class MoreScreen extends StatelessWidget {
           _buildMenuTile(
             icon: Icons.analytics_outlined,
             title: 'Download Statements',
-            subtitle: 'Export comprehensive transaction histories and tax reports',
             onTap: () => context.push('/reports-statements'),
           ),
           const Divider(color: Colors.white10),
@@ -76,9 +71,7 @@ class MoreScreen extends StatelessWidget {
           _buildMenuTile(
             icon: Icons.card_giftcard_rounded,
             title: 'Invite Friends',
-            subtitle: 'Share your referral code to unlock active tier rewards',
             onTap: () {
-              // Custom operation: Trigger a copy link dialog or native share sheet
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Referral invitation link copied!')),
               );
@@ -91,7 +84,6 @@ class MoreScreen extends StatelessWidget {
           _buildMenuTile(
             icon: Icons.support_agent_rounded,
             title: 'Help Desk & Live Chat',
-            subtitle: 'Contact support, review FAQs, browse manuals or file complaints',
             onTap: () => context.push('/support-help'),
           ),
           const SizedBox(height: 32),
@@ -143,38 +135,28 @@ class MoreScreen extends StatelessWidget {
   Widget _buildMenuTile({
     required IconData icon,
     required String title,
-    required String subtitle,
     required VoidCallback onTap,
   }) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF161F30), // Surface background layer matching dashboard card styles
+          color: const Color(0xFF161F30), 
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: const Color(0xFF00E676), size: 22), // Emerald accent
+        child: Icon(icon, color: const Color(0xFF00E676), size: 22), 
       ),
       title: Text(
         title,
         style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4.0),
-        child: Text(
-          subtitle,
-          style: const TextStyle(color: Colors.white38, fontSize: 12, height: 1.3),
-        ),
       ),
       trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 14),
     );
   }
 
   void _handleLogoutSequence(BuildContext context) {
-    // Perform your system authorization flush here (e.g., Supabase auth session clear)
-    // Supabase.instance.client.auth.signOut();
     context.go('/login');
   }
 }

@@ -12,6 +12,7 @@ import '../../features/dashboard/presentation/screens/linked_accounts_screen.dar
 import '../../features/dashboard/presentation/screens/web3_settings_screen.dart';
 import '../../features/dashboard/presentation/screens/reports_statements_screen.dart';
 import '../../features/dashboard/presentation/screens/support_help_screen.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
 
 // Feature Imports
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
@@ -122,6 +123,10 @@ class AppRouter {
 GoRoute(
   path: '/more',
   builder: (context, state) => const MoreScreen(),
+),
+GoRoute(
+  path: '/profile',
+  builder: (context, state) => const ProfileScreen(),
 ),
 GoRoute(
   path: '/settings',
