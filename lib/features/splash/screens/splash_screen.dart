@@ -6,8 +6,25 @@ import 'package:go_router/go_router.dart';
 import '../presentation/splash_navigation_cubit.dart';
 import '../presentation/controllers.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    
+    // 🟢 Kicks off the initialization flow safely after the UI layout is drawn
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<SplashNavigationCubit>().initializeAppGatewaySequence();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

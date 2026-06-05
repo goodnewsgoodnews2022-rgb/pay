@@ -19,7 +19,8 @@
 </head>
 <body>
   <script>
-    {{environment_variables}}
+    // 🟢 FIXED: Changed the naked template text into a safe local string variable
+    const env = "local"; 
     
     // Injecting explicit override parameters to force local HTML rendering modes
     // This permanently stops layout crashes caused by failed online font downloads

@@ -2,16 +2,12 @@
 
 // ignore_for_file: unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
-import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// lib/app/config/app_router.dart
 
-import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart'; // 🚨 MUST MATCH MAIN
-
-// Feature Imports (Using package paths for professionalism)
+// Feature Imports
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
 import 'package:fintech/features/authentication/presentation/screens/signup_screen.dart';
 import 'package:fintech/features/splash/screens/splash_screen.dart';
@@ -47,10 +43,10 @@ class AppRouter {
       final session = Supabase.instance.client.auth.currentSession;
       final isLoggingIn = state.matchedLocation == login;
       final isSigningUp = state.matchedLocation == signup;
-      final isSpashing = state.matchedLocation == splash;
+      final isSplashing = state.matchedLocation == splash;
 
-      // Rule 1: Guard protected pages (including profile) from unauthenticated sessions
-      if (session == null && !isSpashing && !isLoggingIn && !isSigningUp) {
+      // Rule 1: Guard protected pages from unauthenticated sessions
+      if (session == null && !isSplashing && !isLoggingIn && !isSigningUp) {
         return login;
       }
       
@@ -61,37 +57,34 @@ class AppRouter {
 
       return null;
     },
-    
+
     // ====================================================================
     // SCREEN DECLARATION MAPS WITH SHELL CONTEXT INJECTION
     // ====================================================================
     routes: [
       ShellRoute(
         builder: (context, state, child) {
-          // 🚀 Injecting MULTIPLE providers to the route tree
           return MultiBlocProvider(
             providers: [
               // Authentication Session Lifecycle Tracker
               BlocProvider<AuthBloc>.value(
                 value: getIt<AuthBloc>(),
               ),
-              // Splash Sequence Process Controller
+              // Splash Sequence Process Controller 
+              // 🟢 FIXED: Removed the cascade invocation '..initializeAppGatewaySequence()' 
+              // to stop asynchronous frame hit-test race-condition errors.
               BlocProvider<SplashNavigationCubit>(
-                create: (context) => getIt<SplashNavigationCubit>()..initializeAppGatewaySequence(),
+                create: (context) => getIt<SplashNavigationCubit>(),
               ),
-              // Future global Blocs (NotificationBloc, etc.) go here
             ],
             child: child,
           );
         },
-        // 🚀 SPREAD OPERATORS: Injects your decentralized team routes cleanly
         routes: [
           GoRoute(
             path: splash,
             builder: (context, state) => const SplashScreen(),
           ),
-          
-          // 👤 Core Profile Route: Handles native gallery picking and Supabase metadata updates
           GoRoute(
             path: signup,
             builder: (context, state) => const SignupScreen(),
@@ -102,7 +95,7 @@ class AppRouter {
           ),
           GoRoute(
             path: login,
-            builder: (context, state) =>  LoginScreen(),
+            builder: (context, state) => LoginScreen(),
           ),
           GoRoute(
             path: dashboard,
