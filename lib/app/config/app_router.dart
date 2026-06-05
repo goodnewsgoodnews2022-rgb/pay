@@ -21,6 +21,8 @@ import 'package:fintech/features/dashboard/presentation/screens/app_navigation_s
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/settings/presentation/bloc/settings_bloc.dart'; 
+// 🚀 FIXED: Imported your auth events to ensure your event triggers resolve perfectly
+import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart'; 
 
 class AppRouter {
   // Named Route Location Identifiers for Clean Architecture Reference
@@ -66,16 +68,17 @@ class AppRouter {
     routes: [
       ShellRoute(
         builder: (context, state, child) {
+          final authBloc = getIt<AuthBloc>();
+
           return MultiBlocProvider(
             providers: [
-              // Authentication Session Lifecycle Tracker
+              // Authentication Session Lifecycle Tracker linked to the updated authBloc instance
               BlocProvider<AuthBloc>.value(
-                value: getIt<AuthBloc>(),
+                value: authBloc,
               ),
               // Splash Sequence Process Controller 
-              // 🟢 FIXED: Removed the cascade invocation to stop asynchronous frame hit-test race-condition errors.
               BlocProvider<SplashNavigationCubit>(
-                create: (context) => getIt<SplashNavigationCubit>(),
+                create: (context) => getIt<SplashNavigationCubit>()..initializeAppGatewaySequence(),
               ),
               // Inject SettingsBloc into the parent tree root to prevent provider missing crashes
               BlocProvider<SettingsBloc>(
