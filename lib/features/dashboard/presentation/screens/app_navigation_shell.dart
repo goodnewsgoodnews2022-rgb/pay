@@ -1,7 +1,11 @@
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
-import 'extended_screens.dart';
-
+import 'extended_screens.dart' hide SettingsScreen;
+// 🚀 FIXED: Explicitly hook up relative path to the SettingsScreen dependency from your tree mapping
+import '../../../settings/presentation/screens/settings_screen.dart';
+import '../../../settings/presentation/bloc/settings_bloc.dart';
 class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({super.key});
   @override
