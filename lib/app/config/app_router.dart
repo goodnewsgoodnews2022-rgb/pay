@@ -6,6 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../features/dashboard/presentation/screens/more_screen.dart';
+import '../../features/dashboard/presentation/screens/security_settings_screen.dart';
+import '../../features/dashboard/presentation/screens/linked_accounts_screen.dart';
+import '../../features/dashboard/presentation/screens/web3_settings_screen.dart';
+import '../../features/dashboard/presentation/screens/reports_statements_screen.dart';
+import '../../features/dashboard/presentation/screens/support_help_screen.dart';
 
 // Feature Imports
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
@@ -112,6 +118,35 @@ class AppRouter {
             path: cryptoWallet,
             builder: (context, state) => const CryptoWalletScreen(),
           ),
+          // Under your shell or root routes array, add these specific destination configs:
+GoRoute(
+  path: '/more',
+  builder: (context, state) => const MoreScreen(),
+),
+GoRoute(
+  path: '/settings',
+  builder: (context, state) => const SettingsScreen(), // Core app preferences, theme toggle, etc.
+),
+GoRoute(
+  path: '/security-settings',
+  builder: (context, state) => const SecuritySettingsScreen(), // PIN, Password, 2FA, Biometrics
+),
+GoRoute(
+  path: '/linked-accounts',
+  builder: (context, state) => const LinkedAccountsScreen(), // Cards, bank links, wallets
+),
+GoRoute(
+  path: '/web3-settings',
+  builder: (context, state) => const Web3SettingsScreen(), // Web3 addresses & connections
+),
+GoRoute(
+  path: '/reports-statements',
+  builder: (context, state) => const ReportsStatementsScreen(), // Statements, history exports
+),
+GoRoute(
+  path: '/support-help',
+  builder: (context, state) => const SupportHelpScreen(), // Live chat, FAQ, ticket submissions
+),
         ],
       ),
     ],
