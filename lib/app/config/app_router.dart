@@ -73,22 +73,14 @@ class AppRouter {
                 value: getIt<AuthBloc>(),
               ),
               // Splash Sequence Process Controller 
-<<<<<<< HEAD
-              // 🟢 FIXED: Removed the cascade invocation '..initializeAppGatewaySequence()' 
-              // to stop asynchronous frame hit-test race-condition errors.
-=======
-              // 🚀 FIX: Create the Cubit and trigger the gateway sequence cleanly via context cascade
->>>>>>> 4bbca9878a66443623f7e3e67bf98daf7ee14b12
+              // 🟢 FIXED: Removed the cascade invocation to stop asynchronous frame hit-test race-condition errors.
               BlocProvider<SplashNavigationCubit>(
                 create: (context) => getIt<SplashNavigationCubit>(),
               ),
-<<<<<<< HEAD
-=======
               // Inject SettingsBloc into the parent tree root to prevent provider missing crashes
               BlocProvider<SettingsBloc>(
                 create: (context) => getIt<SettingsBloc>(),
               ),
->>>>>>> 4bbca9878a66443623f7e3e67bf98daf7ee14b12
             ],
             child: child,
           );
