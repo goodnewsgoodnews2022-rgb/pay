@@ -4,11 +4,13 @@ import 'package:fintech/features/profile/presentation/screens/profile_screen.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; 
+
 import '../../../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../data/models/bank_card_model.dart';
 import '../widgets/portfolio_card.dart';
-import 'extended_screens.dart';
+import 'extended_screens.dart' hide NotificationScreen;
+import '../../../notifications/presentation/screen/notification_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -157,7 +159,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.notifications_none, color: Colors.white),
-                onPressed: () => widget.onNavigateToSubScreen(const NotificationsScreen()),
+                // 🚀 FIXED: Switched to Named Routing. No blocks, no types, it just navigates cleanly!
+                onPressed: () 
+                  => widget.onNavigateToSubScreen(const NotificationScreen()),
+                
               ),
               IconButton(
                 icon: const Icon(Icons.help_outline, color: Colors.white),
@@ -309,7 +314,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
-                    // 🚀 FIXED: The extra duplicate elements that were underneath have been completely scrubbed out!
                     const SizedBox(height: 16),
                     // ====================================================================
                     // PORTFOLIO CARDS SECTION

@@ -1,7 +1,8 @@
 // lib/features/dashboard/presentation/screens/app_preferences_screen.dart
 
-// ignore_for_file: file_names, unused_local_variable
+// ignore_for_file: unused_import, file_names, unused_local_variable
 
+import 'package:fintech/features/dashboard/presentation/screens/app_preferences_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

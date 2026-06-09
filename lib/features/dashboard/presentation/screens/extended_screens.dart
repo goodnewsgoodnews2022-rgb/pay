@@ -44,14 +44,11 @@ class UserProfileScreen extends StatelessWidget {
   }
 }
 
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
+class NotificationScreen extends StatelessWidget {
+  const NotificationScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(child: Text('System Notifications & Update Center', style: TextStyle(color: Colors.white, fontSize: 18))),
-    );
+    return const NotificationScreen();
   }
 }
 
