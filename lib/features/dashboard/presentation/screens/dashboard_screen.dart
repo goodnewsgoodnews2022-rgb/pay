@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors
+
 import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -40,7 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _profileStream = Supabase.instance.client
           .from('profiles')
           .stream(primaryKey: ['id'])
-          .eq('id', _currentUserId); // 🚀 FIXED: Removed the unnecessary non-null assertion operator (!)
+          .eq('id', _currentUserId as Object);
     }
   }
 
@@ -87,7 +89,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               builder: (context, snapshot) {
                 String? liveAvatarUrl = currentUser?.userMetadata?['avatar_url'] ?? currentUser?.userMetadata?['profile_picture'];
                 
-                // If the stream receives a live update packet from the profiles table, consume it automatically!
                 if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                   final row = snapshot.data!.first;
                   liveAvatarUrl = row['avatar_url'] ?? row['profile_picture'] ?? liveAvatarUrl;
@@ -172,21 +173,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: IconButton(
-                        icon: Icon(
-                          _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: Colors.grey,
-                          size: 20,
+                    // ====================================================================
+                    // UNIFIED NET WORTH & WALLET HUB GRADIENT CONTAINER
+                    // ====================================================================
+                    Container(
+                      padding: const EdgeInsets.all(18.0),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFF151424), 
+                            const Color(0xFF0A0A0C), 
+                          ],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _isBalanceHidden = !_isBalanceHidden;
-                          });
-                        },
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: const Color(0xFF26243C), 
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'TOTAL NET WORTH (USD)',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(
+                                      _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                      color: Colors.grey[500],
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isBalanceHidden = !_isBalanceHidden;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              GestureDetector(
+                                onTap: () => widget.onNavigateToSubScreen(
+                                  const ActionPlaceholderScreen(title: 'Top Up Wallet / Add Money'),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: emeraldColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: emeraldColor.withValues(alpha: 0.3), width: 1),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add, color: emeraldColor, size: 16),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Add Money',
+                                        style: TextStyle(
+                                          color: emeraldColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                _isBalanceHidden ? '••••••' : '\$14,570.80',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              if (!_isBalanceHidden) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: emeraldColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.arrow_drop_up, color: emeraldColor, size: 14),
+                                      const Text(
+                                        '4.2%',
+                                        style: TextStyle(
+                                          color: emeraldColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
                       ),
                     ),
+                    // 🚀 FIXED: The extra duplicate elements that were underneath have been completely scrubbed out!
+                    const SizedBox(height: 16),
+                    // ====================================================================
+                    // PORTFOLIO CARDS SECTION
+                    // ====================================================================
                     PortfolioCard(
                       fiatBalance: userAccount.balance,
                       fiatAccountNumber: userAccount.lastFourDigits,
@@ -235,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             decoration: BoxDecoration(
               color: Colors.grey[950],
               shape: BoxShape.circle,
-              border: Border.all(color: accentColor.withAlpha(38), width: 1),
+              border: Border.all(color: accentColor.withValues(alpha: 0.15), width: 1),
             ),
             child: Icon(icon, color: accentColor, size: 22),
           ),
