@@ -2,6 +2,7 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
+import 'package:fintech/features/notifications/presentation/screen/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -39,6 +40,7 @@ class AppRouter {
   static const String dashboard = '/dashboard';
   static const String cryptoWallet = '/wallet';
   static const String settings = '/settings';
+  static const String notifications = '/notifications';
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -107,6 +109,11 @@ class AppRouter {
           GoRoute(
             path: settings,
             builder: (context, state) => const SettingsScreen(),
+
+          ),
+          GoRoute(
+            path: notifications,
+            builder: (context, state) => const NotificationScreen(),
           ),
           GoRoute(
             path: login,
