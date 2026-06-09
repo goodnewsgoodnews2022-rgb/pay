@@ -44,8 +44,8 @@ class UserProfileScreen extends StatelessWidget {
   }
 }
 
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
+class NotificationScreen extends StatelessWidget {
+  const NotificationScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
