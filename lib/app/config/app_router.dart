@@ -2,6 +2,8 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
+import 'package:fintech/features/dashboard/presentation/screens/extended_screens.dart' hide NotificationScreen;
+import 'package:fintech/features/notifications/presentation/screen/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -19,7 +21,7 @@ import 'package:fintech/features/authentication/presentation/screens/login_scree
 import 'package:fintech/features/authentication/presentation/screens/signup_screen.dart';
 import 'package:fintech/features/splash/screens/splash_screen.dart';
 import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
-import 'package:fintech/features/settings/presentation/screens/settings_screen.dart';
+import 'package:fintech/features/settings/presentation/screens/settings_screen.dart' hide SettingsScreen;
 import 'package:fintech/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart'; // 🚀 Import your parent tab navigator shell
@@ -39,6 +41,7 @@ class AppRouter {
   static const String dashboard = '/dashboard';
   static const String cryptoWallet = '/wallet';
   static const String settings = '/settings';
+  static const String notificationScreen = '/notifications';
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -155,6 +158,11 @@ GoRoute(
   path: '/support-help',
   builder: (context, state) => const SupportHelpScreen(), // Live chat, FAQ, ticket submissions
 ),
+GoRoute(
+  path: '/notifications',
+  builder: (context, state) => const NotificationScreen(), // System notifications & update center
+),
+
         ],
       ),
     ],
