@@ -1,4 +1,19 @@
 // ignore_for_file: depend_on_referenced_packages
+import 'package:fintech/features/fiat_wallet/data/repositories/fiat_repository_impl.dart';
+import 'package:fintech/features/fiat_wallet/domain/repositories/fiat_repository.dart';
+import 'package:fintech/features/fiat_wallet/domain/usecases/deposit_funds.dart';
+import 'package:fintech/features/fiat_wallet/domain/usecases/get_fiat_balances.dart';
+import 'package:fintech/features/fiat_wallet/domain/usecases/get_transaction_history.dart';
+import 'package:fintech/features/fiat_wallet/domain/usecases/withdraw_funds.dart';
+import 'package:fintech/features/fiat_wallet/presentation/bloc/fiat_wallet_bloc.dart';
+import 'package:fintech/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:fintech/features/notifications/domain/repositories/notification_repository_impl.dart';
+import 'package:fintech/features/notifications/domain/usecase/fetch_notification.dart';
+import 'package:fintech/features/notifications/domain/usecase/get_unread_count.dart';
+import 'package:fintech/features/notifications/domain/usecase/mark_all_as_read.dart';
+import 'package:fintech/features/notifications/domain/usecase/mark_as_read.dart';
+import 'package:fintech/features/notifications/domain/usecase/subscribe_to_notification.dart';
+import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
 
 import 'package:fintech/features/settings/domain/usecases/update_theme.dart';
 import 'package:fintech/features/settings/domain/usecases/toggle_biometrics.dart';
@@ -34,19 +49,23 @@ Future<void> setupDependencies() async {
   // ⚡ CORE INFRASTRUCTURE CONFIGURATIONS
   // ====================================================================
   if (!getIt.isRegistered<SupabaseClient>()) {
-    getIt.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+    getIt.registerLazySingleton<SupabaseClient>(
+      () => Supabase.instance.client,
+    );
   }
 
   // Native Device Storage Instance Injection
   if (!getIt.isRegistered<SharedPreferences>()) {
     final sharedPreferences = await SharedPreferences.getInstance();
-    getIt.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
+    getIt.registerLazySingleton<SharedPreferences>(
+      () => sharedPreferences,
+    );
   }
 
   // ====================================================================
   // ⚙️ SETTINGS CLEAN ARCHITECTURE FEATURE MODULE
   // ====================================================================
-  
+
   // 1. Local Device Cache Data Source Allocation
   if (!getIt.isRegistered<SettingsLocalDataSource>()) {
     getIt.registerLazySingleton<SettingsLocalDataSource>(
@@ -63,11 +82,13 @@ Future<void> setupDependencies() async {
 
   // 3. UI State Management Controller Injection
   if (!getIt.isRegistered<SettingsBloc>()) {
-    getIt.registerFactory(() => SettingsBloc(
-      repository: getIt<SettingsRepository>(),
-      toggleBiometrics: getIt<ToggleBiometrics>(),
-      updateTheme: getIt<UpdateTheme>(),
-    ));
+    getIt.registerFactory(
+      () => SettingsBloc(
+        repository: getIt<SettingsRepository>(),
+        toggleBiometrics: getIt<ToggleBiometrics>(),
+        updateTheme: getIt<UpdateTheme>(),
+      ),
+    );
   }
 
   // ====================================================================
@@ -78,7 +99,7 @@ Future<void> setupDependencies() async {
       () => SessionLocalCheckImpl(getIt<SupabaseClient>()),
     );
   }
-  
+
   if (!getIt.isRegistered<SplashNavigationCubit>()) {
     getIt.registerFactory<SplashNavigationCubit>(
       () => SplashNavigationCubit(getIt<SessionLocalCheck>()),
@@ -88,12 +109,14 @@ Future<void> setupDependencies() async {
   // ====================================================================
   // 🔑 AUTHENTICATION CLEAN ARCHITECTURE CORE
   // ====================================================================
-  
+
   // 1. Repository Implementation Allocation
   if (!getIt.isRegistered<AuthRepository>()) {
-    getIt.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl());
+    getIt.registerLazySingleton<AuthRepository>(
+      () => AuthRepositoryImpl(),
+    );
   }
-  
+
   // 2. Domain Layer Use Case Registrations
   if (!getIt.isRegistered<SignUp>()) {
     getIt.registerLazySingleton(() => SignUp(getIt<AuthRepository>()));
@@ -105,31 +128,125 @@ Future<void> setupDependencies() async {
     getIt.registerLazySingleton(() => SignOut(getIt<AuthRepository>()));
   }
   if (!getIt.isRegistered<GetCurrentUser>()) {
-    getIt.registerLazySingleton(() => GetCurrentUser(getIt<AuthRepository>()));
+    getIt.registerLazySingleton(
+      () => GetCurrentUser(getIt<AuthRepository>()),
+    );
   }
   if (!getIt.isRegistered<SendPasswordReset>()) {
-    getIt.registerLazySingleton(() => SendPasswordReset(getIt<AuthRepository>()));
+    getIt.registerLazySingleton(
+      () => SendPasswordReset(getIt<AuthRepository>()),
+    );
   }
-  
+
   // 3. Presentation State Controllers (Factories)
   if (!getIt.isRegistered<AuthBloc>()) {
-    getIt.registerFactory(() => AuthBloc(
-      signUp: getIt<SignUp>(),
-      signIn: getIt<SignIn>(),
-      signOut: getIt<SignOut>(),
-      getCurrentUser: getIt<GetCurrentUser>(),
-      sendPasswordReset: getIt<SendPasswordReset>(),
-    ));
+    getIt.registerFactory(
+      () => AuthBloc(
+        signUp: getIt<SignUp>(),
+        signIn: getIt<SignIn>(),
+        signOut: getIt<SignOut>(),
+        getCurrentUser: getIt<GetCurrentUser>(),
+        sendPasswordReset: getIt<SendPasswordReset>(),
+      ),
+    );
+  }
+{
+  // ... existing registrations (AuthRepository, etc.) ...
+
+  // ========== Notifications ==========
+  if (!getIt.isRegistered<NotificationRepository>()) {
+      getIt.registerLazySingleton<NotificationRepository>(
+        () => NotificationRepositoryImpl(),
+      );
+    }
+
+    // 2. Use Cases
+    if (!getIt.isRegistered<FetchNotifications>()) {
+      getIt.registerLazySingleton(
+        () => FetchNotifications(getIt<NotificationRepository>()),
+      );
+    }
+    if (!getIt.isRegistered<MarkAsRead>()) {
+      getIt.registerLazySingleton(
+        () => MarkAsRead(getIt<NotificationRepository>()),
+      );
+    }
+    if (!getIt.isRegistered<MarkAllAsRead>()) {
+      getIt.registerLazySingleton(
+        () => MarkAllAsRead(getIt<NotificationRepository>()),
+      );
+    }
+    if (!getIt.isRegistered<GetUnreadCount>()) {
+      getIt.registerLazySingleton(
+        () => GetUnreadCount(getIt<NotificationRepository>()),
+      );
+    }
+    if (!getIt.isRegistered<SubscribeToNotifications>()) {
+      getIt.registerLazySingleton(
+        () => SubscribeToNotifications(getIt<NotificationRepository>()),
+      );
+    }
+
+    // 3. Bloc (factory)
+    if (!getIt.isRegistered<NotificationBloc>()) {
+      getIt.registerFactory(
+        () => NotificationBloc(
+          fetchNotifications: getIt<FetchNotifications>(),
+          markAsRead: getIt<MarkAsRead>(),
+          markAllAsRead: getIt<MarkAllAsRead>(),
+          getUnreadCount: getIt<GetUnreadCount>(),
+          subscribeToNotifications: getIt<SubscribeToNotifications>(),
+        ),
+      );
+    }
   }
 
-  // Inside lib/features/authentication/presentation/bloc/bloc_dependency.dart
+  // --- Settings Use Cases ---
+  if (!getIt.isRegistered<ToggleBiometrics>()) {
+    getIt.registerLazySingleton(
+      () => ToggleBiometrics(getIt<SettingsRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<UpdateTheme>()) {
+    getIt.registerLazySingleton(
+      () => UpdateTheme(getIt<SettingsRepository>()),
+    );
+  }
 
-// 1. Register the Use Cases as Singletons
-if (!getIt.isRegistered<ToggleBiometrics>()) {
-  getIt.registerLazySingleton(() => ToggleBiometrics(getIt<SettingsRepository>()));
-}
-if (!getIt.isRegistered<UpdateTheme>()) {
-  getIt.registerLazySingleton(() => UpdateTheme(getIt<SettingsRepository>()));
-}
-
+  // --- Fiat Wallet Feature Dependencies ---
+  if (!getIt.isRegistered<FiatRepository>()) {
+    getIt.registerLazySingleton<FiatRepository>(
+      () => FiatRepositoryImpl(),
+    );
+  }
+  if (!getIt.isRegistered<GetFiatBalances>()) {
+    getIt.registerLazySingleton(
+      () => GetFiatBalances(getIt<FiatRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<DepositFunds>()) {
+    getIt.registerLazySingleton(
+      () => DepositFunds(getIt<FiatRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<WithdrawFunds>()) {
+    getIt.registerLazySingleton(
+      () => WithdrawFunds(getIt<FiatRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<GetTransactionHistory>()) {
+    getIt.registerLazySingleton(
+      () => GetTransactionHistory(getIt<FiatRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<FiatWalletBloc>()) {
+    getIt.registerFactory(
+      () => FiatWalletBloc(
+        getFiatBalances: getIt(),
+        depositFunds: getIt(),
+        withdrawFunds: getIt(),
+        getTransactionHistory: getIt(),
+      ),
+    );
+  }
 }
