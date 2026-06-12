@@ -30,6 +30,7 @@ dependencies:
   get_it: ^9.2.1
   flutter_riverpod: ^3.3.1
   riverpod: ^3.2.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

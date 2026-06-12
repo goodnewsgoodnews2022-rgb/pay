@@ -31,7 +31,13 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       ),
       const ReportsStatementsScreen(),
       const Center(child: Text('Ledger Screen', style: TextStyle(color: Colors.white))),
-      const MoreScreen(), // This is where your nested settings configuration views live
+      MoreScreen(
+        onNavigateToSubScreen: (Widget customScreen) {
+          setState(() {
+            _activeSubScreen = customScreen;
+          });
+        },
+      ), // This is where your nested settings configuration views live
     ];
 
     return Scaffold(

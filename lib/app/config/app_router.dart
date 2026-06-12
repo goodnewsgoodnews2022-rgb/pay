@@ -114,7 +114,9 @@ class AppRouter {
           // 📂 MORE SCREEN ROOT PATH
           GoRoute(
             path: '/more',
-            builder: (context, state) => const MoreScreen(),
+            builder: (context, state) => MoreScreen(
+              onNavigateToSubScreen: (route) => context.go(route as String),
+            ),
           ),
 
           // ⚙️ APP PREFERENCES CLEAN ROOT PATH
