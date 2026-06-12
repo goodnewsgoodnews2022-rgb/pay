@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_const_declarations, prefer_const_literals_to_create_immutables, prefer_const_constructor, deprecated_member_use, unused_import
 
+import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../main.dart'; 
@@ -192,9 +193,10 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'Help Desk & Live Chat',
                 subtitle: 'Connect instantly with global agent support teams',
                 textColor: titleTextColor,
-                onTap: () => widget.onNavigateToSubScreen(const SupportHelpScreen()),
+                onTap: () => widget.onNavigateToSubScreen(const SupportCenterScreen()),
               ),
             ],
+            
           ),
           const SizedBox(height: 36),
 

@@ -1,6 +1,8 @@
-// ignore_for_file: deprecated_member_use, unused_import, prefer_const_constructors, prefer_const_literals_to_create_immutables
+// ignore_for_file: use_build_context_synchronously, deprecated_member_use, unused_import, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
+import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 class AccountStatementScreen extends StatefulWidget {
@@ -71,39 +73,45 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(
-        child: CircularProgressIndicator(
-          color: theme.colorScheme.primary != theme.scaffoldBackgroundColor 
-              ? theme.colorScheme.primary 
-              : const Color(0xFF8B5CF6)
-        ),
-      ),
-    );
+      builder: (dialogContext) {
+        // Safe, localized execution context inside timer frame closure
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted) return;
+          
+          // Dismiss the specific dialog layer via its distinct build context context
+          Navigator.of(dialogContext).pop();
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Statement downloaded successfully ($_selectedDateRange)',
-                  style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
-                ),
+          // Safely target root layout framework to notify the user
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Statement downloaded successfully ($_selectedDateRange)',
+                      style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
-            ],
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        });
+
+        return Center(
+          child: CircularProgressIndicator(
+            color: theme.colorScheme.primary != theme.scaffoldBackgroundColor 
+                ? theme.colorScheme.primary 
+                : const Color(0xFF8B5CF6),
           ),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   @override
@@ -120,6 +128,20 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        // Solves unclickable elements by decoupling layout context and adding target fallbacks
+        leading: IconButton(
+  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+  onPressed: () {
+    // 1. Try a global router pop first
+    if (GoRouter.of(context).canPop()) {
+      GoRouter.of(context).pop();
+    } else {
+      // 2. If stuck in a shell, force GoRouter to explicitly target the root location
+      // If your GoRouter setup uses a sub-route layout like '/dashboard/more', use that path here instead.
+      context.go('/dashboard'); 
+    }
+  },
+),
         title: Text(
           'Account Statement', 
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface),
@@ -271,13 +293,17 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                     Text(
                       tx['title'],
                       style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       tx['subtitle'],
                       style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       '${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dateValue.month - 1]} ${dateValue.day.toString().padLeft(2, '0')}, ${dateValue.year} • ${dateValue.hour % 12 == 0 ? 12 : dateValue.hour % 12}:${dateValue.minute.toString().padLeft(2, '0')} ${dateValue.hour >= 12 ? 'PM' : 'AM'}',
                       style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500], fontSize: 10),
@@ -285,6 +311,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 tx['amount'],
                 style: TextStyle(

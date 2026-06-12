@@ -2,6 +2,14 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
+import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/live_chat_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/report_problem_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/security_center_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/status_announcements_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/transaction_disputes_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -160,6 +168,39 @@ class AppRouter {
             path: '/support-help',
             builder: (context, state) => const SupportHelpScreen(),
           ),
+          GoRoute(
+           path: '/support-center',
+           builder: (context, state) => const SupportCenterScreen(),
+          ),
+          // Register these routes alongside your existing /support-center setup
+GoRoute(
+  path: '/support/live-chat',
+  builder: (context, state) => const LiveChatScreen(), // replace with your actual file name
+),
+GoRoute(
+  path: '/support/faqs',
+  builder: (context, state) => const FaqsScreen(), 
+),
+GoRoute(
+  path: '/support/contact',
+  builder: (context, state) => const ContactSupportScreen(), 
+),
+GoRoute(
+  path: '/support/report-problem',
+  builder: (context, state) => const ReportProblemScreen(), 
+),
+GoRoute(
+  path: '/support/security-center',
+  builder: (context, state) => const SecurityCenterScreen(), 
+),
+GoRoute(
+  path: '/support/disputes',
+  builder: (context, state) => const TransactionDisputesScreen(), 
+),
+GoRoute(
+  path: '/support/status-announcements',
+  builder: (context, state) => const StatusAnnouncementsScreen(), 
+),
         ],
       ),
     ],
