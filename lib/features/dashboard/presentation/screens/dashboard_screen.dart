@@ -12,7 +12,6 @@ import '../../data/models/bank_card_model.dart';
 import '../widgets/portfolio_card.dart';
 import 'extended_screens.dart' hide NotificationScreen; 
 import '../../../notifications/presentation/screen/notification_screen.dart';
-// TODO: Adjust this path snippet to match your exact directory feature layer structure
 import 'package:fintech/features/dashboard/presentation/screens/add_money_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
