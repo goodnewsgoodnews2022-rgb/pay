@@ -2,11 +2,14 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
-import 'package:fintech/features/notifications/presentation/screen/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Screens
+import 'package:fintech/features/dashboard/presentation/screens/app_preferences_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/transaction_settings_screen.dart';
 import '../../features/dashboard/presentation/screens/more_screen.dart';
 import '../../features/dashboard/presentation/screens/security_settings_screen.dart';
 import '../../features/dashboard/presentation/screens/linked_accounts_screen.dart';
@@ -14,33 +17,29 @@ import '../../features/dashboard/presentation/screens/web3_settings_screen.dart'
 import '../../features/dashboard/presentation/screens/reports_statements_screen.dart';
 import '../../features/dashboard/presentation/screens/support_help_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
-
-// Feature Imports
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
 import 'package:fintech/features/authentication/presentation/screens/signup_screen.dart';
 import 'package:fintech/features/splash/screens/splash_screen.dart';
-import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
-import 'package:fintech/features/settings/presentation/screens/settings_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
-import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart'; // 🚀 Import your parent tab navigator shell
+import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart';
+import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
 
 // Bloc & Dependency Imports
+import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/settings/presentation/bloc/settings_bloc.dart'; 
-// 🚀 FIXED: Imported your auth events to ensure your event triggers resolve perfectly
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart'; 
 
 class AppRouter {
-  // Named Route Location Identifiers for Clean Architecture Reference
   static const String splash = '/';
   static const String signup = '/signup';
   static const String login = '/login';
   static const String dashboard = '/dashboard';
   static const String cryptoWallet = '/wallet';
-  static const String settings = '/settings';
-  static const String notifications = '/notifications';
+  static const String appPreferences = '/app-preferences';
+  static const String language = '/language';
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -50,7 +49,7 @@ class AppRouter {
     debugLogDiagnostics: true,
     
     // ====================================================================
-    // AUTH ROUTE GUARD (Dynamic Session Interceptor)
+    // AUTH ROUTE GUARD
     // ====================================================================
     redirect: (BuildContext context, GoRouterState state) {
       final session = Supabase.instance.client.auth.currentSession;
@@ -58,12 +57,10 @@ class AppRouter {
       final isSigningUp = state.matchedLocation == signup;
       final isSplashing = state.matchedLocation == splash;
 
-      // Rule 1: Guard protected pages from unauthenticated sessions
       if (session == null && !isSplashing && !isLoggingIn && !isSigningUp) {
         return login;
       }
       
-      // Rule 2: Redirect authenticated users away from landing screens straight to Dashboard
       if (session != null && (isLoggingIn || isSigningUp)) {
         return dashboard;
       }
@@ -72,7 +69,7 @@ class AppRouter {
     },
 
     // ====================================================================
-    // SCREEN DECLARATION MAPS WITH SHELL CONTEXT INJECTION
+    // SCREEN DECLARATION MAPS
     // ====================================================================
     routes: [
       ShellRoute(
@@ -81,15 +78,10 @@ class AppRouter {
 
           return MultiBlocProvider(
             providers: [
-              // Authentication Session Lifecycle Tracker linked to the updated authBloc instance
-              BlocProvider<AuthBloc>.value(
-                value: authBloc,
-              ),
-              // Splash Sequence Process Controller 
+              BlocProvider<AuthBloc>.value(value: authBloc),
               BlocProvider<SplashNavigationCubit>(
                 create: (context) => getIt<SplashNavigationCubit>()..initializeAppGatewaySequence(),
               ),
-              // Inject SettingsBloc into the parent tree root to prevent provider missing crashes
               BlocProvider<SettingsBloc>(
                 create: (context) => getIt<SettingsBloc>(),
               ),
@@ -107,66 +99,65 @@ class AppRouter {
             builder: (context, state) => const SignupScreen(),
           ),
           GoRoute(
-            path: settings,
-            builder: (context, state) => const SettingsScreen(),
-
-          ),
-          GoRoute(
-            path: notifications,
-            builder: (context, state) => const NotificationScreen(),
-          ),
-          GoRoute(
             path: login,
             builder: (context, state) => LoginScreen(),
           ),
           GoRoute(
             path: dashboard,
-            // 🚀 CRITICAL NAVIGATION RESTORE: Route directly to the AppNavigationShell container!
-            // This displays your bottom bar tabs (Dashboard, Analysis, Ledger, More) perfectly.
             builder: (context, state) => const AppNavigationShell(),
           ),
           GoRoute(
             path: cryptoWallet,
             builder: (context, state) => const CryptoWalletScreen(),
           ),
-          // Under your shell or root routes array, add these specific destination configs:
-GoRoute(
-  path: '/more',
-  builder: (context, state) => const MoreScreen(),
-),
-GoRoute(
-  path: '/profile',
-  builder: (context, state) => const ProfileScreen(),
-),
-GoRoute(
-  path: '/settings',
-  builder: (context, state) => const SettingsScreen(), // Core app preferences, theme toggle, etc.
-),
-GoRoute(
-  path: '/security-settings',
-  builder: (context, state) => const SecuritySettingsScreen(), // PIN, Password, 2FA, Biometrics
-),
-GoRoute(
-  path: '/linked-accounts',
-  builder: (context, state) => const LinkedAccountsScreen(), // Cards, bank links, wallets
-),
-GoRoute(
-  path: '/web3-settings',
-  builder: (context, state) => const Web3SettingsScreen(), // Web3 addresses & connections
-),
-GoRoute(
-  path: '/reports-statements',
-  builder: (context, state) => const ReportsStatementsScreen(), // Statements, history exports
-),
-GoRoute(
-  path: '/support-help',
-  builder: (context, state) => const SupportHelpScreen(), // Live chat, FAQ, ticket submissions
-),
-GoRoute(
-  path: '/notifications',
-  builder: (context, state) => const NotificationScreen(), // System notifications & update center
-),
 
+          // 📂 MORE SCREEN ROOT PATH
+          GoRoute(
+            path: '/more',
+            builder: (context, state) => const MoreScreen(),
+          ),
+
+          // ⚙️ APP PREFERENCES CLEAN ROOT PATH
+          GoRoute(
+            path: appPreferences,
+            builder: (context, state) => const AppPreferencesScreen(),
+          ),
+
+          // 🚀 LANGUAGE SELECTION SCREEN ROUTE
+          GoRoute(
+            path: language,
+            builder: (context, state) => const LanguageScreen(),
+          ),
+
+          // Standalone Sub-features Root Path Definitions
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: '/security-settings',
+            builder: (context, state) => const SecuritySettingsScreen(),
+          ),
+          GoRoute(
+            path: '/transaction-settings',
+            builder: (context, state) => const TransactionSettingsScreen(),
+          ),
+          GoRoute(
+            path: '/linked-accounts',
+            builder: (context, state) => const LinkedAccountsScreen(),
+          ),
+          GoRoute(
+            path: '/web3-settings',
+            builder: (context, state) => const Web3SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/reports-statements',
+            builder: (context, state) => const ReportsStatementsScreen(),
+          ),
+          GoRoute(
+            path: '/support-help',
+            builder: (context, state) => const SupportHelpScreen(),
+          ),
         ],
       ),
     ],

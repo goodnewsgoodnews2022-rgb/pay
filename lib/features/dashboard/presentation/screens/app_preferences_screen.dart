@@ -4,23 +4,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 
-final themeStateProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+// ✅ CRITICAL FIX: Import your main.dart file to gain access to the global themeStateProvider
+import 'package:fintech/main.dart'; 
+
+// ❌ REMOVED: final themeStateProvider = StateProvider... (This was overriding the global one)
 
 class AppPreferencesScreen extends ConsumerWidget {
   const AppPreferencesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 👁️ Watch the active state provider (Light Mode, Dark Mode, or System Default)
+    // 👁️ Watch the global state provider from main.dart
     final currentThemeMode = ref.watch(themeStateProvider);
     final isDarkPalette = Theme.of(context).brightness == Brightness.dark;
 
     // Layout configuration constants 
     const headerTextColor = Color(0xFF6E7A8A); 
-    final tileContainerColor = isDarkPalette ? const Color(0xFF111622) : Colors.grey[200]!;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -150,7 +151,6 @@ class AppPreferencesScreen extends ConsumerWidget {
             context,
             icon: Icons.wb_sunny_outlined,
             title: 'Light Mode',
-            // If theme is currently Light Mode, swap the arrow out for a brand checkmark
             trailing: currentThemeMode == ThemeMode.light
                 ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18)
                 : null,
@@ -160,7 +160,6 @@ class AppPreferencesScreen extends ConsumerWidget {
             context,
             icon: Icons.nightlight_round_outlined,
             title: 'Dark Mode',
-            // If theme is currently Dark Mode, swap the arrow out for a brand checkmark
             trailing: currentThemeMode == ThemeMode.dark
                 ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18)
                 : null,
@@ -170,7 +169,6 @@ class AppPreferencesScreen extends ConsumerWidget {
             context,
             icon: Icons.brightness_auto_outlined,
             title: 'System Default',
-            // If theme is currently following system preferences, swap the arrow out for a brand checkmark
             trailing: currentThemeMode == ThemeMode.system
                 ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18)
                 : null,

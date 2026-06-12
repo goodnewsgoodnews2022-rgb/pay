@@ -1,5 +1,6 @@
-// ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors
+// ignore_for_file: undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
 
+import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
 import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,7 +10,7 @@ import '../../../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../data/models/bank_card_model.dart';
 import '../widgets/portfolio_card.dart';
-import 'extended_screens.dart' hide NotificationScreen;
+import 'extended_screens.dart' hide NotificationScreen; 
 import '../../../notifications/presentation/screen/notification_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -56,6 +57,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     const Color emeraldColor = Color(0xFF10B981);
     const BankCardModel userAccount = BankCardModel(
       id: 'fiat-8921',
@@ -79,10 +83,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: Colors.black,
+            backgroundColor: theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
             elevation: 0,
+            iconTheme: theme.appBarTheme.iconTheme ?? IconThemeData(color: theme.colorScheme.onSurface),
             // ====================================================================
             // AUTOMATIC LIVE-STREAM AVATAR HEADER
             // ====================================================================
@@ -105,7 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(10.0),
                     child: CircleAvatar(
-                      backgroundColor: const Color(0xFF1A1A1A),
+                      backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.grey[200],
                       child: ClipOval(
                         child: liveAvatarUrl != null && liveAvatarUrl.isNotEmpty
                             ? Image.network(
@@ -114,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 height: double.infinity,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(Icons.person, color: Colors.grey, size: 18);
+                                  return Icon(Icons.person, color: isDark ? Colors.grey : Colors.grey[600], size: 18);
                                 },
                                 loadingBuilder: (context, child, loadingProgress) {
                                   if (loadingProgress == null) return child;
@@ -130,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               )
-                            : const Icon(Icons.person, color: Colors.grey, size: 18),
+                            : Icon(Icons.person, color: isDark ? Colors.grey : Colors.grey[600], size: 18),
                       ),
                     ),
                   ),
@@ -148,8 +153,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
                 return Text(
                   'Hello $displayName',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -158,15 +163,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.notifications_none, color: Colors.white),
-                // 🚀 FIXED: Switched to Named Routing. No blocks, no types, it just navigates cleanly!
-                onPressed: () 
-                  => widget.onNavigateToSubScreen(const NotificationScreen()),
-                
+                icon: Icon(Icons.notifications_none, color: theme.colorScheme.onSurface),
+                onPressed: () => widget.onNavigateToSubScreen(const NotificationScreen()),
               ),
               IconButton(
-                icon: const Icon(Icons.help_outline, color: Colors.white),
-                onPressed: () => widget.onNavigateToSubScreen(const CustomerCareScreen()),
+                icon: Icon(Icons.help_outline, color: theme.colorScheme.onSurface),
+                onPressed: () => widget.onNavigateToSubScreen(const SupportHelpScreen()),
               ),
             ],
           ),
@@ -187,19 +189,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFF151424), 
-                            const Color(0xFF0A0A0C), 
-                          ],
+                          colors: isDark 
+                              ? [const Color(0xFF151424), const Color(0xFF0A0A0C)]
+                              : [const Color(0xFFF3F4F6), const Color(0xFFE5E7EB)],
                         ),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: const Color(0xFF26243C), 
+                          color: isDark ? const Color(0xFF26243C) : Colors.grey[300]!, 
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.4),
+                            color: isDark ? Colors.black.withValues(alpha: 0.4) : Colors.grey.withValues(alpha: 0.2),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           ),
@@ -218,7 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Text(
                                     'TOTAL NET WORTH (USD)',
                                     style: TextStyle(
-                                      color: Colors.grey[400],
+                                      color: isDark ? Colors.grey[400] : Colors.grey[700],
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: 0.8,
@@ -230,7 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     padding: EdgeInsets.zero,
                                     icon: Icon(
                                       _isBalanceHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                      color: Colors.grey[500],
+                                      color: isDark ? Colors.grey[500] : Colors.grey[600],
                                       size: 18,
                                     ),
                                     onPressed: () {
@@ -242,9 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ],
                               ),
                               GestureDetector(
-                                onTap: () => widget.onNavigateToSubScreen(
-                                  const ActionPlaceholderScreen(title: 'Top Up Wallet / Add Money'),
-                                ),
+                                onTap: () {},
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
@@ -278,8 +277,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Text(
                                 _isBalanceHidden ? '••••••' : '\$14,570.80',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
@@ -333,17 +332,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const ActionPlaceholderScreen(title: 'Send Money')),
-                        _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const ActionPlaceholderScreen(title: 'Receive Assets')),
-                        _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const ActionPlaceholderScreen(title: 'Instant Swap DEX')),
-                        _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const ActionPlaceholderScreen(title: 'Fiat CashOut Off-Ramp')),
+                        _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, null),
+                        _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, null),
+                        _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, null),
+                        _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, null),
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text('RECENT ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                    Text(
+                      'RECENT ACTIVITY', 
+                      style: TextStyle(
+                        color: isDark ? Colors.grey : Colors.grey[600], 
+                        fontSize: 11, 
+                        fontWeight: FontWeight.bold, 
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                     const SizedBox(height: 12),
-                    _buildLedgerRow(Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
-                    _buildLedgerRow(Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
+                    _buildLedgerRow(context, Icons.movie_filter, Colors.blueAccent, 'Netflix Subscription', 'Debit Card • 2 mins ago', '-\$14.99', false),
+                    _buildLedgerRow(context, Icons.token, Colors.purpleAccent, 'Minted NFT #4412', 'Status: Confirmed • 15 mins ago', '-0.002 ETH', true),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -355,38 +362,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, String label, Color accentColor, Widget targetScreen) {
+  Widget _buildActionButton(BuildContext context, IconData icon, String label, Color accentColor, Widget? targetScreen) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
-      onTap: () => widget.onNavigateToSubScreen(targetScreen),
+      onTap: () {
+        if (targetScreen == null) return;
+        widget.onNavigateToSubScreen(targetScreen);
+      },
       child: Column(
         children: [
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.grey[950],
+              color: isDark ? Colors.grey[950] : Colors.grey[100],
               shape: BoxShape.circle,
               border: Border.all(color: accentColor.withValues(alpha: 0.15), width: 1),
             ),
             child: Icon(icon, color: accentColor, size: 22),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(
+            label, 
+            style: TextStyle(
+              color: theme.colorScheme.onSurface, 
+              fontSize: 12, 
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLedgerRow(IconData icon, Color iconColor, String title, String subtitle, String amount, bool isCrypto) {
+  Widget _buildLedgerRow(BuildContext context, IconData icon, Color iconColor, String title, String subtitle, String amount, bool isCrypto) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.grey[950], borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[950] : Colors.grey[50], 
+        borderRadius: BorderRadius.circular(14),
+        border: isDark ? null : Border.all(color: Colors.grey[200]!),
+      ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black : Colors.white, 
+              borderRadius: BorderRadius.circular(10),
+              border: isDark ? null : Border.all(color: Colors.grey[100]!),
+            ),
             child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 14),
@@ -394,13 +425,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                Text(
+                  title, 
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface, 
+                    fontSize: 14, 
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(
+                  subtitle, 
+                  style: TextStyle(
+                    color: isDark ? Colors.grey : Colors.grey[600], 
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
-          Text(amount, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+          Text(
+            amount, 
+            style: TextStyle(
+              color: theme.colorScheme.onSurface, 
+              fontSize: 14, 
+              fontWeight: FontWeight.bold, 
+              fontFamily: 'monospace',
+            ),
+          ),
         ],
       ),
     );

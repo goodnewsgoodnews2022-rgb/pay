@@ -1,9 +1,10 @@
-// ignore_for_file: unused_import
+// ignore_for_file: undefined_hidden_name, unused_import
 
 import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/reports_statements_screen.dart';
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
-import 'extended_screens.dart' hide SettingsScreen;
+import 'extended_screens.dart' hide SettingsScreen, DashboardScreen;
 // 🚀 FIXED: Explicitly hook up relative path to the SettingsScreen dependency from your tree mapping
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
@@ -28,8 +29,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           });
         },
       ),
-      const AnalysisScreen(),
-      const TransactionLedgerScreen(),
+      const ReportsStatementsScreen(),
+      const Center(child: Text('Ledger Screen', style: TextStyle(color: Colors.white))),
       const MoreScreen(), // This is where your nested settings configuration views live
     ];
 
