@@ -115,7 +115,7 @@ class ContactSupportScreen extends StatelessWidget {
               onTap: () async {
                 final Uri emailUri = Uri(
                   scheme: 'mailto',
-                  path: 'support@payfintech.com',
+                  path: 'goodnewsgoodnews2022@gmail.com',
                 );
                 if (await canLaunchUrl(emailUri)) {
                   await launchUrl(emailUri);
@@ -131,11 +131,11 @@ class ContactSupportScreen extends StatelessWidget {
               icon: Icons.phone_in_talk_rounded,
               iconColor: const Color(0xFF10B981),
               title: 'Phone Support Line',
-              subtitle: '+1 (800) 555-FLUTTER',
+              subtitle: '+234 7045374710',
               trailingText: 'Mon-Fri Toll-Free',
               onTap: () async {
                 // Trigger native phone dialer using url_launcher
-                final phoneNumber = '+18005551234'; // replace with real support number
+                final phoneNumber = '+234 7045374710'; // replace with real support number
                 final uri = Uri(scheme: 'tel', path: phoneNumber);
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri);
@@ -156,7 +156,7 @@ class ContactSupportScreen extends StatelessWidget {
               onTap: () async {
                 // Open WhatsApp direct chat using wa.me deep link
                 // Use E.164 number without '+' for wa.me (example placeholder)
-                const phoneNumber = '18005551234';
+                const phoneNumber = '2347045374710'; // replace with real support number in E.164 format
                 final message = Uri.encodeComponent('Hi, I need help with my account.');
                 final uri = Uri.parse('https://wa.me/$phoneNumber?text=$message');
                 if (await canLaunchUrl(uri)) {

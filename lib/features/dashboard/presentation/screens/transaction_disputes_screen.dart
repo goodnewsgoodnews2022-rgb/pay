@@ -1,7 +1,8 @@
-// ignore_for_file: deprecated_member_use, prefer_const_constructors, prefer_const_literals_to_create_immutables
+// ignore_for_file: unused_field, deprecated_member_use, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart'; // Imported image_picker core API module
 
 class DisputeModel {
   final String ticketId;
@@ -29,9 +30,11 @@ class TransactionDisputesScreen extends StatefulWidget {
 class _TransactionDisputesScreenState extends State<TransactionDisputesScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _explanationController = TextEditingController();
+  final ImagePicker _picker = ImagePicker(); // Instantiated picker core utility
   
   String? _selectedTransaction;
   String? _attachedEvidenceName;
+  String? _attachedEvidencePath; // Holds system asset context for multi-part file pushes
   bool _isSubmitting = false;
 
   // Mock Active Ongoing Dispute for the Tracker component
@@ -49,6 +52,41 @@ class _TransactionDisputesScreenState extends State<TransactionDisputesScreen> {
     {'id': 'TXN-9023', 'title': 'Uber Trip Ledger Ride', 'amount': '-\$34.20'},
     {'id': 'TXN-1104', 'title': 'Stripe *DigitalProduct Service', 'amount': '-\$85.00'},
   ];
+
+  // Opens interactive internal photo library channel asynchronously
+  Future<void> _pickEvidenceFromGallery() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // Balancing structural clarity vs storage network overhead
+      );
+
+      if (image != null) {
+        setState(() {
+          _attachedEvidenceName = image.name;
+          _attachedEvidencePath = image.path;
+        });
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Evidence snapshot attached successfully'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to read device media files'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
 
   void _pickTransactionSheet() {
     final theme = Theme.of(context);
@@ -138,6 +176,12 @@ class _TransactionDisputesScreenState extends State<TransactionDisputesScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _explanationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -244,18 +288,40 @@ class _TransactionDisputesScreenState extends State<TransactionDisputesScreen> {
                     const SizedBox(height: 16),
 
                     // ====================================================================
-                    // REQUIREMENT: UPLOAD EVIDENCE
+                    // REQUIREMENT: UPLOAD EVIDENCE FROM NATIVE GALLERY
                     // ====================================================================
                     GestureDetector(
-                      onTap: () => setState(() => _attachedEvidenceName = "invoice_receipt_proof.jpg"),
+                      onTap: _pickEvidenceFromGallery, // Connected to image_picker interface
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(color: cardBgColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: cardBorderColor, style: BorderStyle.solid)),
                         child: Row(
                           children: [
                             Icon(_attachedEvidenceName != null ? Icons.assignment_turned_in_rounded : Icons.cloud_upload_outlined, color: _attachedEvidenceName != null ? const Color(0xFF10B981) : accentColor, size: 20),
                             const SizedBox(width: 12),
-                            Expanded(child: Text(_attachedEvidenceName ?? 'Upload Supporting Evidence (Receipt / Invoice Core)', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                            Expanded(
+                              child: Text(
+                                _attachedEvidenceName ?? 'Upload Supporting Evidence (Receipt / Invoice Core)', 
+                                style: TextStyle(
+                                  fontSize: 13, 
+                                  color: _attachedEvidenceName != null ? theme.colorScheme.onSurface : Colors.grey[500],
+                                  fontWeight: _attachedEvidenceName != null ? FontWeight.bold : FontWeight.normal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (_attachedEvidenceName != null)
+                              IconButton(
+                                icon: Icon(Icons.cancel_rounded, size: 16, color: Colors.grey),
+                                onPressed: () {
+                                  setState(() {
+                                    _attachedEvidenceName = null;
+                                    _attachedEvidencePath = null;
+                                  });
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(),
+                              ),
                           ],
                         ),
                       ),

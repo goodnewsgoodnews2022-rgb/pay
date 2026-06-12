@@ -4,6 +4,7 @@
 
 import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/invite_friends_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/live_chat_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/report_problem_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/security_center_screen.dart';
@@ -172,6 +173,10 @@ class AppRouter {
            path: '/support-center',
            builder: (context, state) => const SupportCenterScreen(),
           ),
+          GoRoute(
+  path: '/more/invite-friends',
+  builder: (context, state) => const InviteFriendsScreen(),
+),
           // Register these routes alongside your existing /support-center setup
 GoRoute(
   path: '/support/live-chat',

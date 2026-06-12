@@ -12,6 +12,7 @@ import 'account_statement_screen.dart';
 import 'security_settings_screen.dart';
 import 'settings_screen.dart';
 import 'support_help_screen.dart';
+import 'invite_friends_screen.dart'; // Imported your new screen target file
 
 class MoreScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -147,7 +148,7 @@ class _MoreScreenState extends State<MoreScreen> {
           const SizedBox(height: 12),
 
           // ====================================================================
-          // 🎁 GROWTH REFERRALS PIPELINE
+          // 🎁 GROWTH REFERRALS PIPELINE (Updated for Routing Navigation)
           // ====================================================================
           _buildSectionHeader('REFERRALS', sectionHeaderColor),
           _buildMenuCard(
@@ -159,22 +160,7 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'Invite Friends',
                 subtitle: 'Share your code and secure transactional bonuses',
                 textColor: titleTextColor,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
-                          Text('Referral invitation link copied to clipboard!', style: TextStyle(color: Colors.white)),
-                        ],
-                      ),
-                      backgroundColor: const Color(0xFF10B981),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
-                },
+                onTap: () => widget.onNavigateToSubScreen(const InviteFriendsScreen()),
               ),
             ],
           ),
@@ -196,7 +182,6 @@ class _MoreScreenState extends State<MoreScreen> {
                 onTap: () => widget.onNavigateToSubScreen(const SupportCenterScreen()),
               ),
             ],
-            
           ),
           const SizedBox(height: 36),
 
