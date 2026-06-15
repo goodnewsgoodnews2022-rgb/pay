@@ -1,5 +1,6 @@
 // ignore_for_file: undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
 
+import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_swap_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
 import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -336,7 +337,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const Placeholder()),
                         _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const Placeholder()),
-                        _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const Placeholder()),
+                        _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const CryptoSwapScreen()),
                         _buildActionButton(context, Icons.account_balance_wallet, 'Withdraw', Colors.orangeAccent, const CryptoWithdrawalScreen()),
                       ],
                     ),
