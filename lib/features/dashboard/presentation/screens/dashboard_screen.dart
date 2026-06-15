@@ -13,6 +13,7 @@ import '../widgets/portfolio_card.dart';
 import 'extended_screens.dart' hide NotificationScreen; 
 import '../../../notifications/presentation/screen/notification_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/add_money_screen.dart';
+import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_withdrawal_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -336,7 +337,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const Placeholder()),
                         _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const Placeholder()),
                         _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const Placeholder()),
-                        _buildActionButton(context, Icons.account_balance_wallet, 'Withdraw', Colors.orangeAccent, const Placeholder()),
+                        _buildActionButton(context, Icons.account_balance_wallet, 'Withdraw', Colors.orangeAccent, const CryptoWithdrawalScreen()),
                       ],
                     ),
                     const SizedBox(height: 24),
