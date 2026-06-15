@@ -336,7 +336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _buildActionButton(context, Icons.call_made, 'Send', Colors.blueAccent, const Placeholder()),
                         _buildActionButton(context, Icons.call_received, 'Receive', emeraldColor, const Placeholder()),
                         _buildActionButton(context, Icons.swap_horiz, 'Swap', Colors.purpleAccent, const Placeholder()),
-                        _buildActionButton(context, Icons.account_balance_wallet, 'CashOut', Colors.orangeAccent, const Placeholder()),
+                        _buildActionButton(context, Icons.account_balance_wallet, 'Withdraw', Colors.orangeAccent, const Placeholder()),
                       ],
                     ),
                     const SizedBox(height: 24),
