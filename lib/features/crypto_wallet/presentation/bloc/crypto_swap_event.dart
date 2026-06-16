@@ -7,20 +7,34 @@ abstract class CryptoSwapEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Toggles direction: true = Fiat to Crypto, false = Crypto to Fiat
 class ToggleSwapDirection extends CryptoSwapEvent {}
 
-/// Triggered dynamically as the user changes the text input amount
 class CalculateSwapAmounts extends CryptoSwapEvent {
   final double inputAmount;
-
   const CalculateSwapAmounts({required this.inputAmount});
 
   @override
   List<Object?> get props => [inputAmount];
 }
 
-/// Executes the database exchange operation
+/// Dispatched when the user switches the selected Fiat currency option
+class ChangeFiatCurrency extends CryptoSwapEvent {
+  final String newFiat;
+  const ChangeFiatCurrency({required this.newFiat});
+
+  @override
+  List<Object?> get props => [newFiat];
+}
+
+/// Dispatched when the user switches the selected Crypto token asset option
+class ChangeCryptoCurrency extends CryptoSwapEvent {
+  final String newCrypto;
+  const ChangeCryptoCurrency({required this.newCrypto});
+
+  @override
+  List<Object?> get props => [newCrypto];
+}
+
 class ExecuteSwapTransaction extends CryptoSwapEvent {
   final double targetGrossAmount;
   final bool isFiatToCrypto;
