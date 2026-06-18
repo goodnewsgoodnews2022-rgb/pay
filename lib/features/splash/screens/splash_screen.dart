@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen> {
         if (state is NavigateToLogin) {
           context.go('/login');
         } else if (state is NavigateToBiometricVerification) {
-          context.go('/biometrics-unlock'); // Specialized security wall screen
+          context.go('/pin-setup'); // Specialized security wall screen
         } else if (state is NavigateToDashboard) {
           context.go('/dashboard');
         }

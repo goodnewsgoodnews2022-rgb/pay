@@ -9,6 +9,7 @@ class AppUser {
   final String? avatarUrl;
   final String? accountNumber;
   final String? kycStatus;
+  final bool biometricEnabled;
 
   const AppUser({
     required this.id,
@@ -21,6 +22,7 @@ class AppUser {
     this.avatarUrl,
     this.accountNumber,
     this.kycStatus,
+    this.biometricEnabled = false,
   });
 
   @override

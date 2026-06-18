@@ -86,8 +86,15 @@ class _SignupScreenState extends State<SignupScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
-            context.go('/dashboard');
-          }
+            final user = state.user;
+            if (user.kycStatus == 'verified'){
+              context.go('/dashboard');
+              return;
+            }
+             context.go('/kyc-intro');
+             return;
+            }
+            
           if (state is AuthError) {
             ScaffoldMessenger.of(
               context,

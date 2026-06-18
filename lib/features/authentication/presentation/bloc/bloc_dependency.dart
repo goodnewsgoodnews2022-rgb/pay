@@ -1,4 +1,15 @@
 // ignore_for_file: depend_on_referenced_packages
+import 'package:fintech/features/KYC/data/datasources/biometric_local_ds.dart';
+import 'package:fintech/features/KYC/data/datasources/pin_local_ds.dart';
+import 'package:fintech/features/KYC/data/repositories/kyc_repositories_impl.dart';
+import 'package:fintech/features/KYC/domain/repositories/kyc_repository.dart';
+import 'package:fintech/features/KYC/domain/usecases/authenticate_with_biometric.dart';
+import 'package:fintech/features/KYC/domain/usecases/check_biometric_support.dart';
+import 'package:fintech/features/KYC/domain/usecases/get_kyc_status.dart';
+import 'package:fintech/features/KYC/domain/usecases/set_pin.dart';
+import 'package:fintech/features/KYC/domain/usecases/update_kyc_status.dart';
+import 'package:fintech/features/KYC/domain/usecases/verify_pin.dart';
+import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
 import 'package:fintech/features/fiat_wallet/data/repositories/fiat_repository_impl.dart';
 import 'package:fintech/features/fiat_wallet/domain/repositories/fiat_repository.dart';
 import 'package:fintech/features/fiat_wallet/domain/usecases/deposit_funds.dart';
@@ -150,8 +161,6 @@ Future<void> setupDependencies() async {
       ),
     );
   }
-{
-  // ... existing registrations (AuthRepository, etc.) ...
 
   // ========== Notifications ==========
   if (!getIt.isRegistered<NotificationRepository>()) {
@@ -199,7 +208,6 @@ Future<void> setupDependencies() async {
         ),
       );
     }
-  }
 
   // --- Settings Use Cases ---
   if (!getIt.isRegistered<ToggleBiometrics>()) {
@@ -248,5 +256,45 @@ Future<void> setupDependencies() async {
         getTransactionHistory: getIt(),
       ),
     );
-  }
+  
+
+if (!getIt.isRegistered<BiometricLocalDataSource>()) {
+  getIt.registerLazySingleton(() => BiometricLocalDataSource());
 }
+if (!getIt.isRegistered<PinLocalDataSource>()) {
+  getIt.registerLazySingleton(() => PinLocalDataSource());
+}
+if (!getIt.isRegistered<KycRepository>()) {
+  getIt.registerLazySingleton<KycRepository>(() => KycRepositoryImpl(
+    biometricDS: getIt(),
+    pinDS: getIt(),
+  ));
+}
+if (!getIt.isRegistered<CheckBiometricSupport>()) {
+  getIt.registerLazySingleton(() => CheckBiometricSupport(getIt<KycRepository>()));
+}
+if (!getIt.isRegistered<AuthenticateWithBiometric>()) {
+  getIt.registerLazySingleton(() => AuthenticateWithBiometric(getIt<KycRepository>()));
+}
+if (!getIt.isRegistered<SetPin>()) {
+  getIt.registerLazySingleton(() => SetPin(getIt<KycRepository>()));
+}
+if (!getIt.isRegistered<VerifyPin>()) {
+  getIt.registerLazySingleton(() => VerifyPin(getIt<KycRepository>()));
+}
+if (!getIt.isRegistered<GetKycStatus>()) {
+  getIt.registerLazySingleton(() => GetKycStatus(getIt<KycRepository>()));
+}
+if (!getIt.isRegistered<UpdateKycStatus>()) {
+  getIt.registerLazySingleton(() => UpdateKycStatus(getIt<KycRepository>()));
+}
+if (!getIt.isRegistered<KycBloc>()) {
+  getIt.registerFactory(() => KycBloc(
+    checkBiometricSupport: getIt(),
+    authenticateWithBiometric: getIt(),
+    setPin: getIt(),
+    verifyPin: getIt(),
+    getKycStatus: getIt(),
+    updateKycStatus: getIt(),
+  ));
+}}}

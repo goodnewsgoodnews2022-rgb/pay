@@ -53,6 +53,7 @@
 //   }
 // }
 
+import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -100,6 +101,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<NotificationBloc>(
           create: (_) => getIt<NotificationBloc>(),
         ),
+        BlocProvider<KycBloc>(create: (_) => getIt<KycBloc>()),
       ],
       child: MaterialApp.router(
         routerConfig: AppRouter.router,

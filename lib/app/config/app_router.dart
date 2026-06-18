@@ -2,6 +2,9 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
+import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
 import 'package:fintech/features/notifications/presentation/screen/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -41,6 +44,7 @@ class AppRouter {
   static const String cryptoWallet = '/wallet';
   static const String settings = '/settings';
   static const String notifications = '/notifications';
+  static const String biometricSettings = '/settings/biometrics';
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -138,6 +142,14 @@ GoRoute(
   path: '/profile',
   builder: (context, state) => const ProfileScreen(),
 ),
+GoRoute(
+  path: 'kyc-intro',
+  builder: (context, state) => const KycIntroScreen(),),
+  GoRoute(path: '/pin-setup', 
+  builder: (context, state) => const PinSetupScreen()),
+   // Add this route for PIN setup
+GoRoute(path: 'kyc-verify', 
+  builder: (context, state) => const KycVerificationScreen()),
 GoRoute(
   path: '/settings',
   builder: (context, state) => const SettingsScreen(), // Core app preferences, theme toggle, etc.

@@ -78,8 +78,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // CARD 1: BIOMETRIC HANDSHAKE (Fully Wired to state pipeline)
               _buildSettingsCard(
-                title: 'Biometric Handshake',
-                subtitle: 'Manage FaceID and fingerprint keys',
+                title: 'Biometric Scan',
+                subtitle: 'Add Biometric Scan',
                 icon: Icons.fingerprint,
                 trailing: Switch.adaptive(
                   value: state.isBiometricsEnabled, 

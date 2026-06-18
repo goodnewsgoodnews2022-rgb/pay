@@ -11,7 +11,8 @@ class AppUserModel extends AppUser {
     super.address,
     super.avatarUrl,
     super.accountNumber,
-    super.kycStatus,
+    super.kycStatus, 
+    super.biometricEnabled,
   });
 
   factory AppUserModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +27,8 @@ class AppUserModel extends AppUser {
       avatarUrl: json['avatar_url'],
       accountNumber: json['account_number'],
       kycStatus: json['kyc_status'],
+      biometricEnabled: 
+       json['biometric_enabled'] ?? false
     );
   }
 
@@ -41,6 +44,7 @@ class AppUserModel extends AppUser {
       'avatar_url': avatarUrl,
       'account_number': accountNumber,
       'kyc_status': kycStatus,
+      'biometric_enabled': biometricEnabled,
     };
   }
 
@@ -54,6 +58,7 @@ class AppUserModel extends AppUser {
     String? avatarUrl,
     String? accountNumber,
     String? kycStatus,
+    bool biometricEnabled = false,
   }) {
     return AppUserModel(
       id: user.id,
@@ -66,6 +71,7 @@ class AppUserModel extends AppUser {
       avatarUrl: avatarUrl,
       accountNumber: accountNumber,
       kycStatus: kycStatus,
+      biometricEnabled: biometricEnabled,
     );
   }
 }
