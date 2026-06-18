@@ -5,7 +5,6 @@ import 'crypto_swap_state.dart';
 class CryptoSwapBloc extends Bloc<CryptoSwapEvent, CryptoSwapState> {
   CryptoSwapBloc() : super(CryptoSwapState.initial()) {
     
-    // Handles swapping the source and target rails
     on<ToggleSwapDirection>((event, emit) {
       emit(state.copyWith(
         isFiatToCrypto: !state.isFiatToCrypto,
@@ -16,10 +15,9 @@ class CryptoSwapBloc extends Bloc<CryptoSwapEvent, CryptoSwapState> {
       ));
     });
 
-    // Calculates your mentor's 1% processing fee equation live
     on<CalculateSwapAmounts>((event, emit) {
       final gross = event.inputAmount;
-      final fee = gross * 0.01; // 1% SaaS deduction fee rule
+      final fee = gross * 0.01; // mentor's 1% platform algorithm
       final netOutput = gross - fee;
 
       emit(state.copyWith(
@@ -30,11 +28,17 @@ class CryptoSwapBloc extends Bloc<CryptoSwapEvent, CryptoSwapState> {
       ));
     });
 
-    // Submits the execution state down to local balances
+    on<ChangeFiatCurrency>((event, emit) {
+      emit(state.copyWith(selectedFiat: event.newFiat, isSuccess: false));
+    });
+
+    on<ChangeCryptoCurrency>((event, emit) {
+      emit(state.copyWith(selectedCrypto: event.newCrypto, isSuccess: false));
+    });
+
     on<ExecuteSwapTransaction>((event, emit) async {
       emit(state.copyWith(isLoading: true, isSuccess: false));
       try {
-        // Simulating rapid state engine validation
         await Future.delayed(const Duration(milliseconds: 1200));
         emit(state.copyWith(isLoading: false, isSuccess: true));
       } catch (e) {
