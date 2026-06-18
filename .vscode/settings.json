@@ -1,12 +1,15 @@
 {
-  "editor.formatOnSave": true,
-  "deno.enable": true,
+  "deno.enable": false,
   "deno.enablePaths": [
     "supabase/functions"
   ],
-  "deno.lint": true,
-  "deno.unstable": [
-    "temporal",
-    "kv"
-  ]
+  "[typescript]": {
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.unstable": [
+      "kv",
+      "cron"
+    ],
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  }
 }

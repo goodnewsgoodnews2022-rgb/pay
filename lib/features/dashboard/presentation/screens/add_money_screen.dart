@@ -1,13 +1,12 @@
-// lib/features/dashboard/presentation/screens/add_money_screen.dart
-
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutterwave_standard/core/flutterwave.dart';
+import 'package:flutterwave_standard/models/requests/customer.dart';
+import 'package:flutterwave_standard/models/requests/customizations.dart';
+import 'package:flutterwave_standard/models/responses/charge_response.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../app/config/app_router.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class AddMoneyScreen extends StatefulWidget {
   const AddMoneyScreen({super.key});
@@ -17,265 +16,243 @@ class AddMoneyScreen extends StatefulWidget {
 }
 
 class _AddMoneyScreenState extends State<AddMoneyScreen> {
-  final SupabaseClient _supabase = Supabase.instance.client;
-  String? _accountNumber;
-  bool _isLoadingAccount = true;
+  final TextEditingController _amountController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  // 📂 Flutterwave Testing Credentials
+  static const String _flwTestPublicKey = "FLWPUBK_TEST-ba6fd099c1d6d6269da9852637b0563c-X";
 
   @override
-  void initState() {
-    super.initState();
-    _fetchUserAccountNumber();
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
   }
 
-  /// 📥 Fetches real account number metadata asynchronously from Supabase Profiles
-  Future<void> _fetchUserAccountNumber() async {
+  /// Handles background validation, processes payment via Flutterwave SDK,
+  /// and updates transaction ledgers and balances inside Supabase securely.
+  Future<void> _initiateDepositPipeline() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
     try {
-      final user = _supabase.auth.currentUser;
-      if (user != null) {
-        final data = await _supabase
-            .from('profiles')
-            .select('account_number')
-            .eq('id', user.id)
-            .maybeSingle();
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+
+      if (user == null) throw Exception("User session expired");
+
+      final double inputAmount = double.parse(_amountController.text.trim());
+      final String uniqueTxRef =
+          "TXREF-${DateTime.now().millisecondsSinceEpoch}-${user.id.substring(0, 5)}";
+      final String userEmail = user.email ?? "${user.id}@smartwallet.com";
+      final String userName =
+          user.userMetadata?['full_name'] ?? 'Smart Wallet Customer';
+
+      // 1. Log transaction in pending state inside Supabase ledger
+      await client.from('deposits').insert({
+        'user_id': user.id,
+        'amount': inputAmount,
+        'currency': 'NGN',
+        'tx_ref': uniqueTxRef,
+        'status': 'pending',
+      });
+
+      // 2. Configure Flutterwave Standard payment instance
+      final Customer customer = Customer(
+        name: userName,
+        email: userEmail,
+        phoneNumber: user.userMetadata?['phone_number'] ?? "00000000000",
+      );
+
+      final Flutterwave flutterwave = Flutterwave(
+        publicKey: _flwTestPublicKey,
+        currency: "NGN",
+        amount: inputAmount.toStringAsFixed(2),
+        txRef: uniqueTxRef,
+        customer: customer,
+        paymentOptions: "card, account, transfer, ussd",
+        customization: Customization(
+          title: "Wallet Cash-In",
+          description: "Fund your account pool via Flutterwave Checkout Gateway",
+        ),
+        isTestMode: true,
+        redirectUrl: 'https://webhook.site',
+      );
+
+      // 3. Launch Flutterwave UI Sheets safely
+      if (!mounted) return; 
+      final ChargeResponse response = await flutterwave.charge(context);
+
+      if (!mounted) return;
+
+      final String? paymentStatus = response.status?.toLowerCase();
+
+      // 4. Handle structural payment evaluation states
+      if (paymentStatus == "success" || paymentStatus == "successful" || response.success == true) {
         
-        if (data != null && data['account_number'] != null) {
-          setState(() {
-            _accountNumber = data['account_number'].toString();
-          });
-        }
+        // Update local ledger transaction tracking state
+        await client
+            .from('deposits')
+            .update({'status': 'success'})
+            .eq('tx_ref', uniqueTxRef);
+
+        // Safely fetch current account records before calculation adjustments
+        final profileFetch = await client
+            .from('profiles')
+            .select('balance')
+            .eq('id', user.id)
+            .single();
+
+        // 💡 PROTECT AGAINST NULL VALUE: Safe fallback calculation parsing
+        final dynamic rawBalance = profileFetch['balance'];
+        final double calculatedCurrentBalance = rawBalance != null 
+            ? double.tryParse(rawBalance.toString()) ?? 0.0 
+            : 0.0;
+            
+        final double targetedNewBalance = calculatedCurrentBalance + inputAmount;
+
+        // Push calculated data sync adjustments up to production profiles
+        await client
+            .from('profiles')
+            .update({'balance': targetedNewBalance})
+            .eq('id', user.id);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wallet funded successfully! Your dashboard balances have updated.'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        context.go('/dashboard'); // Pops back cleanly to Dashboard view to reload streams
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment cancelled or rejected: ${response.status}'),
+            backgroundColor: Colors.orangeAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
-    } catch (e) {
-      debugPrint('Error retrieving account tracking ID: $e');
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Transaction setup failed: $error'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
-      setState(() => _isLoadingAccount = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Premium dark design palette adjustments matching your fintech look
-    final bool hasAccount = _accountNumber != null && _accountNumber!.isNotEmpty;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgCanvas,
       appBar: AppBar(
-        backgroundColor: AppColors.bgCanvas,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
-          onPressed: () => context.pop(),
-        ),
         title: const Text(
           'Add Money',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        centerTitle: false,
+        elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-        children: [
-          // ====================================================================
-          // 🏦 PRIMARY BANK TRANSFER DETAILED HUB CARD
-          // ====================================================================
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
-            ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InkWell(
-                  onTap: () => context.push('${AppRouter.dashboard}/bank-transfer-details'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Row(
-                    children: [
-                      _buildActionIconContainer(Icons.account_balance_rounded),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Bank Transfer', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 4),
-                            Text('Add money via mobile or internet banking', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.8), fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 22),
-                    ],
+                Text(
+                  "ENTER DEPOSIT AMOUNT (NGN)",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey[400] : Colors.grey[700],
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Divider(color: Colors.white10, height: 1),
-                ),
-                Text('Fintech Account Number', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-
-                // Dynamic Display Logic: Evaluates user data presence
-                if (_isLoadingAccount)
-                  _buildShimmerPlaceholder()
-                else if (!hasAccount)
-                  const Text('No active account assigned', style: TextStyle(color: Colors.white24, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.2))
-                else
-                  Text(
-                    _accountNumber!,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _amountController,
+                  enabled: !_isLoading, 
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColors.dev1Silver.withOpacity(0.4)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        ),
-                        onPressed: !hasAccount ? null : () {
-                          Clipboard.setData(ClipboardData(text: _accountNumber!));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Account number copied to clipboard!'), behavior: SnackBarBehavior.floating),
-                          );
-                        },
-                        child: Text('Copy Number', style: TextStyle(color: hasAccount ? AppColors.dev1Silver : Colors.white24, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  decoration: InputDecoration(
+                    prefixText: "₦ ",
+                    prefixStyle: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    hintText: "0.00",
+                    filled: true,
+                    fillColor: isDark ? Colors.grey[950] : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00E676), // OPay Signature Vibrant Teal Green
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          elevation: 0,
-                        ),
-                        onPressed: !hasAccount ? null : () {
-                          // Native Share sheet interface initialization track goes here
-                        },
-                        child: const Text('Share Details', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty)
+                      return "Please input an amount";
+                    final amt = double.tryParse(value.trim());
+                    if (amt == null || amt <= 0)
+                      return "Provide a valid transaction amount";
+                    if (amt < 100) return "Minimum deposit amount is ₦100.00";
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _initiateDepositPipeline,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFF10B981).withOpacity(0.6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                  ],
-                )
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            "Proceed to Secure Checkout",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
               ],
             ),
-          ),
-          
-          // --- Custom Layout Separator Line ---
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24.0),
-            child: Row(
-              children: [
-                Expanded(child: Divider(color: Colors.white.withOpacity(0.05))),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text('OR', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.4), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
-                ),
-                Expanded(child: Divider(color: Colors.white.withOpacity(0.05))),
-              ],
-            ),
-          ),
-
-          // ====================================================================
-          // 💵 MODULAR METHOD PAYMENT ROUTABLE CARDS
-          // ====================================================================
-          _buildPaymentMethodCard(
-            title: 'Cash Deposit',
-            subtitle: 'Fund your account with nearby merchants',
-            icon: Icons.local_atm_outlined,
-            onTap: () => context.push('${AppRouter.dashboard}/cash-deposit'),
-          ),
-          _buildPaymentMethodCard(
-            title: 'Top-up with Card/Account',
-            subtitle: 'Add money directly from your bank card or account',
-            icon: Icons.credit_card_rounded,
-            onTap: () => context.push('${AppRouter.dashboard}/card-topup'),
-          ),
-          _buildPaymentMethodCard(
-            title: 'Bank USSD',
-            subtitle: "With other banks' USSD code setup links",
-            icon: Icons.phone_android_rounded,
-            onTap: () => context.push('${AppRouter.dashboard}/bank-ussd'),
-          ),
-          _buildPaymentMethodCard(
-            title: 'Scan my QR Code',
-            subtitle: 'Show QR code to any secure ecosystem peer user',
-            icon: Icons.qr_code_scanner_rounded,
-            onTap: () => context.push('${AppRouter.dashboard}/scan-qr'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Universal custom card wrapper logic
-  Widget _buildPaymentMethodCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          decoration: BoxDecoration(
-            color: AppColors.bgSurface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.03), width: 1),
-          ),
-          child: Row(
-            children: [
-              _buildActionIconContainer(icon),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(color: AppColors.textSecondary.withOpacity(0.7), fontSize: 11.5)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
-            ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionIconContainer(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.dev1Silver.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: AppColors.dev1Silver, size: 22),
-    );
-  }
-
-  Widget _buildShimmerPlaceholder() {
-    return Container(
-      width: 180,
-      height: 28,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: const LinearProgressIndicator(
-        backgroundColor: Colors.transparent,
-        color: Colors.white10,
       ),
     );
   }
