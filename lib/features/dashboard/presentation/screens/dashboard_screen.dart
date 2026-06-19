@@ -1,5 +1,7 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion, undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
+// ignore_for_file: duplicate_import, duplicate_ignore, unused_element, deprecated_member_use, unnecessary_non_null_assertion, undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
 
+import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
+import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; 
@@ -33,12 +35,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isBalanceHidden = false;
 
   Stream<List<Map<String, dynamic>>>? _profileStream;
+  Stream<List<Map<String, dynamic>>>? _walletStream;
   final String? _currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
   @override
   void initState() {
     super.initState();
-    _initializeProfileStream();
+    _initializeStreams();
   }
 
   void _initializeStreams() {
@@ -55,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  String _formatFirstName(String fullName) {
+  String _getFirstName(String fullName) {
     if (fullName.trim().isEmpty) return 'User';
     final firstPart = fullName.trim().split(' ').first;
     if (firstPart.isEmpty) return 'User';

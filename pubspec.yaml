@@ -32,6 +32,8 @@ dependencies:
   url_launcher: ^6.3.1
   flutterwave_standard: ^1.1.0
   flutterwave_standard_smart: ^1.0.4
+  local_auth: ^3.0.1
+  flutter_secure_storage: ^10.3.1
 
 dev_dependencies:
   flutter_test:
