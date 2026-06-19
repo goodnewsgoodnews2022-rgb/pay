@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -44,8 +46,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
             context.read<KycBloc>().add(SubmitKycVerification());
           }
           if (state is KycSubmissionSuccess) {
-            // KYC complete – navigate to dashboard or show success
-            context.go('/dashboard');
+            print(
+              '🟢 KYC submission success – navigating to /biometric-setup',
+            );
+            // ✅ KYC complete – go to biometric setup
+            context.go('/biometric-setup');
           }
           if (state is KycSubmissionFailure ||
               state is PinVerificationFailure) {

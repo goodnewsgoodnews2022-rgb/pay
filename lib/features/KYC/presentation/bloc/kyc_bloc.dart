@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:fintech/features/KYC/domain/entities/kyc_status.dart';
 import 'package:fintech/features/KYC/domain/usecases/authenticate_with_biometric.dart';
 import 'package:fintech/features/KYC/domain/usecases/check_biometric_support.dart';
@@ -113,26 +115,22 @@ class KycBloc extends Bloc<KycEvent, KycState> {
     }
   }
 
-  Future<void> _onEnableBiometric(
-    EnableBiometric event,
-    Emitter<KycState> emit,
-  ) async {
-    emit(KycLoading());
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) {
-      emit(KycError('User not logged in'));
-      return;
-    }
-    try {
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'biometric_enabled': true})
-          .eq('id', userId);
-      emit(KycBiometricPreferenceSaved());
-    } catch (e) {
-      emit(KycError(e.toString()));
-    }
+  Future<void> _onEnableBiometric(EnableBiometric event, Emitter<KycState> emit) async {
+  print('🔵 EnableBiometric called'); // <-- add this
+  emit(KycLoading());
+  // ... rest
+  try {
+    await Supabase.instance.client
+        .from('profiles')
+        .update({'biometric_enabled': true})
+        .eq('id', Supabase.instance.client.auth.currentUser!.id);
+    print('🔵 Biometric enabled saved'); // <-- add this
+    emit(KycBiometricPreferenceSaved());
+  } catch (e) {
+    print('🔴 Error: $e');
+    emit(KycError(e.toString()));
   }
+}
 
   Future<void> _onSkipBiometric(
     SkipBiometric event,
