@@ -1,10 +1,9 @@
-// ignore_for_file: deprecated_member_use, prefer_const_constructors
+// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,8 +17,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   
   bool _isLoading = false;
-  
-  // 🟢 WEB FIXED: Swapped out dart:io File for raw platform-agnostic byte segments
   Uint8List? _pickedImageBytes; 
   String? _serverImageUrl;
 
@@ -55,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  /// 📥 Fetch real user data from Supabase Auth and Public Tables
+  /// Fetch real user data from Supabase Auth and Public Tables
   Future<void> _loadUserProfileData() async {
     setState(() => _isLoading = true);
     try {
@@ -84,13 +81,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      _showSnackbar('Error loading workspace configurations: $e', isError: true);
+      _showSnackbar('Error loading profile configurations: $e', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  /// 🖼️ Select image from device gallery safely using memory bytes
+  /// Select image from device gallery safely using memory bytes
   Future<void> _pickImageFromGallery() async {
     final picker = ImagePicker();
     try {
@@ -101,14 +98,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (pickedFile != null) {
-        // 🟢 WEB FIXED: Read the data stream out as safe web bytes instead of file paths
         final bytes = await pickedFile.readAsBytes();
-        
         setState(() {
           _pickedImageBytes = bytes;
         });
-        
-        // Pass the picked file handle to handle extensions gracefully inside the loader
         await _uploadAvatarToSupabaseBucket(pickedFile);
       }
     } catch (e) {
@@ -116,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// 🚀 Upload image binary directly to Supabase Storage Bucket
+  /// Upload image binary directly to Supabase Storage Bucket
   Future<void> _uploadAvatarToSupabaseBucket(XFile pickedFile) async {
     if (_pickedImageBytes == null) return;
     
@@ -128,7 +121,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final fileExtension = pickedFile.name.split('.').last;
       final pathName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-      // 🟢 WEB FIXED: Swapped out .upload() for .uploadBinary() to feed the raw memory bytes
       await _supabase.storage.from('avatars').uploadBinary(
             pathName,
             _pickedImageBytes!,
@@ -148,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// 💾 Persist mutated forms to Public Profile rows
+  /// Persist mutated forms to Public Profile rows
   Future<void> _updateProfileDatabaseRecord() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -178,13 +170,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgCanvas,
       appBar: AppBar(
-        title: const Text('Account Profile', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-        backgroundColor: AppColors.bgCanvas,
+        title: const Text('Account Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
           IconButton(
             icon: const Icon(Icons.check_circle_outline, color: Color(0xFF00E676), size: 28),
@@ -193,24 +185,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       body: _isLoading && _fullNameController.text.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: AppColors.dev1Silver))
+          ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
                 children: [
+                  // --- Avatar Section ---
                   Center(
                     child: Stack(
                       children: [
                         CircleAvatar(
                           radius: 64,
-                          backgroundColor: AppColors.bgSurface,
-                          // 🟢 WEB FIXED: Swapped out FileImage for MemoryImage to parse bytes natively
+                          backgroundColor: theme.cardColor,
                           backgroundImage: _pickedImageBytes != null
                               ? MemoryImage(_pickedImageBytes!)
                               : (_serverImageUrl != null ? NetworkImage(_serverImageUrl!) : null) as ImageProvider?,
                           child: _pickedImageBytes == null && _serverImageUrl == null
-                              ? const Icon(Icons.person_rounded, size: 60, color: AppColors.textSecondary)
+                              ? Icon(Icons.person_rounded, size: 60, color: theme.hintColor)
                               : null,
                         ),
                         Positioned(
@@ -220,8 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onTap: _pickImageFromGallery,
                             child: CircleAvatar(
                               radius: 18,
-                              backgroundColor: AppColors.dev1Silver,
-                              child: const Icon(Icons.camera_alt_outlined, color: Colors.black, size: 18),
+                              backgroundColor: theme.colorScheme.primary,
+                              child: Icon(Icons.camera_alt_outlined, color: theme.colorScheme.onPrimary, size: 18),
                             ),
                           ),
                         ),
@@ -230,12 +222,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 32),
 
+                  // --- Account Number Display Card ---
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.bgSurface,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
+                      border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+                      boxShadow: [
+                        if (!isDark)
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                      ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -243,13 +244,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('FINTECH ACCOUNT NUMBER', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, letterSpacing: 1.1, fontWeight: FontWeight.bold)),
+                            Text(
+                              'FINTECH ACCOUNT NUMBER',
+                              style: TextStyle(
+                                color: theme.hintColor,
+                                fontSize: 10,
+                                letterSpacing: 1.1,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 6),
-                            Text(_accountNumberController.text, style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+                            Text(
+                              _accountNumberController.text,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
                           ],
                         ),
                         IconButton(
-                          icon: const Icon(Icons.copy_rounded, color: AppColors.dev1Silver),
+                          icon: Icon(Icons.copy_rounded, color: theme.hintColor),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: _accountNumberController.text));
                             _showSnackbar('Account number copied to clipboard.');
@@ -260,17 +276,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  _buildSectionLabel('PERSONAL INFORMATION'),
-                  _buildInputField(label: 'Full Name', controller: _fullNameController, icon: Icons.badge_outlined),
-                  _buildInputField(label: 'Mobile Number', controller: _phoneController, icon: Icons.phone_android, keyboardType: TextInputType.phone),
+                  // --- Form Section ---
+                  _buildSectionLabel(context, 'PERSONAL INFORMATION'),
+                  _buildInputField(context, label: 'Full Name', controller: _fullNameController, icon: Icons.badge_outlined),
+                  _buildInputField(context, label: 'Mobile Number', controller: _phoneController, icon: Icons.phone_android, keyboardType: TextInputType.phone),
                   
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: DropdownButtonFormField<String>(
                       value: _selectedGender,
-                      dropdownColor: AppColors.bgSurface,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: _inputDecoration('Gender', Icons.wc_outlined),
+                      dropdownColor: theme.cardColor,
+                      decoration: _inputDecoration(context, 'Gender', Icons.wc_outlined),
                       items: ['Male', 'Female', 'Other'].map((String category) {
                         return DropdownMenuItem(value: category, child: Text(category));
                       }).toList(),
@@ -283,39 +299,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: TextFormField(
                       controller: _dobController,
                       readOnly: true,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: _inputDecoration('Date of Birth', Icons.calendar_today_outlined),
+                      decoration: _inputDecoration(context, 'Date of Birth', Icons.calendar_today_outlined),
                       onTap: _selectDateOfBirth,
                     ),
                   ),
 
-                  _buildInputField(label: 'Residential Address', controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
+                  _buildInputField(context, label: 'Residential Address', controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
 
-                  _buildSectionLabel('SYSTEM GATEWAY INTEGRATION'),
+                  _buildSectionLabel(context, 'SYSTEM GATEWAY INTEGRATION'),
                   TextFormField(
-                    // 🟢 FIX: Handled initialization cleanly through a controller pattern or direct string values 
-                    controller: TextEditingController(text: _userEmail),
+                    initialValue: _userEmail,
                     readOnly: true,
-                    style: TextStyle(color: AppColors.textPrimary.withOpacity(0.5)),
-                    decoration: _inputDecoration('Registered Email Address', Icons.email_outlined).copyWith(
+                    style: TextStyle(color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6)),
+                    decoration: _inputDecoration(context, 'Registered Email Address', Icons.email_outlined).copyWith(
                       filled: true,
-                      fillColor: Colors.white10,
+                      fillColor: theme.disabledColor.withOpacity(0.05),
                       helperText: 'Email parameters cannot be changed manually without system authorization.',
-                      helperStyle: const TextStyle(color: Colors.white24, fontSize: 10),
+                      helperStyle: TextStyle(color: theme.hintColor.withOpacity(0.7), fontSize: 10),
                     ),
                   ),
                   const SizedBox(height: 40),
 
+                  // --- Primary Action Button ---
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.dev1Silver,
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: isDark ? 0 : 2,
                     ),
                     onPressed: _isLoading ? null : _updateProfileDatabaseRecord,
                     child: _isLoading 
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-                        : const Text('Save Profile Updates', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: theme.colorScheme.onPrimary, strokeWidth: 2))
+                        : const Text('Save Profile Updates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                   const SizedBox(height: 40),
                 ],
@@ -338,17 +355,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(BuildContext context, String label) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12, top: 8),
       child: Text(
         label,
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.3),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary, 
+          fontSize: 11, 
+          fontWeight: FontWeight.bold, 
+          letterSpacing: 1.3,
+        ),
       ),
     );
   }
 
-  Widget _buildInputField({
+  Widget _buildInputField(
+    BuildContext context, {
     required String label,
     required TextEditingController controller,
     required IconData icon,
@@ -361,28 +384,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
-        style: const TextStyle(color: AppColors.textPrimary),
-        decoration: _inputDecoration(label, icon),
+        decoration: _inputDecoration(context, label, icon),
         validator: (value) => value == null || value.trim().isEmpty ? '$label cannot be left empty.' : null,
       ),
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData prefixIcon) {
+  InputDecoration _inputDecoration(BuildContext context, String label, IconData prefixIcon) {
+    final theme = Theme.of(context);
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-      prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 20),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white10)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.dev1Silver)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
+      labelStyle: TextStyle(color: theme.hintColor, fontSize: 14),
+      prefixIcon: Icon(prefixIcon, color: theme.hintColor, size: 20),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary, width: 2)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error, width: 2)),
     );
   }
 
   void _showSnackbar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: isError ? Colors.redAccent : const Color(0xFF00E676), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message), 
+        backgroundColor: isError ? Colors.redAccent : const Color(0xFF00E676), 
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

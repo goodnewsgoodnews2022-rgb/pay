@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_literals_to_create_immutables, prefer_const_constructors
+
 import 'package:flutter/material.dart';
 
 class PortfolioCard extends StatelessWidget {
@@ -9,7 +11,6 @@ class PortfolioCard extends StatelessWidget {
   final String cryptoAddress;
   final VoidCallback onFiatTap;
   final VoidCallback onCryptoTap;
-  // 🚀 Added configuration flag to catch privacy updates from dashboard state loops
   final bool isBalanceHidden;
 
   const PortfolioCard({
@@ -22,61 +23,15 @@ class PortfolioCard extends StatelessWidget {
     required this.cryptoAddress,
     required this.onFiatTap,
     required this.onCryptoTap,
-    this.isBalanceHidden = false, // Defaults to visible for clean backward compatibility
+    this.isBalanceHidden = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    const Color emeraldColor = Color(0xFF10B981);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'TOTAL NET WORTH (USD)',
-          style: TextStyle(
-            color: Colors.grey, 
-            fontSize: 11, 
-            fontWeight: FontWeight.bold, 
-            letterSpacing: 1.2,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Synchronized with privacy mask toggling rules
-            Text(
-              isBalanceHidden 
-                  ? '••••••' 
-                  : '\$${(fiatBalance + cryptoFiatValue).toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Colors.white, 
-                fontSize: 32, 
-                fontWeight: FontWeight.bold, 
-                fontFamily: 'monospace',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: emeraldColor.withValues(alpha: 0.15), 
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.arrow_drop_up, color: emeraldColor, size: 16),
-                  Text(
-                    '4.2%', 
-                    style: TextStyle(color: emeraldColor, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
+        // 🚀 FIXED: The redundant text and total balance widgets have been completely removed!
 
         // ATM CARD LAYOUT LIST (Horizontal Scroll for high-end look)
         SizedBox(
@@ -121,7 +76,6 @@ class PortfolioCard extends StatelessWidget {
                           Icon(Icons.contactless, color: Colors.white.withValues(alpha: 0.6), size: 22),
                         ],
                       ),
-                      // Conditional Privacy Mask implementation
                       Text(
                         isBalanceHidden ? '••••••' : '\$${fiatBalance.toStringAsFixed(2)}', 
                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
@@ -182,12 +136,10 @@ class PortfolioCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Token Balance Mask Rule
                           Text(
                             isBalanceHidden ? '••••••' : '$cryptoBalance $cryptoSymbol', 
                             style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
                           ),
-                          // Sub-Value Fiat Calculation Mask Rule
                           Text(
                             isBalanceHidden ? '••••••' : '\$${cryptoFiatValue.toStringAsFixed(2)} USD', 
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),

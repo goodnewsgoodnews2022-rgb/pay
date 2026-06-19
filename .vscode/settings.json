@@ -1,5 +1,15 @@
 {
-  "terminal.integrated.env.windows": {
-    "FLUTTER_WEB_DEFINE": "environment_variables=local"
+  "deno.enable": false,
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+  "[typescript]": {
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.unstable": [
+      "kv",
+      "cron"
+    ],
+    "editor.defaultFormatter": "denoland.vscode-deno"
   }
 }

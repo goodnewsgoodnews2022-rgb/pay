@@ -15,6 +15,7 @@ class FiatBalanceCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
         leading: CircleAvatar(
+          // ignore: deprecated_member_use
           backgroundColor: AppColors.dev2Green.withOpacity(0.2),
           child: Text(
             account.currency[0],

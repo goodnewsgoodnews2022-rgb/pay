@@ -38,7 +38,7 @@ class SupabaseClientService {
       // 2. Fire up the native client connection pool infrastructure
       await Supabase.initialize(
         url: Environment.supabaseUrl,
-        anonKey: Environment.supabaseAnonKey,
+        publishableKey: Environment.supabaseAnonKey,
         authOptions: const FlutterAuthClientOptions(
           authFlowType: AuthFlowType.pkce, // Enforces modern, secure cryptographic authorization flow
         ),

@@ -20,7 +20,6 @@ dependencies:
   web3dart: ^3.0.2
   http: ^1.6.0
   flutter_local_notifications: ^21.0.0
-
   image_picker: ^1.1.2
 
   # State Management & Architecture (Shared Team Modules)
@@ -28,9 +27,11 @@ dependencies:
   flutter_bloc: ^9.1.1
   equatable: ^2.0.8
   get_it: ^9.2.1
-  local_auth: ^2.1.6
-  flutter_secure_storage: ^10.3.1
-  crypto: ^3.0.7
+  flutter_riverpod: ^3.3.2
+  intl: ^0.19.0
+  url_launcher: ^6.3.1
+  flutterwave_standard: ^1.1.0
+  flutterwave_standard_smart: ^1.0.4
 
 dev_dependencies:
   flutter_test:

@@ -7,6 +7,8 @@ import 'app_typography.dart';
 /// Core App Engine Theme compiler. Maps custom abstract semantic design
 /// choices directly into Flutter hardware design widget themes.
 class AppTheme {
+  static ThemeData? lightTheme;
+
   AppTheme._();
 
   /// Comprehensive Dark-Mode template standardizing fintech layout specifications.

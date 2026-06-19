@@ -1,14 +1,16 @@
-// ignore_for_file: unused_import
+// ignore_for_file: undefined_hidden_name, unused_import
 
 import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/reports_statements_screen.dart';
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
-import 'extended_screens.dart' hide SettingsScreen;
-// 🚀 FIXED: Explicitly hook up relative path to the SettingsScreen dependency from your tree mapping
+import 'extended_screens.dart' hide SettingsScreen, DashboardScreen;
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
+
 class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({super.key});
+
   @override
   State<AppNavigationShell> createState() => _AppNavigationShellState();
 }
@@ -16,11 +18,15 @@ class AppNavigationShell extends StatefulWidget {
 class _AppNavigationShellState extends State<AppNavigationShell> {
   int _currentIndex = 0;
   Widget? _activeSubScreen; 
+  late final List<Widget> _pages; // 🛡️ Cached references to prevent state teardowns
 
   @override
-  Widget build(BuildContext context) {
-    // ignore: no_leading_underscores_for_local_identifiers
-    final List<Widget> _pages = [
+  void initState() {
+    super.initState();
+    
+    // 🚀 CRITICAL FIX: Instantiating pages inside initState guarantees that 
+    // the DashboardScreen state (and its Supabase real-time stream) is persistent.
+    _pages = [
       DashboardScreen(
         onNavigateToSubScreen: (Widget customScreen) {
           setState(() {
@@ -28,22 +34,35 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           });
         },
       ),
-      const AnalysisScreen(),
-      const TransactionLedgerScreen(),
-      const MoreScreen(), // This is where your nested settings configuration views live
+      const ReportsStatementsScreen(),
+      const Center(child: Text('Ledger Screen', style: TextStyle(color: Colors.white))),
+      MoreScreen(
+        onNavigateToSubScreen: (Widget customScreen) {
+          setState(() {
+            _activeSubScreen = customScreen;
+          });
+        },
+      ),
     ];
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: _activeSubScreen != null 
-          ? _activeSubScreen! 
-          : IndexedStack(index: _currentIndex, children: _pages),
+      // 🎨 Layout Guard: Using an AnimatedSwitcher or clean layout bounds prevents overflows 
+      // when popping in or out of nested sub-screens.
+      body: SafeArea(
+        child: _activeSubScreen != null 
+            ? _activeSubScreen! 
+            : IndexedStack(index: _currentIndex, children: _pages),
+      ),
           
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
-            _activeSubScreen = null; // Clears active action screen states automatically
+            _activeSubScreen = null; // Clears active sub-screens on structural tab switches
           });
         },
         type: BottomNavigationBarType.fixed,
@@ -53,7 +72,6 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
         showUnselectedLabels: true,
         selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         unselectedLabelStyle: const TextStyle(fontSize: 11),
-        // 🚀 Updated labels and icons according to mentor feedback for professional optimization
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), label: 'Analysis'),

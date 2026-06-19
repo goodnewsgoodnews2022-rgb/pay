@@ -9,6 +9,7 @@ class AmountInputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      // ignore: prefer_const_constructors
       keyboardType: TextInputType.numberWithOptions(decimal: true),
       style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
