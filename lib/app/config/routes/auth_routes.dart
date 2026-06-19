@@ -1,3 +1,4 @@
+import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
@@ -11,6 +12,7 @@ class AuthRoutes {
   static const String kycIntro = '/kyc-intro';
   static const String pinSetup = '/pin-setup';
   static const String kycVerification = '/kyc-verify';
+  static const String biometricSetup = '/biometric-setup';
 
 
   static List<RouteBase> get routes => [
@@ -22,18 +24,17 @@ class AuthRoutes {
           path: signup,
           builder: (context, state) => const SignupScreen(),
         ),
+      
         GoRoute(
-          path: kycIntro,
-          builder: (context, state) => const KycIntroScreen(),
-        ),
-        GoRoute(
-          path: pinSetup,
-          builder: (context, state) => const PinSetupScreen(),
+          path: biometricSetup,
+          builder: (context, state) => const BiometricSetupScreen(),
         ),
         GoRoute(
           path: kycVerification,
           builder: (context, state) => const KycVerificationScreen(),
         ),
 
+        GoRoute(path: kycIntro, builder: (context, state) => const KycIntroScreen()),
+        GoRoute(path: pinSetup, builder: (context, state) => const PinSetupScreen()),
       ];
 }

@@ -87,7 +87,7 @@ class _SignupScreenState extends State<SignupScreen> {
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             final user = state.user;
-            if (user.kycStatus == 'verified'){
+            if (user.kycStatus == 'APPROVED'){
               context.go('/dashboard');
               return;
             }

@@ -42,7 +42,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'gender': gender,
           'date_of_birth': dateOfBirth,
           'address': address,
-          'kyc_status': 'pending',
+          'kyc_status': 'PENDING',
         });
       } catch (dbError) {
         throw AuthException(
@@ -65,7 +65,7 @@ class AuthRepositoryImpl implements AuthRepository {
         dateOfBirth: dateOfBirth,
         address: address,
         accountNumber: profile['account_number'],
-        kycStatus: 'pending',
+        kycStatus: 'PENDING',
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -95,7 +95,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       // Fallback gracefully if the profile record is entirely missing or null
       final String finalFullName = profile?['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User');
-      final String finalKycStatus = profile?['kyc_status'] ?? 'pending';
+      final String finalKycStatus = profile?['kyc_status'] ?? 'PENDING';
 
       return AppUserModel.fromSupabaseUser(
         user,
@@ -148,7 +148,7 @@ class AuthRepositoryImpl implements AuthRepository {
         address: profile['address'],
         avatarUrl: profile['avatar_url'],
         accountNumber: profile['account_number'],
-        kycStatus: profile['kyc_status'] ?? 'pending',
+        kycStatus: profile['kyc_status'] ?? 'PENDING',
       );
     } catch (e) {
       // Return null to drop session gracefully instead of crashing global BLoC lifecycle

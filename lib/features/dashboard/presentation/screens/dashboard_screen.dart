@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion, undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
 
+import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
+import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; 
@@ -33,12 +35,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isBalanceHidden = false;
 
   Stream<List<Map<String, dynamic>>>? _profileStream;
+  Stream<List<Map<String, dynamic>>>? _walletStream;
   final String? _currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
   @override
   void initState() {
     super.initState();
-    _initializeProfileStream();
+    _initializeStreams();
   }
 
   void _initializeStreams() {
@@ -71,12 +74,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final currentUser = Supabase.instance.client.auth.currentUser;
-        String displayName = _getFirstName(
+        String displayName = _formatFirstName(
           currentUser?.userMetadata?['full_name'] ?? 'User',
         );
 
         if (state is AuthAuthenticated) {
-          displayName = _getFirstName(state.user.fullName ?? 'User');
+          displayName = _formatFirstName(state.user.fullName ?? 'User');
         }
 
         return Scaffold(
@@ -106,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   if (dbName != null &&
                       dbName.isNotEmpty &&
                       state is! AuthAuthenticated) {
-                    displayName = _getFirstName(dbName);
+                    displayName = _formatFirstName(dbName);
                   }
                 }
 
@@ -142,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                   final String? liveName = snapshot.data!.first['full_name'];
                   if (liveName != null && liveName.isNotEmpty) {
-                    displayName = _getFirstName(liveName);
+                    displayName = _formatFirstName(liveName);
                   }
                 }
                 return Text(

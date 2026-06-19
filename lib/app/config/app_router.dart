@@ -2,6 +2,11 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
+import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
+import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/invite_friends_screen.dart';
@@ -54,6 +59,10 @@ class AppRouter {
   static const String cryptoWallet = '/wallet';
   static const String appPreferences = '/app-preferences';
   static const String language = '/language';
+  static const String kycIntro = '/kyc-intro';
+  static const String pinSetup = '/pin-setup';
+  static const String kycVerification = '/kyc-verify';
+  static const String biometricSetup = '/biometric-setup';
 
   static final GlobalKey<NavigatorState> rootNavigatorKey =
       GlobalKey<NavigatorState>();
@@ -78,7 +87,7 @@ class AppRouter {
       }
 
       // If already logged in, skip auth screens and drop onto dashboard cleanly
-      if (session != null && (isLoggingIn || isSigningUp || isSplashing || state.matchedLocation == '/biometrics-unlock')) {
+      if (session != null && (isLoggingIn || isSigningUp || isSplashing || state.matchedLocation == '/biometric-setup')) {
         return dashboard;
       }
 
@@ -104,6 +113,7 @@ class AppRouter {
               BlocProvider<SettingsBloc>(
                 create: (context) => getIt<SettingsBloc>(),
               ),
+              BlocProvider<KycBloc>(create: (context) => getIt<KycBloc>()),
             ],
             child: child,
           );
@@ -117,7 +127,19 @@ class AppRouter {
             path: signup,
             builder: (context, state) => const SignupScreen(),
           ),
-          GoRoute(path: login, builder: (context, state) => LoginScreen()),
+          GoRoute(path: login, 
+          builder: (context, state) => LoginScreen()),
+
+          GoRoute(path: biometricSetup, 
+          builder: (context, state) => const BiometricSetupScreen()),
+          
+          GoRoute(path: kycIntro, builder: (context, state) => const KycIntroScreen()),
+
+          GoRoute(path: pinSetup, builder: (context, state) => const PinSetupScreen()),
+          GoRoute(
+            path: kycVerification,
+            builder: (context, state) => const KycVerificationScreen(),
+          ),
           GoRoute(
             path: dashboard,
             builder: (context, state) => const AppNavigationShell(),
