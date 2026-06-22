@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'add_money_screen.dart';
 
 class ReceiveFundsScreen extends StatefulWidget {
   const ReceiveFundsScreen({super.key});
@@ -11,40 +12,72 @@ class ReceiveFundsScreen extends StatefulWidget {
 
 class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _fiatDepositSimulationController = TextEditingController();
   final _cryptoDepositSimulationController = TextEditingController();
 
-  String _selectedFiatCurrency = 'USD';
   String _selectedNetwork = 'TRC20 (TRON)';
   String _selectedCryptoAsset = 'USDT';
   bool _isLoading = false;
 
-  final List<String> _fiatCurrencies = ['USD', 'NGN', 'GHS', 'KES', 'EUR', 'GBP'];
+  // Fully matched list of enterprise networks supported by the NOWPayments gateway
   final List<String> _networks = [
     'TRC20 (TRON)',
     'BEP20 (BSC)',
     'ERC20 (Ethereum)',
     'BTC (Bitcoin Mainnet)',
-    'SOL (Solana Native)'
+    'SOL (Solana Native)',
+    'ADA (Cardano Native)',
+    'DOGE (Dogecoin)',
+    'POLYGON (Matic)',
+    'Arbitrum (ERC20)',
+    'Optimism (ERC20)',
+    'AVAX (Avalanche C-Chain)',
   ];
 
+  // Dynamically maps which crypto tokens exist natively on the chosen network
   List<String> _getAssetsForNetwork(String network) {
     switch (network) {
       case 'TRC20 (TRON)':
-        return ['USDT', 'TRX', 'USDC'];
+        return ['USDT', 'TRX', 'USDC', 'BUSD', 'SUN', 'JST'];
       case 'BEP20 (BSC)':
-        return ['BNB', 'USDT', 'BUSD'];
+        return ['BNB', 'USDT', 'USDC', 'BUSD', 'CAKE', 'ALPHA', 'BAKE', 'SFP'];
       case 'ERC20 (Ethereum)':
-        return ['ETH', 'USDT', 'LINK'];
+        return [
+          'ETH',
+          'USDT',
+          'USDC',
+          'LINK',
+          'UNI',
+          'AAVE',
+          'SHIB',
+          'PEPE',
+          'GRT',
+          'MKR',
+          'COMP',
+          'MANA',
+          'SAND',
+        ];
       case 'BTC (Bitcoin Mainnet)':
         return ['BTC', 'WBTC'];
       case 'SOL (Solana Native)':
-        return ['SOL', 'USDT', 'USDC'];
+        return ['SOL', 'USDT', 'USDC', 'RAY', 'FIDA'];
+      case 'ADA (Cardano Native)':
+        return ['ADA'];
+      case 'DOGE (Dogecoin)':
+        return ['DOGE'];
+      case 'POLYGON (Matic)':
+        return ['MATIC', 'USDT', 'USDC', 'SAND', 'QUICK'];
+      case 'Arbitrum (ERC20)':
+        return ['ARB', 'USDT', 'USDC', 'ETH'];
+      case 'Optimism (ERC20)':
+        return ['OP', 'USDT', 'USDC', 'ETH'];
+      case 'AVAX (Avalanche C-Chain)':
+        return ['AVAX', 'USDT', 'USDC'];
       default:
         return ['USDT'];
     }
   }
 
+  // Resolves custom NOWPayments mock addresses mapped to specific networks
   String _getMockAddress(String network) {
     switch (network) {
       case 'TRC20 (TRON)':
@@ -57,6 +90,18 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
         return 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
       case 'SOL (Solana Native)':
         return 'HN7c6HSSdfE39nS4K4GgH9R3jKsP9pSkjS39s';
+      case 'ADA (Cardano Native)':
+        return 'addr1q9jxtg46ygr7asgdn79qyf583p64lkfjh8wlhw';
+      case 'DOGE (Dogecoin)':
+        return 'DJf89a2LdGjSqzTxQR2PA8Be6FG7HR3AK9j';
+      case 'POLYGON (Matic)':
+        return '0x2A7a84e9fB27a84e9f9A821A8bE6E30cCcCd4f76';
+      case 'Arbitrum (ERC20)':
+        return '0x9A821A8bE6E30cCcCd4f762A7a84e9fB27a84e9f';
+      case 'Optimism (ERC20)':
+        return '0xeE30cCcCd4f762A7a84e9fB27a84e9fB27a84e9fB';
+      case 'AVAX (Avalanche C-Chain)':
+        return '0x8e6E30cCcCd4f762A7a84e9fB27a84e9fB27a84e9';
       default:
         return '0x7a84e9f9A821A8bE6E30cCcCd4f762A7a84e9fB2';
     }
@@ -71,14 +116,13 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   @override
   void dispose() {
     _tabController.dispose();
-    _fiatDepositSimulationController.dispose();
     _cryptoDepositSimulationController.dispose();
     super.dispose();
   }
 
-  Future<void> _simulateDepositReceipt(bool isCrypto) async {
-    final double depositAmount = double.tryParse(isCrypto ? _cryptoDepositSimulationController.text : _fiatDepositSimulationController.text) ?? 0.0;
-    final String assetName = isCrypto ? _selectedCryptoAsset : _selectedFiatCurrency;
+  Future<void> _simulateDepositReceipt() async {
+    final double depositAmount = double.tryParse(_cryptoDepositSimulationController.text) ?? 0.0;
+    final String assetName = _selectedCryptoAsset;
 
     if (depositAmount <= 0) return;
 
@@ -89,40 +133,24 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
       final userId = client.auth.currentUser?.id;
 
       if (userId != null) {
-        // Grab current live balances from Supabase
         final response = await client.from('wallets').select().eq('user_id', userId).maybeSingle();
-        double currentFiatBalance = response != null ? (response['balance'] ?? 0.0).toDouble() : 0.0;
         double currentCryptoBalance = response != null ? (response['crypto_balance'] ?? 0.0).toDouble() : 0.0;
+        double newCryptoBalance = currentCryptoBalance + depositAmount;
 
-        double newFiatBalance = currentFiatBalance;
-        double newCryptoBalance = currentCryptoBalance;
-
-        if (isCrypto) {
-          newCryptoBalance += depositAmount;
-        } else {
-          newFiatBalance += depositAmount;
-        }
-
-        // Upsert back to wallets database
         await client.from('wallets').upsert({
           'user_id': userId,
-          'balance': newFiatBalance,
           'crypto_balance': newCryptoBalance,
         });
 
-        // Trigger dynamic system notifications log insertion
         try {
           await client.from('notifications').insert({
             'user_id': userId,
-            'title': isCrypto ? 'Crypto Received' : 'FIAT Deposit Confirmed',
+            'title': 'Crypto Received',
             'message': 'You have received ${depositAmount.toStringAsFixed(2)} $assetName from an external source.',
             'created_at': DateTime.now().toIso8601String(),
           });
-        } catch (_) {
-          // Fail gracefully if database table 'notifications' doesn't exist
-        }
+        } catch (_) {}
 
-        // Trigger beautiful in-app system notification
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -152,7 +180,6 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
               ),
             ),
           );
-          _fiatDepositSimulationController.clear();
           _cryptoDepositSimulationController.clear();
           Navigator.pop(context);
         }
@@ -172,10 +199,8 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
     final backgroundColor = theme.scaffoldBackgroundColor;
     final textColor = isDark ? Colors.white : Colors.black87;
     final cardColor = isDark ? const Color(0xFF111622) : Colors.grey[100]!;
-    const accentColor = Color(0xFF10B981); // Brand Green
+    const accentColor = Color(0xFF10B981);
     final elementBgColor = isDark ? const Color(0xFF1E1E22) : Colors.white;
-    
-    // Fixed nullability constraint by adding non-nullable assertions (!) to gray swatches
     final secondaryTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
     return Scaffold(
@@ -194,7 +219,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           unselectedLabelColor: secondaryTextColor,
           indicatorColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
           tabs: const [
-            Tab(icon: Icon(Icons.account_balance_outlined), text: 'FIAT Account'),
+            Tab(icon: Icon(Icons.account_balance_outlined), text: 'FIAT Deposit'),
             Tab(icon: Icon(Icons.qr_code_2_rounded), text: 'Crypto Scanner'),
           ],
         ),
@@ -212,87 +237,65 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   }
 
   Widget _buildFiatReceiveView(Color cardColor, Color elementBg, Color textColor, Color secondaryColor, Color accentColor, bool isDark) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: isDark ? null : Border.all(color: Colors.grey[200]!),
+          const Spacer(),
+          Icon(Icons.account_balance_wallet_rounded, color: accentColor, size: 80),
+          const SizedBox(height: 24),
+          Text(
+            'Deposit FIAT',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Add money safely to your fiat wallet using our Flutterwave payment gateway corridor. Supported channels include Cards, Bank Transfer, and USSD.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: secondaryColor,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          const Spacer(),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: isDark ? 0 : 2,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddMoneyScreen()),
+              );
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.account_balance, color: accentColor, size: 48),
-                const SizedBox(height: 12),
+                Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+                SizedBox(width: 8),
                 Text(
-                  'Flutterwave Virtual Core Account',
-                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Bank: Providus Bank • Acct: 9948210385',
-                  style: TextStyle(color: secondaryColor, fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Account Holder: Lawrence Stable Ledger',
-                  style: TextStyle(color: secondaryColor, fontSize: 11),
+                  'Deposit FIAT Now',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-          Text(
-            'DEMO TEST RECEIVE SIMULATOR',
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Since you are testing in sandbox corridors, use this simulator block to deposit virtual FIAT balances immediately and verify your dashboard updates.',
-            style: TextStyle(color: secondaryColor, fontSize: 12),
-          ),
           const SizedBox(height: 16),
-          _buildInputLabel('Select Currency Pipeline', textColor),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedFiatCurrency,
-                isExpanded: true,
-                dropdownColor: cardColor,
-                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-                items: _fiatCurrencies.map((val) {
-                  return DropdownMenuItem(value: val, child: Text(val));
-                }).toList(),
-                onChanged: (newVal) {
-                  if (newVal != null) setState(() => _selectedFiatCurrency = newVal);
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildInputLabel('Amount to Receive (\$)', textColor),
-          _buildInputField(_fiatDepositSimulationController, 'Enter simulated amount (e.g. 500)', cardColor, isDark),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => _simulateDepositReceipt(false),
-            child: const Text('Simulate Inbound Flutterwave Credit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
         ],
       ),
     );
@@ -328,7 +331,15 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                   return DropdownMenuItem(value: val, child: Text(val));
                 }).toList(),
                 onChanged: (newVal) {
-                  if (newVal != null) setState(() => _selectedNetwork = newVal);
+                  if (newVal != null) {
+                    setState(() {
+                      _selectedNetwork = newVal;
+                      final networkAssets = _getAssetsForNetwork(newVal);
+                      if (networkAssets.isNotEmpty) {
+                        _selectedCryptoAsset = networkAssets.first;
+                      }
+                    });
+                  }
                 },
               ),
             ),
@@ -350,7 +361,15 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           const SizedBox(height: 16),
           Center(
             child: Text(
-              'Your Web3 $activeAddress',
+              'Your Web3 Address:',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: Text(
+              activeAddress,
               textAlign: TextAlign.center,
               style: TextStyle(color: secondaryColor, fontSize: 11, fontFamily: 'monospace'),
             ),
@@ -409,7 +428,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            onPressed: () => _simulateDepositReceipt(true),
+            onPressed: _simulateDepositReceipt,
             child: const Text('Simulate Inbound Wallet Deposit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
