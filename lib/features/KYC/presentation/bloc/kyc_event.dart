@@ -32,3 +32,7 @@ class LoadKycStatus extends KycEvent {
 class EnableBiometric extends KycEvent {}
 
 class SkipBiometric extends KycEvent {}
+
+class LoadBiometricStatus extends KycEvent {}
+
+class DisableBiometric extends KycEvent {}

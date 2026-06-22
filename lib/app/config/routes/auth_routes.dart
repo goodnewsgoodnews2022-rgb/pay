@@ -1,3 +1,4 @@
+import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
@@ -21,7 +22,7 @@ class AuthRoutes {
           builder: (context, state) => const LoginScreen(),
         ),
         GoRoute(
-          path: signup,
+          path: AppRouter.signup,
           builder: (context, state) => const SignupScreen(),
         ),
       

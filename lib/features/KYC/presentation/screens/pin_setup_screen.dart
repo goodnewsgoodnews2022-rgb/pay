@@ -45,10 +45,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           }
           if (state is KycSubmissionSuccess) {
             print(
-              '🟢 KYC submission success – navigating to /biometric-setup',
+              '🟢 KYC submission success – navigating to /dashboard',
             );
-            // ✅ KYC complete – go to biometric setup
-            context.go('/biometric-setup');
+            // ✅ KYC complete – go to dashboard
+            context.go('/dashboard');
           }
           if (state is KycSubmissionFailure ||
               state is PinVerificationFailure) {

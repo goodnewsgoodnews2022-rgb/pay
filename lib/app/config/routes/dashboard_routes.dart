@@ -1,5 +1,6 @@
 // ignore_for_file: unrelated_type_equality_checks, unused_import
 
+import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -17,7 +18,7 @@ class DashboardRoutes {
   static const String dashboard = '/dashboard';
   static const String wallet = '/wallet';
   static const String settings = '/settings';
-  
+  static const String biometricSetup = '/biometric-setup';
   // Explicit location constant tracking path for the Add Money sub-root
   static const String addMoney = 'add-money';
 
@@ -67,5 +68,8 @@ class DashboardRoutes {
           path: settings,
           builder: (context, state) => const SettingsScreen(),
         ),
+        GoRoute(
+          path: biometricSetup, 
+        builder: (context, state) => const BiometricSetupScreen()),
       ];
 }

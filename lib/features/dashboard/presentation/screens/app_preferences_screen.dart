@@ -161,7 +161,7 @@ class AppPreferencesScreen extends ConsumerWidget {
             context,
             icon: Icons.fingerprint_rounded,
             title: 'Enable Biometrics',
-            onTap: () => context.push('/settings/biometrics'),
+            onTap: () => context.push('/biometric-setup'),
           ),
           _buildMenuTile(
             context,

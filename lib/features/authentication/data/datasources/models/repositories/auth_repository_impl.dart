@@ -166,4 +166,6 @@ class AuthRepositoryImpl implements AuthRepository {
       throw Exception('Password reset failed: $e');
     }
   }
+
+  
 }
