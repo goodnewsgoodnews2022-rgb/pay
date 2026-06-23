@@ -1,5 +1,7 @@
 // ignore_for_file: duplicate_import, duplicate_ignore, unused_element, deprecated_member_use, unnecessary_non_null_assertion, undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
 
+import 'package:fintech/features/dashboard/presentation/screens/receive_funds_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/send_funds_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
 import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -347,14 +349,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icons.call_made,
                               'Send',
                               Colors.blueAccent,
-                              const Placeholder(),
+                              const SendFundsScreen(),
                             ),
                             _buildActionButton(
                               context,
                               Icons.call_received,
                               'Receive',
                               emeraldColor,
-                              const Placeholder(),
+                              const ReceiveFundsScreen(),
                             ),
                             _buildActionButton(
                               context,
