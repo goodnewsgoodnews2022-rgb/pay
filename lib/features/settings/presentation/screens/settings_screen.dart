@@ -1,4 +1,4 @@
-// ignore_for_file: unused_import, deprecated_member_use
+// ignore_for_file: use_build_context_synchronously, unused_import, deprecated_member_use
 
 import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/app/config/routes/dashboard_routes.dart';

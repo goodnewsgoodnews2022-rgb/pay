@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fintech/features/authentication/domain/usecases/get_current_user.dart'; 
 import 'package:fintech/features/authentication/domain/usecases/sign_in.dart';
