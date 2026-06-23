@@ -151,7 +151,7 @@ Future<void> setupDependencies() async {
 
   // 3. Presentation State Controllers (Factories)
   if (!getIt.isRegistered<AuthBloc>()) {
-    getIt.registerFactory(
+    getIt.registerLazySingleton<AuthBloc>(
       () => AuthBloc(
         signUp: getIt<SignUp>(),
         signIn: getIt<SignIn>(),

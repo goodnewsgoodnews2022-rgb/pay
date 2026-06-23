@@ -36,14 +36,16 @@ class KycBloc extends Bloc<KycEvent, KycState> {
     on<LoadKycStatus>(_onLoadKycStatus);
     on<EnableBiometric>(_onEnableBiometric);
     on<SkipBiometric>(_onSkipBiometric);
+    on<LoadBiometricStatus>(_onLoadBiometricStatus);
+    on<DisableBiometric>(_onDisableBiometric);
   }
 
   Future<void> _onCheckBiometric(
     CheckBiometricAvailability event,
     Emitter<KycState> emit,
   ) async {
-    final supported = await checkBiometricSupport();
-    emit(BiometricAvailable(supported));
+    final isSupported = await checkBiometricSupport();
+    emit(BiometricAvailable(isSupported));
   }
 
   Future<void> _onBiometricAuth(
@@ -151,5 +153,48 @@ class KycBloc extends Bloc<KycEvent, KycState> {
     } catch (e) {
       emit(KycError(e.toString()));
     }
+  }
+}
+
+Future<void> _onLoadBiometricStatus(
+  LoadBiometricStatus event,
+  Emitter<KycState> emit,
+) async {
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) {
+    emit(KycError('User not logged in'));
+    return;
+  }
+  try {
+    final response = await Supabase.instance.client
+        .from('profiles')
+        .select('biometric_enabled')
+        .eq('id', userId)
+        .single();
+    final enabled = response['biometric_enabled'] ?? false;
+    emit(BiometricStatusLoaded(enabled));
+  } catch (e) {
+    emit(KycError(e.toString()));
+  }
+}
+
+Future<void> _onDisableBiometric(
+  DisableBiometric event,
+  Emitter<KycState> emit,
+) async {
+  emit(KycLoading());
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) {
+    emit(KycError('User not logged in'));
+    return;
+  }
+  try {
+    await Supabase.instance.client
+        .from('profiles')
+        .update({'biometric_enabled': false})
+        .eq('id', userId);
+    emit(KycBiometricPreferenceSaved());
+  } catch (e) {
+    emit(KycError(e.toString()));
   }
 }

@@ -1,7 +1,10 @@
 // ignore_for_file: prefer_const_declarations, prefer_const_literals_to_create_immutables, prefer_const_constructor, deprecated_member_use, unused_import
 
+import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../main.dart';
 import 'app_preferences_screen.dart';
@@ -346,41 +349,33 @@ class _MoreScreenState extends State<MoreScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    showDialog(
-      context: context,
-      builder: (innerContext) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF0D0C14) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Confirm Logout',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to log out of your session securely?',
-          style: TextStyle(color: isDark ? Colors.grey[300] : Colors.black54),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(innerContext),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(innerContext);
-            },
-            child: const Text(
-              'Logout',
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+    // Inside your more page build method
+showDialog(
+  context: context,
+  builder: (innerContext) => AlertDialog(
+    title: const Text('Are you sure?'),
+    content: const Text('Do you want to logout?'),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(innerContext),
+        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
       ),
-    );
-  }
-}
+      TextButton(
+        onPressed: () {
+          print('🔐 Logout confirmed by user, dispatching AuthSignOutRequested event');
+          // Close dialog
+          Navigator.pop(innerContext);
+          // Dispatch signout
+          context.read<AuthBloc>().add(AuthSignOutRequested());
+        },
+        child: const Text(
+          'Logout',
+          style: TextStyle(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ],
+  ),
+);}}

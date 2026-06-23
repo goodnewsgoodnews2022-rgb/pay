@@ -52,3 +52,9 @@ class KycError extends KycState {
 
 class KycBiometricPreferenceSaved
     extends KycState {}  // ✅ This line is correct
+
+class BiometricStatusLoaded extends KycState {
+  final bool isEnabled;
+  BiometricStatusLoaded(this.isEnabled);
+}
+
