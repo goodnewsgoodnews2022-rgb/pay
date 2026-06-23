@@ -59,7 +59,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
 
     if (currentUserId != null) {
       _walletStream = Supabase.instance.client
-          .from('wallets')
+          .from('fiat_wallets')
           .stream(primaryKey: ['user_id'])
           .eq('user_id', currentUserId);
     } else {
@@ -160,7 +160,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
       if (currentUserId == null) return null;
 
       final response = await Supabase.instance.client
-          .from('wallets')
+          .from('fiat_wallets')
           .select()
           .eq('user_id', currentUserId)
           .maybeSingle();
@@ -194,12 +194,12 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
       if (supabaseData != null) {
         // Update existing record
         await Supabase.instance.client
-            .from('wallets')
+            .from('fiat_wallets')
             .update(updateData)
             .eq('user_id', currentUserId);
       } else {
         // Insert new record
-        await Supabase.instance.client.from('wallets').insert(updateData);
+        await Supabase.instance.client.from('fiat_wallets').insert(updateData);
       }
 
       // Create audit log for transparency
@@ -330,7 +330,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: currentUserId != null
                   ? Supabase.instance.client
-                        .from('wallets')
+                        .from('fiat_wallets')
                         .stream(primaryKey: ['user_id'])
                         .eq('user_id', currentUserId)
                   : null,
