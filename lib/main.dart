@@ -1,5 +1,7 @@
 // lib/main.dart
 
+// ignore_for_file: avoid_print, unused_import
+
 import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
 import 'package:flutter/material.dart';

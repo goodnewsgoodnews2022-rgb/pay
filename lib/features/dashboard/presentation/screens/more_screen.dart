@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_declarations, prefer_const_literals_to_create_immutables, prefer_const_constructor, deprecated_member_use, unused_import
+// ignore_for_file: avoid_print, unused_local_variable, prefer_const_declarations, prefer_const_literals_to_create_immutables, prefer_const_constructor, deprecated_member_use, unused_import
 
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
