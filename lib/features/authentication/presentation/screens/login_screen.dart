@@ -215,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Icons.fingerprint,
                                 color: Colors.black,
                               ),
-                              label: const Text('Sign in with Biometrics'),
+                              label: const Text('Fingerprint'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.dev2Green,
                                 foregroundColor: Colors.black,
