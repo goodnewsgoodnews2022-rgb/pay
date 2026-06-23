@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:fintech/features/KYC/domain/entities/kyc_status.dart';
 import 'package:fintech/features/KYC/domain/usecases/authenticate_with_biometric.dart';
 import 'package:fintech/features/KYC/domain/usecases/check_biometric_support.dart';

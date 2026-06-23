@@ -51,6 +51,8 @@ import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
+import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart'; // Adjust path to match your project structure
+import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart'; // Adjust path to your project structure
 
 class AppRouter {
   static const String splash = '/';
@@ -99,6 +101,10 @@ class AppRouter {
             builder: (context, state) => const SplashScreen(),
           ),
           GoRoute(
+  path: '/pin-setup',
+  builder: (context, state) => const PinSetupScreen(), // Or whatever your teammate named the PIN setup widget
+),
+          GoRoute(
             path: signup,
             builder: (context, state) => const SignupScreen(),
           ),
@@ -123,9 +129,14 @@ class AppRouter {
             builder: (context, state) => const KycVerificationScreen(),
           ),
           GoRoute(
+            path: '/kyc-intro',
+            builder: (context, state) => const KycIntroScreen(),
+          ),
+          GoRoute(
             path: dashboard,
             builder: (context, state) => const AppNavigationShell(),
           ),
+          
           GoRoute(
             path: cryptoWallet,
             builder: (context, state) => const CryptoWalletScreen(),

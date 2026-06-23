@@ -1,5 +1,7 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion, undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
+// ignore_for_file: duplicate_import, duplicate_ignore, unused_element, deprecated_member_use, unnecessary_non_null_assertion, undefined_hidden_name, unused_import, prefer_const_literals_to_create_immutables, prefer_const_constructors
 
+import 'package:fintech/features/dashboard/presentation/screens/receive_funds_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/send_funds_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
 import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -58,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  String _formatFirstName(String fullName) {
+  String _getFirstName(String fullName) {
     if (fullName.trim().isEmpty) return 'User';
     final firstPart = fullName.trim().split(' ').first;
     if (firstPart.isEmpty) return 'User';
@@ -74,12 +76,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final currentUser = Supabase.instance.client.auth.currentUser;
-        String displayName = _formatFirstName(
+        String displayName = _getFirstName(
           currentUser?.userMetadata?['full_name'] ?? 'User',
         );
 
         if (state is AuthAuthenticated) {
-          displayName = _formatFirstName(state.user.fullName ?? 'User');
+          displayName = _getFirstName(state.user.fullName ?? 'User');
         }
 
         return Scaffold(
@@ -109,7 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   if (dbName != null &&
                       dbName.isNotEmpty &&
                       state is! AuthAuthenticated) {
-                    displayName = _formatFirstName(dbName);
+                    displayName = _getFirstName(dbName);
                   }
                 }
 
@@ -145,7 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                   final String? liveName = snapshot.data!.first['full_name'];
                   if (liveName != null && liveName.isNotEmpty) {
-                    displayName = _formatFirstName(liveName);
+                    displayName = _getFirstName(liveName);
                   }
                 }
                 return Text(
@@ -347,14 +349,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icons.call_made,
                               'Send',
                               Colors.blueAccent,
-                              const Placeholder(),
+                              const SendFundsScreen(),
                             ),
                             _buildActionButton(
                               context,
                               Icons.call_received,
                               'Receive',
                               emeraldColor,
-                              const Placeholder(),
+                              const ReceiveFundsScreen(),
                             ),
                             _buildActionButton(
                               context,
