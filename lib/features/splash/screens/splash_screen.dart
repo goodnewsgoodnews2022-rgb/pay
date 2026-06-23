@@ -3,8 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../presentation/splash_navigation_cubit.dart';
-import '../presentation/controllers.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,29 +18,22 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    
-    // 🟢 Kicks off the initialization flow safely after the UI layout is drawn
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<SplashNavigationCubit>().initializeAppGatewaySequence();
-      }
-    });
+    // Check auth status as soon as the screen is built
+    context.read<AuthBloc>().add(AuthCheckStatus());
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<SplashNavigationCubit, SplashNavigationState>(
+    return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is NavigateToLogin) {
-          context.go('/login');
-        } else if (state is NavigateToBiometricVerification) {
-          context.go('/pin-setup'); // Specialized security wall screen
-        } else if (state is NavigateToDashboard) {
+        if (state is AuthAuthenticated) {
           context.go('/dashboard');
+        } else if (state is AuthUnauthenticated) {
+          context.go('/login');
         }
       },
       child: const Scaffold(
-        backgroundColor: Color(0xFF0A0E17), // Theme Dark Canvas Color
+        backgroundColor: Color(0xFF0A0E17),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -47,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
               Icon(
                 Icons.shield_rounded,
                 size: 85,
-                color: Color(0xFF00E676), // Fintech Emerald Green Accent
+                color: Color(0xFF00E676),
               ),
               SizedBox(height: 32),
               SizedBox(
@@ -55,9 +49,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white30),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.white30,
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         ),

@@ -22,6 +22,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _addressController = TextEditingController();
   String? _selectedGender;
   DateTime? _selectedDateOfBirth;
+  bool _obscurePassword = true; // ✅ toggle state
 
   final _formKey = GlobalKey<FormState>();
 
@@ -151,9 +152,21 @@ class _SignupScreenState extends State<SignupScreen> {
 
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: _buildInputDecoration('Password *'),
+                      decoration: _buildInputDecoration('Password *').copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: AppColors.textSecondary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
                       validator: (v) => v == null || v.length < 6
                           ? 'Minimum 6 characters'
                           : null,
@@ -214,6 +227,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           label: 'Sign Up',
                           isLoading: isLoading,
                           onPressed: () {
+                            context.go('/dashboard');
                             if (_formKey.currentState!.validate()) {
                               context.read<AuthBloc>().add(
                                 AuthSignUpRequested(

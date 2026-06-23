@@ -7,6 +7,7 @@ import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen
 import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
 import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/invite_friends_screen.dart';
@@ -71,34 +72,10 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: login, // 💡 Starts app directly at Login Screen
+    initialLocation: splash, // ✅ start at splash (not login)
     debugLogDiagnostics: true,
 
-    // ====================================================================
-    // AUTH ROUTE GUARD
-    // ====================================================================
-    redirect: (BuildContext context, GoRouterState state) {
-      final session = Supabase.instance.client.auth.currentSession;
-      final isLoggingIn = state.matchedLocation == login;
-      final isSigningUp = state.matchedLocation == signup;
-      final isSplashing = state.matchedLocation == splash;
-
-      // Force users to authenticate if no session exists
-      if (session == null && !isLoggingIn && !isSigningUp) {
-        return login;
-      }
-
-      // If already logged in, skip auth screens and drop onto dashboard cleanly
-      if (session != null && (isLoggingIn || isSigningUp || isSplashing || state.matchedLocation == '/biometric-setup')) {
-        return dashboard;
-      }
-
-      return null;
-    },
-
-    // ====================================================================
-    // SCREEN DECLARATION MAPS
-    // ====================================================================
+    // ❌ REDIRECT REMOVED – navigation handled by BlocListener + SplashScreen
     routes: [
       ShellRoute(
         builder: (context, state, child) {
@@ -108,9 +85,7 @@ class AppRouter {
             providers: [
               BlocProvider<AuthBloc>.value(value: authBloc),
               BlocProvider<SplashNavigationCubit>(
-                create: (context) => getIt<SplashNavigationCubit>(), 
-                // 💡 Removed ..initializeAppGatewaySequence() cascade extension 
-                // to prevent background logic from triggering premature biometric redirects.
+                create: (context) => getIt<SplashNavigationCubit>(),
               ),
               BlocProvider<SettingsBloc>(
                 create: (context) => getIt<SettingsBloc>(),
@@ -133,15 +108,22 @@ class AppRouter {
             path: signup,
             builder: (context, state) => const SignupScreen(),
           ),
-          GoRoute(path: login, 
-          builder: (context, state) => LoginScreen()),
-
-          GoRoute(path: biometricSetup, 
-          builder: (context, state) => const BiometricSetupScreen()),
-          
-          GoRoute(path: kycIntro, builder: (context, state) => const KycIntroScreen()),
-
-          GoRoute(path: pinSetup, builder: (context, state) => const PinSetupScreen()),
+          GoRoute(
+            path: login,
+            builder: (context, state) => const LoginScreen(),
+          ),
+          GoRoute(
+            path: biometricSetup,
+            builder: (context, state) => const BiometricSetupScreen(),
+          ),
+          GoRoute(
+            path: kycIntro,
+            builder: (context, state) => const KycIntroScreen(),
+          ),
+          GoRoute(
+            path: pinSetup,
+            builder: (context, state) => const PinSetupScreen(),
+          ),
           GoRoute(
             path: kycVerification,
             builder: (context, state) => const KycVerificationScreen(),
@@ -164,7 +146,8 @@ class AppRouter {
           GoRoute(
             path: '/more',
             builder: (context, state) => MoreScreen(
-              onNavigateToSubScreen: (route) => context.go(route as String),
+              onNavigateToSubScreen: (route) =>
+                  context.go(route as String),
             ),
           ),
 
