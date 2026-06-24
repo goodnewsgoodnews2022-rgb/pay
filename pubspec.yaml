@@ -19,6 +19,7 @@ dependencies:
   dio: ^5.9.2
   web3dart: ^3.0.2
   http: ^1.6.0
+  flutter_dotenv: ^5.0.2
 
   image_picker: ^1.1.2
 
@@ -43,3 +44,7 @@ dev_dependencies:
 # 🚀 CRITICAL FIX: This MUST sit at the very root level of the file to bundle your icon assets!
 flutter:
   uses-material-design: true
+
+# Add your assets declaration list right here:
+  assets:
+    - assets/.env
