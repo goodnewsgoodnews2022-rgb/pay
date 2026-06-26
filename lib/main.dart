@@ -1,56 +1,70 @@
 // lib/main.dart
 
-// ignore_for_file: avoid_print, unused_import
+// ignore_for_file: deprecated_member_use, avoid_print
 
+import 'package:fintech/app/config/app_router.dart';
+import 'package:fintech/app/config/environment.dart';
+import 'package:fintech/core/theme/app_theme.dart';
 import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
+import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
+import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
-// Config & Theme Imports
-import 'package:fintech/app/config/app_router.dart';
-import 'package:fintech/app/config/environment.dart';
-import 'package:fintech/core/theme/app_theme.dart';
-
-// Bloc Imports
-import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
-import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
-import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
-import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-// ✅ Global navigator key
+// Global navigator key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// 🚀 Riverpod Theme Provider
-final themeStateProvider = StateProvider<ThemeMode>(
-  (ref) => ThemeMode.dark,
-);
+// Riverpod Theme Provider
+final themeStateProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 
-void main() async {
+Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
   widgetsBinding.deferFirstFrame();
 
-  await dotenv.load();
-
+  // 1. Core Framework Initializations using Environment Manager constants
   try {
+    debugPrint("Initializing Supabase...");
+    Environment.validate(); // Ensure credentials are sane
+    
     await Supabase.initialize(
       url: Environment.supabaseUrl,
-      publishableKey: Environment.supabaseAnonKey,
+      anonKey: Environment.supabaseAnonKey,
     );
-    setupDependencies();
-    await getIt.allReady();
   } catch (e) {
-    debugPrint('❌ [CRITICAL INITIALIZATION ERROR]: $e');
+    debugPrint("❌ Core Error: Supabase initialization crashed.");
+    debugPrint(e.toString());
+  }
+
+  // 2. Dependency Injection Registrations
+  try {
+    debugPrint("Initializing GetIt dependencies...");
+    await setupDependencies();
+    await getIt.allReady();
+
+    debugPrint("AuthBloc registered: ${getIt.isRegistered<AuthBloc>()}");
+    debugPrint("NotificationBloc registered: ${getIt.isRegistered<NotificationBloc>()}");
+    debugPrint("KycBloc registered: ${getIt.isRegistered<KycBloc>()}");
+  } catch (e, stackTrace) {
+    debugPrint("❌ Core Error: GetIt Dependency Injection Registration crashed.");
+    debugPrint(e.toString());
+    debugPrint(stackTrace.toString());
   } finally {
     widgetsBinding.allowFirstFrame();
   }
 
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends ConsumerWidget {
@@ -68,24 +82,24 @@ class MyApp extends ConsumerWidget {
         BlocProvider<NotificationBloc>(
           create: (_) => getIt<NotificationBloc>(),
         ),
-        BlocProvider<KycBloc>(create: (_) => getIt<KycBloc>()),
+        BlocProvider<KycBloc>(
+          create: (_) => getIt<KycBloc>(),
+        ),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          print('🔐 [AuthBloc] State changed: $state');
+          debugPrint("Auth State: $state");
+
           if (state is AuthUnauthenticated) {
-            print('🔐 User is unauthenticated, navigating to /login');
-            // ✅ Use the router instance directly – no context issues
             WidgetsBinding.instance.addPostFrameCallback((_) {
               AppRouter.router.go('/login');
             });
           }
         },
         child: MaterialApp.router(
-          routerConfig: AppRouter.router,
-          // No need for navigatorKey
           debugShowCheckedModeBanner: false,
-          title: 'Pay Fintech',
+          title: "Pay Fintech",
+          routerConfig: AppRouter.router,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: currentThemeMode,

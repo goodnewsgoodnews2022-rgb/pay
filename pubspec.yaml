@@ -44,7 +44,5 @@ dev_dependencies:
 # 🚀 CRITICAL FIX: This MUST sit at the very root level of the file to bundle your icon assets!
 flutter:
   uses-material-design: true
-
-# Add your assets declaration list right here:
   assets:
-    - assets/.env
+    
