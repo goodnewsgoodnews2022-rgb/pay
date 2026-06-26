@@ -1,4 +1,4 @@
-// ignore_for_file: unused_local_variable, deprecated_member_use, curly_braces_in_flow_control_structures
+// ignore_for_file: use_build_context_synchronously, unused_local_variable, deprecated_member_use, curly_braces_in_flow_control_structures
 
 import 'package:flutter/material.dart';
 import 'package:flutterwave_standard/core/flutterwave.dart';
@@ -49,21 +49,15 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       final String userName =
           user.userMetadata?['full_name'] ?? 'Smart Wallet Customer';
 
-      // 1. Log transaction safely bypassing any hidden upsert/trigger index rules on the deposits table
-      try {
-        final Map<String, dynamic> depositPayload = {
-          'user_id': user.id,
-          'amount': inputAmount,
-          'currency': 'NGN',
-          'tx_ref': uniqueTxRef,
-          'status': 'pending',
-        };
-        await client.from('deposits').insert(depositPayload);
-      } catch (databaseTriggerError) {
-        // If your deposits table has a corrupted constraint trigger, we log it natively 
-        // but do NOT crash, allowing the app execution pipeline to cleanly move to Flutterwave!
-        debugPrint("Handled internal index exception logging transaction ledger: $databaseTriggerError");
-      }
+      // 1. Log transaction safely into 'deposits' table in a 'pending' state
+      final Map<String, dynamic> depositPayload = {
+        'user_id': user.id,
+        'amount': inputAmount,
+        'currency': 'NGN',
+        'tx_ref': uniqueTxRef,
+        'status': 'pending',
+      };
+     await client.from('deposits').insert(depositPayload);
 
       // 2. Configure Flutterwave Standard payment instance
       final Customer customer = Customer(
@@ -78,7 +72,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         amount: inputAmount.toStringAsFixed(2),
         txRef: uniqueTxRef,
         customer: customer,
-        paymentOptions: "card, account, transfer, ussd", // 👈 Enables full multi-bank choices
+        paymentOptions: "card, account, transfer, ussd", 
         customization: Customization(
           title: "Wallet Cash-In",
           description: "Fund your account pool via Flutterwave Checkout Gateway",
@@ -98,20 +92,17 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       // 4. Handle structural payment evaluation states
       if (paymentStatus == "success" || paymentStatus == "successful" || response.success == true) {
         
-        // Update local ledger transaction tracking state
-        try {
-          await client
-              .from('deposits')
-              .update({'status': 'success'})
-              .eq('tx_ref', uniqueTxRef);
-        } catch (_) {}
+        // A. Update local ledger transaction tracking status to success
+        await client
+            .from('deposits')
+            .update({'status': 'success'})
+            .eq('tx_ref', uniqueTxRef);
 
-        // Check if the wallet exists first using maybeSingle() to prevent conflict engine checks
+        // B. Fetch the single wallet row total to recalculate balance safely
         final walletFetch = await client
             .from('fiat_wallets')
-            .select('balance')
+            .select('ngn_balance')
             .eq('user_id', user.id)
-            .eq('currency', 'NGN')
             .maybeSingle();
 
         double calculatedCurrentBalance = 0.0;
@@ -119,7 +110,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
         if (walletFetch != null) {
           walletExists = true;
-          final dynamic rawBalance = walletFetch['balance'];
+          final dynamic rawBalance = walletFetch['ngn_balance'];
           calculatedCurrentBalance = rawBalance != null 
               ? double.tryParse(rawBalance.toString()) ?? 0.0 
               : 0.0;
@@ -127,33 +118,38 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             
         final double targetedNewBalance = calculatedCurrentBalance + inputAmount;
 
-        // Separate clean insert from clean update to eliminate constraint error entirely
+        // C. Update total holding pool balance (Omitting timestamp fields to avoid constraint type parsing bugs)
         if (walletExists) {
           await client
               .from('fiat_wallets')
-              .update({'balance': targetedNewBalance})
-              .eq('user_id', user.id)
-              .eq('currency', 'NGN');
+              .update({'ngn_balance': targetedNewBalance})
+              .eq('user_id', user.id);
         } else {
           await client
               .from('fiat_wallets')
               .insert({
                 'user_id': user.id,
-                'currency': 'NGN',
-                'balance': targetedNewBalance,
+                 'currency': 'NGN',
+                'ngn_balance': targetedNewBalance,
               });
         }
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Wallet funded successfully! Your dashboard balances have updated.'),
+            content: Text('Wallet funded successfully! Dashboard balances updated.'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
         context.go('/dashboard'); 
       } else {
+        // Mark individual history log row as failed if user cancels
+        await client
+            .from('deposits')
+            .update({'status': 'failed'})
+            .eq('tx_ref', uniqueTxRef);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment cancelled or rejected: ${response.status}'),
@@ -210,19 +206,11 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                 TextFormField(
                   controller: _amountController,
                   enabled: !_isLoading, 
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
                     prefixText: "₦ ",
-                    prefixStyle: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    prefixStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     hintText: "0.00",
                     filled: true,
                     fillColor: isDark ? Colors.grey[950] : Colors.grey[50],
@@ -234,11 +222,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty)
-                      return "Please input an amount";
+                    if (value == null || value.trim().isEmpty) return "Please input an amount";
                     final amt = double.tryParse(value.trim());
-                    if (amt == null || amt <= 0)
-                      return "Provide a valid transaction amount";
+                    if (amt == null || amt <= 0) return "Provide a valid transaction amount";
                     if (amt < 100) return "Minimum deposit amount is ₦100.00";
                     return null;
                   },
@@ -253,25 +239,17 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: const Color(0xFF10B981).withOpacity(0.6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             height: 24,
                             width: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                           )
                         : const Text(
                             "Proceed to Secure Checkout",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
