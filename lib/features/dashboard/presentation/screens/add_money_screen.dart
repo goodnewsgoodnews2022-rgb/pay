@@ -1,5 +1,6 @@
 // ignore_for_file: unused_local_variable, deprecated_member_use, curly_braces_in_flow_control_structures
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutterwave_standard/core/flutterwave.dart';
 import 'package:flutterwave_standard/models/requests/customer.dart';
@@ -7,6 +8,9 @@ import 'package:flutterwave_standard/models/requests/customizations.dart';
 import 'package:flutterwave_standard/models/responses/charge_response.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Secure Conditional Web-Fallback Compilation Pipeline
+import 'web_payment_stub.dart' if (dart.library.js_util) 'web_payment_web.dart' as web_payment;
 
 class AddMoneyScreen extends StatefulWidget {
   const AddMoneyScreen({super.key});
@@ -65,102 +69,204 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         debugPrint("Handled internal index exception logging transaction ledger: $databaseTriggerError");
       }
 
-      // 2. Configure Flutterwave Standard payment instance
-      final Customer customer = Customer(
-        name: userName,
-        email: userEmail,
-        phoneNumber: user.userMetadata?['phone_number'] ?? "00000000000",
-      );
+      // 2. Platform-Aware Payment Initialization Route
+      if (kIsWeb) {
+        // WEB PIPELINE: Securely trigger Web Checkout without CORS API blocks or Webview crashes
+        web_payment.triggerWebCheckout(
+          publicKey: _flwTestPublicKey,
+          txRef: uniqueTxRef,
+          amount: inputAmount,
+          userEmail: userEmail,
+          userName: userName,
+          phoneNumber: user.userMetadata?['phone_number'] ?? "00000000000",
+          onSuccess: (response) async {
+            final String status = response['status']?.toString().toLowerCase() ?? '';
+            if (status == "success" || status == "successful") {
+              // Update local ledger transaction tracking state
+              try {
+                await client
+                    .from('deposits')
+                    .update({'status': 'success'})
+                    .eq('tx_ref', uniqueTxRef);
+              } catch (_) {}
 
-      final Flutterwave flutterwave = Flutterwave(
-        publicKey: _flwTestPublicKey,
-        currency: "NGN",
-        amount: inputAmount.toStringAsFixed(2),
-        txRef: uniqueTxRef,
-        customer: customer,
-        paymentOptions: "card, account, transfer, ussd", // 👈 Enables full multi-bank choices
-        customization: Customization(
-          title: "Wallet Cash-In",
-          description: "Fund your account pool via Flutterwave Checkout Gateway",
-        ),
-        isTestMode: true,
-        redirectUrl: 'https://webhook.site',
-      );
+              // Check if the wallet exists first using maybeSingle() to prevent conflict checks
+              final walletFetch = await client
+                  .from('fiat_wallets')
+                  .select('balance')
+                  .eq('user_id', user.id)
+                  .eq('currency', 'NGN')
+                  .maybeSingle();
 
-      // 3. Launch Flutterwave UI Sheets safely
-      if (!mounted) return; 
-      final ChargeResponse response = await flutterwave.charge(context);
+              double calculatedCurrentBalance = 0.0;
+              bool walletExists = false;
 
-      if (!mounted) return;
+              if (walletFetch != null) {
+                walletExists = true;
+                final dynamic rawBalance = walletFetch['balance'];
+                calculatedCurrentBalance = rawBalance != null 
+                    ? double.tryParse(rawBalance.toString()) ?? 0.0 
+                    : 0.0;
+              }
+                  
+              final double targetedNewBalance = calculatedCurrentBalance + inputAmount;
 
-      final String? paymentStatus = response.status?.toLowerCase();
+              // Separate clean insert from clean update to eliminate constraint error entirely
+              if (walletExists) {
+                await client
+                    .from('fiat_wallets')
+                    .update({'balance': targetedNewBalance})
+                    .eq('user_id', user.id)
+                    .eq('currency', 'NGN');
+              } else {
+                await client
+                    .from('fiat_wallets')
+                    .insert({
+                      'user_id': user.id,
+                      'currency': 'NGN',
+                      'balance': targetedNewBalance,
+                    });
+              }
 
-      // 4. Handle structural payment evaluation states
-      if (paymentStatus == "success" || paymentStatus == "successful" || response.success == true) {
-        
-        // Update local ledger transaction tracking state
-        try {
-          await client
-              .from('deposits')
-              .update({'status': 'success'})
-              .eq('tx_ref', uniqueTxRef);
-        } catch (_) {}
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Wallet funded successfully! Your dashboard balances have updated.'),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              context.go('/dashboard'); 
+            } else {
+              setState(() => _isLoading = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Payment status response state indicates failure: $status'),
+                  backgroundColor: Colors.orangeAccent,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+          onCancel: () {
+            setState(() => _isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment session cancelled by user.'),
+                backgroundColor: Colors.orangeAccent,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+          onError: (errorString) {
+            setState(() => _isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Payment verification failed: $errorString'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        );
+      } else {
+        // MOBILE PIPELINE: Configure Flutterwave Standard payment sheet instance
+        final Customer customer = Customer(
+          name: userName,
+          email: userEmail,
+          phoneNumber: user.userMetadata?['phone_number'] ?? "00000000000",
+        );
 
-        // Check if the wallet exists first using maybeSingle() to prevent conflict engine checks
-        final walletFetch = await client
-            .from('fiat_wallets')
-            .select('balance')
-            .eq('user_id', user.id)
-            .eq('currency', 'NGN')
-            .maybeSingle();
+        final Flutterwave flutterwave = Flutterwave(
+          publicKey: _flwTestPublicKey,
+          currency: "NGN",
+          amount: inputAmount.toStringAsFixed(2),
+          txRef: uniqueTxRef,
+          customer: customer,
+          paymentOptions: "card, account, transfer, ussd", // 👈 Enables full multi-bank choices
+          customization: Customization(
+            title: "Wallet Cash-In",
+            description: "Fund your account pool via Flutterwave Checkout Gateway",
+          ),
+          isTestMode: true,
+          redirectUrl: 'https://webhook.site',
+        );
 
-        double calculatedCurrentBalance = 0.0;
-        bool walletExists = false;
-
-        if (walletFetch != null) {
-          walletExists = true;
-          final dynamic rawBalance = walletFetch['balance'];
-          calculatedCurrentBalance = rawBalance != null 
-              ? double.tryParse(rawBalance.toString()) ?? 0.0 
-              : 0.0;
-        }
-            
-        final double targetedNewBalance = calculatedCurrentBalance + inputAmount;
-
-        // Separate clean insert from clean update to eliminate constraint error entirely
-        if (walletExists) {
-          await client
-              .from('fiat_wallets')
-              .update({'balance': targetedNewBalance})
-              .eq('user_id', user.id)
-              .eq('currency', 'NGN');
-        } else {
-          await client
-              .from('fiat_wallets')
-              .insert({
-                'user_id': user.id,
-                'currency': 'NGN',
-                'balance': targetedNewBalance,
-              });
-        }
+        // 3. Launch Flutterwave UI Sheets safely
+        if (!mounted) return; 
+        final ChargeResponse response = await flutterwave.charge(context);
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Wallet funded successfully! Your dashboard balances have updated.'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        context.go('/dashboard'); 
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment cancelled or rejected: ${response.status}'),
-            backgroundColor: Colors.orangeAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+
+        final String? paymentStatus = response.status?.toLowerCase();
+
+        // 4. Handle structural payment evaluation states
+        if (paymentStatus == "success" || paymentStatus == "successful" || response.success == true) {
+          
+          // Update local ledger transaction tracking state
+          try {
+            await client
+                .from('deposits')
+                .update({'status': 'success'})
+                .eq('tx_ref', uniqueTxRef);
+          } catch (_) {}
+
+          // Check if the wallet exists first using maybeSingle() to prevent conflict engine checks
+          final walletFetch = await client
+              .from('fiat_wallets')
+              .select('balance')
+              .eq('user_id', user.id)
+              .eq('currency', 'NGN')
+              .maybeSingle();
+
+          double calculatedCurrentBalance = 0.0;
+          bool walletExists = false;
+
+          if (walletFetch != null) {
+            walletExists = true;
+            final dynamic rawBalance = walletFetch['balance'];
+            calculatedCurrentBalance = rawBalance != null 
+                ? double.tryParse(rawBalance.toString()) ?? 0.0 
+                : 0.0;
+          }
+              
+          final double targetedNewBalance = calculatedCurrentBalance + inputAmount;
+
+          // Separate clean insert from clean update to eliminate constraint error entirely
+          if (walletExists) {
+            await client
+                .from('fiat_wallets')
+                .update({'balance': targetedNewBalance})
+                .eq('user_id', user.id)
+                .eq('currency', 'NGN');
+          } else {
+            await client
+                .from('fiat_wallets')
+                .insert({
+                  'user_id': user.id,
+                  'currency': 'NGN',
+                  'balance': targetedNewBalance,
+                });
+          }
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Wallet funded successfully! Your dashboard balances have updated.'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          context.go('/dashboard'); 
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment cancelled or rejected: ${response.status}'),
+              backgroundColor: Colors.orangeAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (error) {
       if (!mounted) return;
@@ -172,7 +278,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && !kIsWeb) setState(() => _isLoading = false);
     }
   }
 
