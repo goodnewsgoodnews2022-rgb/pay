@@ -21,6 +21,7 @@ import 'package:fintech/features/authentication/presentation/bloc/bloc_dependenc
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ✅ Global navigator key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -33,6 +34,8 @@ final themeStateProvider = StateProvider<ThemeMode>(
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   widgetsBinding.deferFirstFrame();
+
+  await dotenv.load();
 
   try {
     await Supabase.initialize(

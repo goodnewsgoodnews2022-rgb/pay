@@ -1,7 +1,10 @@
-// ignore_for_file: deprecated_member_use, use_build_context_synchronously, curly_braces_in_flow_control_structures
+// ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CryptoWithdrawalScreen extends StatefulWidget {
@@ -14,6 +17,10 @@ class CryptoWithdrawalScreen extends StatefulWidget {
 class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // API Credentials Configuration (Securely stripped of strings to clear GitHub Rules)
+  static const String _flutterwaveSecretKey = ""; 
+  static const String _nowPaymentsApiKey = ""; 
+
   // Crypto Controllers
   final _addressController = TextEditingController();
   final _amountController = TextEditingController();
@@ -23,254 +30,91 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
   final _fiatAccountNumberController = TextEditingController();
   final _fiatAmountController = TextEditingController();
 
-  String _selectedNetwork = 'TRC20 (TRON)';
-  String _selectedCrypto = 'USDT';
+  // Dynamic NOWPayments Engine States
+  List<Map<String, dynamic>> _nowPaymentsRawCurrencies = [];
+  List<String> _dynamicNetworks = [];
+  List<Map<String, dynamic>> _filteredAssetsForSelectedNetwork = [];
+
+  String _selectedNetwork = '';
+  String _selectedCrypto = '';
   double _inputAmount = 0.0;
   bool _isLoading = false;
+  bool _isFetchingCryptoMeta = true;
 
   // FIAT specific states
   String _selectedBank = 'Providus Bank';
   double _fiatInputAmount = 0.0;
   bool _isResolvingAccountName = false;
   bool _accountResolvedSuccessfully = false;
+  String? _resolutionErrorMessage;
 
   // Premium system palette matching dashboard alignments
   static const Color emeraldColor = Color(0xFF10B981);
   static const Color warningRedColor = Color(0xFFEF4444);
   static const Color brandOrangeColor = Color(0xFFFBBF24);
 
-  // Supported gateway blockchains list
-  final List<String> _networks = [
-    'TRC20 (TRON)',
-    'BEP20 (BSC)',
-    'ERC20 (Ethereum)',
-    'BTC (Bitcoin Mainnet)',
-    'SOL (Solana Native)',
-    'ADA (Cardano Native)',
-    'DOGE (Dogecoin)',
-    'POLYGON (Matic)',
-    'Arbitrum (ERC20)',
-    'Optimism (ERC20)',
-    'AVAX (Avalanche C-Chain)',
+  // Offline Fallback Data Structure to bypass browser CORS constraints gracefully
+  final List<String> _fallbackNetworks = [
+    'TRON',
+    'BSC',
+    'ETH',
+    'BITCOIN',
+    'SOLANA',
+    'CARDANO',
+    'DOGE',
+    'POLYGON',
+    'ARBITRUM',
+    'OPTIMISM',
+    'AVALANCHE',
   ];
+
+  List<Map<String, dynamic>> _getFallbackAssetsForNetwork(String network) {
+    List<String> tickers = ['USDT', 'USDC'];
+    if (network == 'BITCOIN') tickers = ['BTC', 'WBTC'];
+    else if (network == 'ETH') tickers = ['ETH', 'USDT', 'USDC', 'LINK', 'UNI', 'SHIB'];
+    else if (network == 'TRON') tickers = ['TRX', 'USDT', 'USDC'];
+    else if (network == 'BSC') tickers = ['BNB', 'USDT', 'USDC', 'CAKE'];
+    else if (network == 'SOLANA') tickers = ['SOL', 'USDT', 'USDC'];
+    else if (network == 'CARDANO') tickers = ['ADA'];
+    else if (network == 'DOGE') tickers = ['DOGE'];
+    else if (network == 'POLYGON') tickers = ['MATIC', 'USDT'];
+    else if (network == 'ARBITRUM') tickers = ['ARB', 'ETH'];
+    else if (network == 'OPTIMISM') tickers = ['OP', 'ETH'];
+    else if (network == 'AVALANCHE') tickers = ['AVAX', 'USDT'];
+
+    return tickers.map((t) => {
+      'ticker': t,
+      'network': network,
+      'name': t == 'USDT' ? 'Tether USD' : t == 'USDC' ? 'USD Coin' : t,
+      'logo_url': 'https://nowpayments.io/images/coins/${t.toLowerCase()}.png'
+    }).toList();
+  }
 
   // Complete, alphabetically sorted list of banks supported by Flutterwave
   final List<String> _banks = [
-    'Access Bank',
-    'Access Bank (Diamond)',
-    'ALAT by Wema',
-    'Amju Unique MFB',
-    'Baines Credit MFB',
-    'Bowen Microfinance Bank',
-    'Carbon',
-    'CEMCS Microfinance Bank',
-    'Citibank Nigeria',
-    'Coronation Merchant Bank',
-    'Ecobank Nigeria',
-    'Ekondo Microfinance Bank',
-    'Eyowo',
-    'Fidelity Bank',
-    'First Bank of Nigeria',
-    'First City Monument Bank (FCMB)',
-    'FSDH Merchant Bank',
-    'Globus Bank',
-    'Guaranty Trust Bank (GTB)',
-    'Hackman Microfinance Bank',
-    'Hasal Microfinance Bank',
-    'Heritage Bank',
-    'HopePSB',
-    'Ibile Microfinance Bank',
-    'Infinity MFB',
-    'Jaiz Bank',
-    'Keystone Bank',
-    'Kuda Microfinance Bank',
-    'Lagos Building Investment Company Plc',
-    'Links MFB',
-    'Living Trust Mortgage Bank',
-    'Lotus Bank',
-    'Mayfair MFB',
-    'Mint MFB',
-    'Moniepoint MFB',
-    'Nova Merchant Bank',
-    'OPay',
-    'Optimus Bank',
-    'Page Financials',
-    'Palmpay',
-    'Parallex Bank',
-    'Parkway ReadyCash',
-    'Polaris Bank',
-    'Providus Bank',
-    'QuickFund MFB',
-    'Rubies MFB',
-    'Safe Haven MFB',
-    'Signature Bank',
-    'Sparkle Microfinance Bank',
-    'Stanbic IBTC Bank',
-    'Standard Chartered Bank',
-    'Sterling Bank',
-    'Suntrust Bank',
-    'TAJ Bank',
-    'Titan Bank',
-    'Titan Trust Bank',
-    'Union Bank of Nigeria',
-    'United Bank for Africa (UBA)',
-    'Unity Bank',
-    'VFD Microfinance Bank',
-    'Wema Bank',
-    'Zenith Bank',
+    'Access Bank', 'Access Bank (Diamond)', 'ALAT by Wema', 'Amju Unique MFB',
+    'Baines Credit MFB', 'Bowen Microfinance Bank', 'Carbon', 'CEMCS Microfinance Bank',
+    'Citibank Nigeria', 'Coronation Merchant Bank', 'Ecobank Nigeria', 'Ekondo Microfinance Bank',
+    'Eyowo', 'Fidelity Bank', 'First Bank of Nigeria', 'First City Monument Bank (FCMB)',
+    'FSDH Merchant Bank', 'Globus Bank', 'Guaranty Trust Bank (GTB)', 'Hackman Microfinance Bank',
+    'Hasal Microfinance Bank', 'Heritage Bank', 'HopePSB', 'Ibile Microfinance Bank',
+    'Infinity MFB', 'Jaiz Bank', 'Keystone Bank', 'Kuda Microfinance Bank',
+    'Lagos Building Investment Company Plc', 'Links MFB', 'Living Trust Mortgage Bank',
+    'Lotus Bank', 'Mayfair MFB', 'Mint MFB', 'Moniepoint MFB', 'Nova Merchant Bank',
+    'OPay', 'Optimus Bank', 'Page Financials', 'Palmpay', 'Parallex Bank',
+    'Parkway ReadyCash', 'Polaris Bank', 'Providus Bank', 'QuickFund MFB',
+    'Rubies MFB', 'Safe Haven MFB', 'Signature Bank', 'Sparkle Microfinance Bank',
+    'Stanbic IBTC Bank', 'Standard Chartered Bank', 'Sterling Bank', 'Suntrust Bank',
+    'TAJ Bank', 'Titan Bank', 'Titan Trust Bank', 'Union Bank of Nigeria',
+    'United Bank for Africa (UBA)', 'Unity Bank', 'VFD Microfinance Bank',
+    'Wema Bank', 'Zenith Bank',
   ];
-
-  // Dynamic Brand Helper for Banks (Flutterwave Ecosystem colors + dynamic logos)
-  Map<String, dynamic> _getBankBrandData(String bankName) {
-    if (bankName.contains('Guaranty Trust') || bankName.contains('GTB')) {
-      return {'color': const Color(0xFFE25822), 'initials': 'GT', 'logo': 'gtbank'};
-    } else if (bankName.contains('Access')) {
-      return {'color': const Color(0xFF1C355E), 'initials': 'AC', 'logo': 'access-bank'};
-    } else if (bankName.contains('Zenith')) {
-      return {'color': const Color(0xFFD32F2F), 'initials': 'ZH', 'logo': 'zenith-bank'};
-    } else if (bankName.contains('Kuda')) {
-      return {'color': const Color(0xFF401964), 'initials': 'KD', 'logo': 'kuda-bank'};
-    } else if (bankName.contains('OPay')) {
-      return {'color': const Color(0xFF00B060), 'initials': 'OP', 'logo': 'opay'};
-    } else if (bankName.contains('Palmpay')) {
-      return {'color': const Color(0xFF03A9F4), 'initials': 'PP', 'logo': 'palmpay'};
-    } else if (bankName.contains('Moniepoint')) {
-      return {'color': const Color(0xFF0F3BB1), 'initials': 'MP', 'logo': 'moniepoint'};
-    } else if (bankName.contains('Wema') || bankName.contains('ALAT')) {
-      return {'color': const Color(0xFF83004F), 'initials': 'AL', 'logo': 'wema-bank'};
-    } else if (bankName.contains('First Bank')) {
-      return {'color': const Color(0xFF0A2540), 'initials': 'F1', 'logo': 'first-bank'};
-    } else if (bankName.contains('UBA') || bankName.contains('United Bank')) {
-      return {'color': const Color(0xFFC62828), 'initials': 'UB', 'logo': 'united-bank-for-africa'};
-    } else if (bankName.contains('Providus')) {
-      return {'color': const Color(0xFF111111), 'initials': 'PB', 'logo': 'providus-bank'};
-    } else if (bankName.contains('Fidelity')) {
-      return {'color': const Color(0xFF0D47A1), 'initials': 'FD', 'logo': 'fidelity-bank'};
-    } else if (bankName.contains('Stanbic')) {
-      return {'color': const Color(0xFF1976D2), 'initials': 'IB', 'logo': 'stanbic-ibtc-bank'};
-    } else if (bankName.contains('Carbon')) {
-      return {'color': const Color(0xFF4A148C), 'initials': 'CB', 'logo': 'carbon'};
-    } else if (bankName.contains('Sparkle')) {
-      return {'color': const Color(0xFFEC407A), 'initials': 'SP', 'logo': 'sparkle'};
-    }
-    
-    // Auto-generate fallback parameters for smaller microfinance banks
-    String cleanInitials = bankName.split(' ').take(2).map((e) => e[0]).join().toUpperCase();
-    if (cleanInitials.length > 2) cleanInitials = cleanInitials.substring(0, 2);
-    if (cleanInitials.isEmpty) cleanInitials = 'BK';
-    String cleanLogoName = bankName.toLowerCase().replaceAll(' ', '-');
-    return {'color': const Color(0xFF374151), 'initials': cleanInitials, 'logo': cleanLogoName};
-  }
-
-  // Helper mapping to grab accurate network symbols for Spothq CDN
-  String _getNetworkCodeName(String network) {
-    if (network.contains('BTC')) return 'btc';
-    if (network.contains('Ethereum') || network.contains('ERC20') || network.contains('Arbitrum') || network.contains('Optimism')) return 'eth';
-    if (network.contains('TRON') || network.contains('TRC20')) return 'trx';
-    if (network.contains('BSC') || network.contains('BEP20')) return 'bnb';
-    if (network.contains('SOL') || network.contains('Solana')) return 'sol';
-    if (network.contains('ADA')) return 'ada';
-    if (network.contains('DOGE')) return 'doge';
-    if (network.contains('POLYGON') || network.contains('Matic')) return 'matic';
-    if (network.contains('AVAX')) return 'avax';
-    return 'usdt';
-  }
-
-  // Dynamic Brand Helper for Crypto Blockchains
-  Color _getNetworkColor(String network) {
-    if (network.contains('TRC20') || network.contains('TRON')) return const Color(0xFFEC092F);
-    if (network.contains('BEP20') || network.contains('BSC')) return const Color(0xFFF3BA2F);
-    if (network.contains('ERC20') || network.contains('Ethereum')) return const Color(0xFF627EEA);
-    if (network.contains('BTC') || network.contains('Bitcoin')) return const Color(0xFFF7931A);
-    if (network.contains('SOL') || network.contains('Solana')) return const Color(0xFF14F195);
-    if (network.contains('ADA') || network.contains('Cardano')) return const Color(0xFF0033AD);
-    if (network.contains('DOGE') || network.contains('Dogecoin')) return const Color(0xFFC2A633);
-    if (network.contains('POLYGON') || network.contains('Matic')) return const Color(0xFF8247E5);
-    if (network.contains('Arbitrum')) return const Color(0xFF28A0F0);
-    if (network.contains('Optimism')) return const Color(0xFFFF0420);
-    if (network.contains('AVAX') || network.contains('Avalanche')) return const Color(0xFFE84142);
-    return const Color(0xFF8B5CF6);
-  }
-
-  // Dynamic Brand Helper for Specific Cryptocurrencies
-  Color _getCryptoAssetColor(String symbol) {
-    switch (symbol) {
-      case 'BTC':
-      case 'WBTC':
-        return const Color(0xFFF7931A);
-      case 'ETH':
-        return const Color(0xFF627EEA);
-      case 'USDT':
-        return const Color(0xFF26A17B);
-      case 'USDC':
-        return const Color(0xFF2775CA);
-      case 'BNB':
-        return const Color(0xFFF3BA2F);
-      case 'SOL':
-        return const Color(0xFF00FFA3);
-      case 'ADA':
-        return const Color(0xFF0033AD);
-      case 'TRX':
-        return const Color(0xFFEC092F);
-      case 'MATIC':
-        return const Color(0xFF8247E5);
-      case 'DOGE':
-        return const Color(0xFFC2A633);
-      case 'AVAX':
-        return const Color(0xFFE84142);
-      default:
-        return const Color(0xFF8B5CF6);
-    }
-  }
-
-  // Maps which crypto tokens exist natively on the currently selected network
-  List<String> _getAssetsForNetwork(String network) {
-    switch (network) {
-      case 'TRC20 (TRON)':
-        return ['USDT', 'TRX', 'USDC', 'BUSD', 'SUN', 'JST'];
-      case 'BEP20 (BSC)':
-        return ['BNB', 'USDT', 'USDC', 'BUSD', 'CAKE', 'ALPHA', 'BAKE', 'SFP'];
-      case 'ERC20 (Ethereum)':
-        return [
-          'ETH',
-          'USDT',
-          'USDC',
-          'LINK',
-          'UNI',
-          'AAVE',
-          'SHIB',
-          'PEPE',
-          'GRT',
-          'MKR',
-          'COMP',
-          'MANA',
-          'SAND',
-        ];
-      case 'BTC (Bitcoin Mainnet)':
-        return ['BTC', 'WBTC'];
-      case 'SOL (Solana Native)':
-        return ['SOL', 'USDT', 'USDC', 'RAY', 'FIDA'];
-      case 'ADA (Cardano Native)':
-        return ['ADA'];
-      case 'DOGE (Dogecoin)':
-        return ['DOGE'];
-      case 'POLYGON (Matic)':
-        return ['MATIC', 'USDT', 'USDC', 'SAND', 'QUICK'];
-      case 'Arbitrum (ERC20)':
-        return ['ARB', 'USDT', 'USDC', 'ETH'];
-      case 'Optimism (ERC20)':
-        return ['OP', 'USDT', 'USDC', 'ETH'];
-      case 'AVAX (Avalanche C-Chain)':
-        return ['AVAX', 'USDT', 'USDC'];
-      default:
-        return ['USDT'];
-    }
-  }
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchNOWPaymentsCryptoMeta();
   }
 
   @override
@@ -284,50 +128,329 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
     super.dispose();
   }
 
-  void _calculateWithdrawal(String val) {
+  // Fetch with intelligent local data substitution if blocked by browser CORS rules
+  Future<void> _fetchNOWPaymentsCryptoMeta() async {
     setState(() {
-      _inputAmount = double.tryParse(val) ?? 0.0;
+      _isFetchingCryptoMeta = true;
+    });
+
+    if (_nowPaymentsApiKey.isEmpty) {
+      _loadFallbackData();
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse("https://api.nowpayments.io/v1/currencies?fixed_rate=true"),
+        headers: {
+          "x-api-key": _nowPaymentsApiKey,
+        },
+      ).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> decoded = jsonDecode(response.body);
+        if (decoded.containsKey('currencies')) {
+          final List<dynamic> currencyList = decoded['currencies'];
+          List<Map<String, dynamic>> processedCurrencies = [];
+          Set<String> uniqueNetworks = {};
+
+          for (var coin in currencyList) {
+            if (coin is Map<String, dynamic>) {
+              String ticker = (coin['ticker'] ?? '').toString().toUpperCase();
+              String network = (coin['network'] ?? 'MAINNET').toString().toUpperCase();
+              String name = (coin['name'] ?? ticker).toString();
+              bool isAvailable = coin['is_available'] ?? true;
+
+              if (ticker.isNotEmpty && isAvailable) {
+                processedCurrencies.add({
+                  'ticker': ticker,
+                  'network': network,
+                  'name': name,
+                  'logo_url': 'https://nowpayments.io/images/coins/${ticker.toLowerCase()}.png'
+                });
+                uniqueNetworks.add(network);
+              }
+            }
+          }
+
+          List<String> sortedNetworks = uniqueNetworks.toList()..sort();
+          setState(() {
+            _nowPaymentsRawCurrencies = processedCurrencies;
+            _dynamicNetworks = sortedNetworks;
+            if (_dynamicNetworks.isNotEmpty) {
+              _selectedNetwork = _dynamicNetworks.first;
+              _updateAssetsForSelectedNetwork(_selectedNetwork);
+            }
+            _isFetchingCryptoMeta = false;
+          });
+          return;
+        }
+      }
+      throw Exception("Non-200 state context response received");
+    } catch (e) {
+      debugPrint("NOWPayments Endpoint error or empty api key context ($e). Activating offline parameters fallback mode.");
+      _loadFallbackData();
+    }
+  }
+
+  void _loadFallbackData() {
+    List<Map<String, dynamic>> fallbacks = [];
+    for (var net in _fallbackNetworks) {
+      fallbacks.addAll(_getFallbackAssetsForNetwork(net));
+    }
+
+    setState(() {
+      _nowPaymentsRawCurrencies = fallbacks;
+      _dynamicNetworks = _fallbackNetworks;
+      _selectedNetwork = _fallbackNetworks.first;
+      _updateAssetsForSelectedNetwork(_selectedNetwork);
+      _isFetchingCryptoMeta = false;
     });
   }
 
-  void _calculateFiatWithdrawal(String val) {
+  void _updateAssetsForSelectedNetwork(String network) {
+    final filtered = _nowPaymentsRawCurrencies
+        .where((coin) => coin['network'] == network)
+        .toList();
+    
+    filtered.sort((a, b) => a['ticker'].compareTo(b['ticker']));
+
     setState(() {
-      _fiatInputAmount = double.tryParse(val) ?? 0.0;
+      _filteredAssetsForSelectedNetwork = filtered;
+      if (filtered.isNotEmpty) {
+        _selectedCrypto = filtered.first['ticker'];
+      } else {
+        _selectedCrypto = '';
+      }
     });
   }
 
-  // Simulates Flutterwave's secure account validation and lookup API
-  void _simulateFlutterwaveNameLookup(String accountNumber) async {
-    if (accountNumber.length < 10) {
+  String _getBankCode(String bankName) {
+    switch (bankName) {
+      case 'Access Bank': return '044';
+      case 'Access Bank (Diamond)': return '063';
+      case 'ALAT by Wema': return '035A';
+      case 'Citibank Nigeria': return '023';
+      case 'Ecobank Nigeria': return '050';
+      case 'Fidelity Bank': return '070';
+      case 'First Bank of Nigeria': return '011';
+      case 'First City Monument Bank (FCMB)': return '214';
+      case 'Globus Bank': return '00103';
+      case 'Guaranty Trust Bank (GTB)': return '058';
+      case 'Heritage Bank': return '030';
+      case 'Jaiz Bank': return '301';
+      case 'Keystone Bank': return '082';
+      case 'Kuda Microfinance Bank': return '090267';
+      case 'Lotus Bank': return '302';
+      case 'Moniepoint MFB': return '50515';
+      case 'OPay': return '999992';
+      case 'Palmpay': return '999991';
+      case 'Polaris Bank': return '076';
+      case 'Providus Bank': return '101';
+      case 'Stanbic IBTC Bank': return '039';
+      case 'Standard Chartered Bank': return '068';
+      case 'Sterling Bank': return '232';
+      case 'Suntrust Bank': return '100';
+      case 'Union Bank of Nigeria': return '032';
+      case 'United Bank for Africa (UBA)': return '033';
+      case 'Unity Bank': return '215';
+      case 'VFD Microfinance Bank': return '090110';
+      case 'Wema Bank': return '035';
+      case 'Zenith Bank': return '057';
+      default: return '101';
+    }
+  }
+
+  Map<String, dynamic> _getBankBrandData(String bankName) {
+    if (bankName.contains('Guaranty Trust') || bankName.contains('GTB')) return {'color': const Color(0xFFE25822), 'initials': 'GT', 'logo': 'gtbank'};
+    if (bankName.contains('Access')) return {'color': const Color(0xFF1C355E), 'initials': 'AC', 'logo': 'access-bank'};
+    if (bankName.contains('Zenith')) return {'color': const Color(0xFFD32F2F), 'initials': 'ZH', 'logo': 'zenith-bank'};
+    if (bankName.contains('Kuda')) return {'color': const Color(0xFF401964), 'initials': 'KD', 'logo': 'kuda-bank'};
+    if (bankName.contains('OPay')) return {'color': const Color(0xFF00B060), 'initials': 'OP', 'logo': 'opay'};
+    if (bankName.contains('Palmpay')) return {'color': const Color(0xFF03A9F4), 'initials': 'PP', 'logo': 'palmpay'};
+    if (bankName.contains('Moniepoint')) return {'color': const Color(0xFF0F3BB1), 'initials': 'MP', 'logo': 'moniepoint'};
+    if (bankName.contains('Wema') || bankName.contains('ALAT')) return {'color': const Color(0xFF83004F), 'initials': 'AL', 'logo': 'wema-bank'};
+    if (bankName.contains('First Bank')) return {'color': const Color(0xFF0A2540), 'initials': 'F1', 'logo': 'first-bank'};
+    if (bankName.contains('UBA') || bankName.contains('United Bank')) return {'color': const Color(0xFFC62828), 'initials': 'UB', 'logo': 'united-bank-for-africa'};
+    if (bankName.contains('Providus')) return {'color': const Color(0xFF111111), 'initials': 'PB', 'logo': 'providus-bank'};
+    if (bankName.contains('Fidelity')) return {'color': const Color(0xFF0D47A1), 'initials': 'FD', 'logo': 'fidelity-bank'};
+    if (bankName.contains('Stanbic')) return {'color': const Color(0xFF1976D2), 'initials': 'IB', 'logo': 'stanbic-ibtc-bank'};
+    if (bankName.contains('Carbon')) return {'color': const Color(0xFF4A148C), 'initials': 'CB', 'logo': 'carbon'};
+    if (bankName.contains('Sparkle')) return {'color': const Color(0xFFEC407A), 'initials': 'SP', 'logo': 'sparkle'};
+    
+    String cleanInitials = bankName.split(' ').take(2).map((e) => e[0]).join().toUpperCase();
+    if (cleanInitials.length > 2) cleanInitials = cleanInitials.substring(0, 2);
+    if (cleanInitials.isEmpty) cleanInitials = 'BK';
+    return {'color': const Color(0xFF374151), 'initials': cleanInitials, 'logo': bankName.toLowerCase().replaceAll(' ', '-')};
+  }
+
+  void _calculateWithdrawal(String val) => setState(() => _inputAmount = double.tryParse(val) ?? 0.0);
+  void _calculateFiatWithdrawal(String val) => setState(() => _fiatInputAmount = double.tryParse(val) ?? 0.0);
+
+  void _triggerFlutterwaveAccountLookup() async {
+    final accountNumber = _fiatAccountNumberController.text.trim();
+    final bankCode = _getBankCode(_selectedBank);
+
+    if (accountNumber.length < 10 || _flutterwaveSecretKey.isEmpty) {
       setState(() {
         _fiatAccountNameController.clear();
         _accountResolvedSuccessfully = false;
+        _resolutionErrorMessage = _flutterwaveSecretKey.isEmpty ? 'API Key not loaded.' : null;
       });
       return;
     }
 
     setState(() {
       _isResolvingAccountName = true;
+      _accountResolvedSuccessfully = false;
+      _resolutionErrorMessage = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 1000));
+    try {
+      final response = await http.post(
+        Uri.parse("https://api.flutterwave.com/v3/accounts/resolve"),
+        headers: {
+          "Authorization": "Bearer $_flutterwaveSecretKey",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "account_number": accountNumber,
+          "account_bank": bankCode,
+        }),
+      );
 
-    setState(() {
-      _isResolvingAccountName = false;
-      _fiatAccountNameController.text = 'LAWRENCE STABLE LEDGER';
-      _accountResolvedSuccessfully = true;
-    });
+      final decodedResponse = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && decodedResponse['status'] == 'success') {
+        final String resolvedName = decodedResponse['data']['account_name'] ?? 'ACCOUNT NAME UNKNOWN';
+        setState(() {
+          _fiatAccountNameController.text = resolvedName;
+          _accountResolvedSuccessfully = true;
+          _isResolvingAccountName = false;
+        });
+      } else {
+        setState(() {
+          _fiatAccountNameController.clear();
+          _accountResolvedSuccessfully = false;
+          _isResolvingAccountName = false;
+          _resolutionErrorMessage = decodedResponse['message'] ?? 'Could not resolve bank account details.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _fiatAccountNameController.clear();
+        _accountResolvedSuccessfully = false;
+        _isResolvingAccountName = false;
+        _resolutionErrorMessage = 'Connection error. Please verify network status.';
+      });
+    }
   }
 
-  // Executes traditional FIAT transfer out via Flutterwave APIs
-  void _executeFiatWithdrawalFlow() async {
-    if (_fiatAccountNumberController.text.length < 10 ||
-        _fiatAccountNameController.text.isEmpty ||
-        _fiatInputAmount <= 0) return;
+  void _showBankSelectionBottomSheet(BuildContext context, bool isDark, Color cardColor, Color textColor, Color secondaryTextColor) {
+    String searchFilter = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF111622) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filteredBanks = _banks.where((bank) => bank.toLowerCase().contains(searchFilter.toLowerCase())).toList();
+            return Container(
+              padding: EdgeInsets.only(top: 20, left: 20, right: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(10)))),
+                  const SizedBox(height: 20),
+                  Text('Select Destination Bank', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E2638) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: isDark ? null : Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: TextField(
+                      style: TextStyle(color: textColor, fontSize: 14),
+                      decoration: InputDecoration(
+                        icon: const Icon(Icons.search, color: Colors.grey, size: 20),
+                        hintText: 'Search bank name...',
+                        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (val) => setSheetState(() => searchFilter = val),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
+                    child: filteredBanks.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 32.0),
+                            child: Center(child: Text('No matching banks found.', style: TextStyle(color: secondaryTextColor, fontSize: 13))),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: filteredBanks.length,
+                            itemBuilder: (context, index) {
+                              final bankName = filteredBanks[index];
+                              final brand = _getBankBrandData(bankName);
+                              final Color brandColor = brand['color'];
+                              final String initials = brand['initials'];
+                              final String logoName = brand['logo'];
 
-    setState(() {
-      _isLoading = true;
-    });
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: kIsWeb 
+                                    ? Container(
+                                        width: 32, height: 32,
+                                        decoration: BoxDecoration(color: brandColor, borderRadius: BorderRadius.circular(8)),
+                                        child: Center(child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                                      )
+                                    : Image.network(
+                                        'https://assets.paystack.com/assets/img/logos/merchants/$logoName.png',
+                                        width: 32, height: 32, fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          width: 32, height: 32,
+                                          decoration: BoxDecoration(color: brandColor, borderRadius: BorderRadius.circular(8)),
+                                          child: Center(child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                                        ),
+                                      ),
+                                ),
+                                title: Text(bankName, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500)),
+                                onTap: () {
+                                  setState(() {
+                                    _selectedBank = bankName;
+                                    if (_fiatAccountNumberController.text.length == 10) _triggerFlutterwaveAccountLookup();
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _executeFiatWithdrawalFlow() async {
+    final accountNumber = _fiatAccountNumberController.text.trim();
+    final bankCode = _getBankCode(_selectedBank);
+
+    if (accountNumber.length < 10 || _fiatAccountNameController.text.isEmpty || _fiatInputAmount <= 0 || _flutterwaveSecretKey.isEmpty) return;
+
+    setState(() => _isLoading = true);
 
     try {
       final client = Supabase.instance.client;
@@ -337,82 +460,52 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
         final response = await client.from('wallets').select().eq('user_id', userId).maybeSingle();
         double currentFiatBalance = response != null ? (response['balance'] ?? 0.0).toDouble() : 0.0;
 
-        double totalDeduction = _fiatInputAmount; // Deduct amount requested
-
-        if (currentFiatBalance < totalDeduction) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Insufficient balance inside your traditional FIAT card.'),
-              backgroundColor: warningRedColor,
-            ),
-          );
+        if (currentFiatBalance < _fiatInputAmount) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance.'), backgroundColor: warningRedColor));
+          setState(() => _isLoading = false);
           return;
         }
 
-        double newFiatBalance = currentFiatBalance - totalDeduction;
+        final flwResponse = await http.post(
+          Uri.parse("https://api.flutterwave.com/v3/transfers"),
+          headers: {"Authorization": "Bearer $_flutterwaveSecretKey", "Content-Type": "application/json"},
+          body: jsonEncode({
+            "account_bank": bankCode,
+            "account_number": accountNumber,
+            "amount": _fiatInputAmount,
+            "narration": "Fintech traditional wallet disbursement",
+            "currency": "NGN",
+            "reference": "withdrawal_${userId}_${DateTime.now().millisecondsSinceEpoch}",
+          }),
+        );
 
-        // Upsert back to wallets database
-        await client.from('wallets').upsert({
-          'user_id': userId,
-          'balance': newFiatBalance,
-        });
+        final decodedTransfer = jsonDecode(flwResponse.body);
+        if (!mounted) return;
 
-        // Add to recent activity and log notification
-        try {
-          await client.from('notifications').insert({
-            'user_id': userId,
-            'title': 'Bank Withdrawal Sent',
-            'message': 'Successfully wired \$${_fiatInputAmount.toStringAsFixed(2)} to $_selectedBank account ${_fiatAccountNumberController.text}.',
-            'created_at': DateTime.now().toIso8601String(),
-          });
-        } catch (_) {}
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Withdrawal of \$${_fiatInputAmount.toStringAsFixed(2)} successfully disbursed to $_selectedBank via Flutterwave verification rails.',
-              ),
-              backgroundColor: emeraldColor,
-            ),
-          );
+        if (flwResponse.statusCode == 200 && decodedTransfer['status'] == 'success') {
+          await client.from('wallets').upsert({'user_id': userId, 'balance': currentFiatBalance - _fiatInputAmount});
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal sent successfully.'), backgroundColor: emeraldColor));
           Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(decodedTransfer['message'] ?? 'Rejected.'), backgroundColor: warningRedColor));
         }
       }
     } catch (e) {
       debugPrint('Error executing FIAT withdrawal: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ORIGINAL Crypto Withdrawal pipeline left completely untouched
   void _executeWithdrawalFlow() async {
-    if (_addressController.text.isEmpty || _inputAmount <= 0) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 1800));
-
-    setState(() {
-      _isLoading = false;
-    });
+    if (_addressController.text.isEmpty || _inputAmount <= 0 || _selectedCrypto.isEmpty) return;
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 1500));
+    setState(() => _isLoading = false);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Withdrawal of $_inputAmount $_selectedCrypto successfully queued via $_selectedNetwork processing corridors.',
-          ),
-          backgroundColor: emeraldColor,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Withdrawal of $_inputAmount $_selectedCrypto successfully queued via $_selectedNetwork.'), backgroundColor: emeraldColor));
       Navigator.pop(context);
     }
   }
@@ -421,28 +514,16 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    final backgroundColor = theme.scaffoldBackgroundColor;
     final textColor = isDark ? Colors.white : Colors.black87;
     final cardColor = isDark ? const Color(0xFF111622) : Colors.grey[100]!;
     final secondaryTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(
-          'Withdraw Funds',
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
+        title: Text('Withdraw Funds', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
         backgroundColor: isDark ? const Color(0xFF111622) : Colors.white,
         elevation: 0,
-        shape: isDark
-            ? null
-            : Border(bottom: BorderSide(color: Colors.grey[200]!, width: 1)),
         iconTheme: IconThemeData(color: textColor),
         bottom: TabBar(
           controller: _tabController,
@@ -456,9 +537,7 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
         ),
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: brandOrangeColor),
-            )
+          ? const Center(child: CircularProgressIndicator(color: brandOrangeColor))
           : TabBarView(
               controller: _tabController,
               children: [
@@ -469,85 +548,50 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
     );
   }
 
-  // ==========================================
-  // VIEW: CRYPTO WITHDRAWAL (REAL IMAGE LOGOS)
-  // ==========================================
   Widget _buildCryptoWithdrawalView(Color cardColor, Color textColor, Color secondaryTextColor, bool isDark) {
+    if (_isFetchingCryptoMeta) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: brandOrangeColor),
+            SizedBox(height: 16),
+            Text("Syncing live networks from NOWPayments...", style: TextStyle(color: Colors.grey, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
     final double saasFee = _inputAmount * 0.01;
     final double netPayout = _inputAmount > saasFee ? _inputAmount - saasFee : 0.0;
-    final availableAssets = _getAssetsForNetwork(_selectedNetwork);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Withdraw funds directly from your Web3 Smart Wallet out to any public decentralized blockchain network.',
-            style: TextStyle(color: secondaryTextColor, fontSize: 13),
-          ),
+          Text('Withdraw funds directly from your Web3 Smart Wallet out to any public decentralized blockchain network.', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
           const SizedBox(height: 24),
-          Text(
-            'Select Target Blockchain Network',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Select Target Blockchain Network', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _selectedNetwork,
+                value: _selectedNetwork.isNotEmpty ? _selectedNetwork : null,
                 isExpanded: true,
                 dropdownColor: isDark ? const Color(0xFF111622) : Colors.white,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: secondaryTextColor,
-                  size: 24,
-                ),
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                items: _networks.map((String value) {
-                  final netColor = _getNetworkColor(value);
-                  final netCode = _getNetworkCodeName(value);
-
+                icon: Icon(Icons.arrow_drop_down, color: secondaryTextColor, size: 24),
+                style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                items: _dynamicNetworks.map((String net) {
                   return DropdownMenuItem<String>(
-                    value: value,
+                    value: net,
                     child: Row(
                       children: [
-                        // Official Dynamic Multi-chain Network Logo from industry standard CDNs
-                        Image.network(
-                          'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/$netCode.png',
-                          width: 24,
-                          height: 24,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: netColor.withOpacity(0.15),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: netColor.withOpacity(0.4), width: 1.5),
-                              ),
-                              child: Center(
-                                child: Icon(Icons.lan, color: netColor, size: 11),
-                              ),
-                            );
-                          },
-                        ),
+                        const Icon(Icons.lan, color: brandOrangeColor, size: 18),
                         const SizedBox(width: 12),
-                        Text(value),
+                        Text(net),
                       ],
                     ),
                   );
@@ -556,10 +600,7 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
                   if (newValue != null) {
                     setState(() {
                       _selectedNetwork = newValue;
-                      final networkAssets = _getAssetsForNetwork(newValue);
-                      if (networkAssets.isNotEmpty) {
-                        _selectedCrypto = networkAssets.first;
-                      }
+                      _updateAssetsForSelectedNetwork(newValue);
                     });
                   }
                 },
@@ -567,202 +608,101 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Select Asset to Withdraw',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Select Asset to Withdraw', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _selectedCrypto,
+                value: _selectedCrypto.isNotEmpty ? _selectedCrypto : null,
                 isExpanded: true,
                 dropdownColor: isDark ? const Color(0xFF111622) : Colors.white,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: secondaryTextColor,
-                  size: 24,
-                ),
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                items: availableAssets.map((String value) {
-                  final assetColor = _getCryptoAssetColor(value);
+                icon: Icon(Icons.arrow_drop_down, color: secondaryTextColor, size: 24),
+                style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                items: _filteredAssetsForSelectedNetwork.map((Map<String, dynamic> coin) {
+                  final String symbol = coin['ticker'];
+                  final String fullName = coin['name'];
+                  final String logoUrl = coin['logo_url'];
+
                   return DropdownMenuItem<String>(
-                    value: value,
+                    value: symbol,
                     child: Row(
                       children: [
-                        // Official Cryptographic Token Logo asset mapping
-                        Image.network(
-                          'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/${value.toLowerCase()}.png',
-                          width: 24,
-                          height: 24,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: assetColor.withOpacity(0.12),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: assetColor.withOpacity(0.35), width: 1.5),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  value[0],
-                                  style: TextStyle(color: assetColor, fontWeight: FontWeight.bold, fontSize: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: kIsWeb
+                            ? Container(
+                                width: 24, height: 24,
+                                decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle),
+                                child: Center(child: Text(symbol.isNotEmpty ? symbol[0] : '?', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
+                              )
+                            : Image.network(
+                                logoUrl, width: 24, height: 24,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 24, height: 24,
+                                  decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle),
+                                  child: Center(child: Text(symbol.isNotEmpty ? symbol[0] : '?', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
                                 ),
                               ),
-                            );
-                          },
                         ),
                         const SizedBox(width: 12),
-                        Text(value),
+                        Text("$fullName ($symbol)"),
                       ],
                     ),
                   );
                 }).toList(),
                 onChanged: (newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedCrypto = newValue;
-                    });
-                  }
+                  if (newValue != null) setState(() => _selectedCrypto = newValue);
                 },
               ),
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Destination Wallet Address',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Destination Wallet Address', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
             child: TextField(
               controller: _addressController,
               style: TextStyle(color: textColor, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Paste public address (e.g. 0x... or Tx...)',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
-                ),
-                border: InputBorder.none,
-              ),
+              decoration: InputDecoration(hintText: 'Paste exact destination public address key here', hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]), border: InputBorder.none),
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Amount to Withdraw (USD)',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Amount to Withdraw (USD)', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
             child: TextField(
               controller: _amountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(
-                color: textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: InputDecoration(
-                hintText: '0.00',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
-                ),
-                border: InputBorder.none,
-              ),
+              style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(hintText: '0.00', hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]), border: InputBorder.none),
               onChanged: _calculateWithdrawal,
             ),
           ),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey.withValues(
-                  alpha: isDark ? 0.05 : 0.2,
-                ),
-              ),
-            ),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.withValues(alpha: isDark ? 0.05 : 0.2))),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'SaaS Processing Fee (1%)',
-                      style: TextStyle(
-                        color: secondaryTextColor,
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      '\$${saasFee.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: warningRedColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('Processing Fee (1%)', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
+                    Text('\$${saasFee.toStringAsFixed(2)}', style: const TextStyle(color: warningRedColor, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12.0),
-                  child: Divider(color: Colors.grey, height: 1),
-                ),
+                const Padding(padding: EdgeInsets.symmetric(vertical: 12.0), child: Divider(color: Colors.grey, height: 1)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Net Payout to Wallet',
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '\$${netPayout.toStringAsFixed(2)} (Est. in $_selectedCrypto)',
-                      style: const TextStyle(
-                        color: emeraldColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    Text('Net Payout to Wallet', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text('\$${netPayout.toStringAsFixed(2)} (Est. in $_selectedCrypto)', style: const TextStyle(color: emeraldColor, fontWeight: FontWeight.bold, fontSize: 14)),
                   ],
                 ),
               ],
@@ -770,345 +710,174 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
           ),
           const SizedBox(height: 32),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: brandOrangeColor,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: _addressController.text.isEmpty || _inputAmount <= 0 ? null : _executeWithdrawalFlow,
-            child: const Text(
-              'Confirm & Send Out',
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: brandOrangeColor, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: _addressController.text.isEmpty || _inputAmount <= 0 || _selectedCrypto.isEmpty ? null : _executeWithdrawalFlow,
+            child: const Text('Confirm & Send Out', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         ],
       ),
     );
   }
 
-  // ==========================================
-  // VIEW: NEW FIAT WITHDRAWAL (REAL IMAGE LOGOS)
-  // ==========================================
   Widget _buildFiatWithdrawalView(Color cardColor, Color textColor, Color secondaryTextColor, bool isDark) {
     final double fiatSasFee = _fiatInputAmount * 0.01;
     final double fiatNetPayout = _fiatInputAmount > fiatSasFee ? _fiatInputAmount - fiatSasFee : 0.0;
+    final selectedBankBrand = _getBankBrandData(_selectedBank);
+    final Color bankColor = selectedBankBrand['color'];
+    final String bankInitials = selectedBankBrand['initials'];
+    final String bankLogo = selectedBankBrand['logo'];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Transfer core traditional funds directly out to any local bank account. Fully validated via Flutterwave payment gateway rails.',
-            style: TextStyle(color: secondaryTextColor, fontSize: 13),
-          ),
+          Text('Disburse funds instantly to a local bank account. Account verification occurs automatically.', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
           const SizedBox(height: 24),
-
-          // 1. SELECT BANK NAME DROPDOWN
-          Text(
-            'Bank Name',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Select Bank', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedBank,
-                isExpanded: true,
-                menuMaxHeight: 350, // Enable clean, smooth scrolling through 60+ items
-                dropdownColor: isDark ? const Color(0xFF111622) : Colors.white,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: secondaryTextColor,
-                  size: 24,
-                ),
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                items: _banks.map((String value) {
-                  final brand = _getBankBrandData(value);
-                  final Color brandColor = brand['color'];
-                  final String initials = brand['initials'];
-                  final String logoName = brand['logo'];
-
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Row(
-                      children: [
-                        // Professional Dynamic Bank Logo avatar (loaded from official asset CDN)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.network(
-                            'https://assets.paystack.com/assets/img/logos/merchants/$logoName.png',
-                            width: 26,
-                            height: 26,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              // If Paystack/Flutterwave CDN fails, show custom-colored vector initials monogram
-                              return Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  color: brandColor,
-                                  borderRadius: BorderRadius.circular(6),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: brandColor.withOpacity(0.25),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    initials,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 9,
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+          InkWell(
+            onTap: () => _showBankSelectionBottomSheet(context, isDark, cardColor, textColor, secondaryTextColor),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: kIsWeb
+                      ? Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(color: bankColor, borderRadius: BorderRadius.circular(6)),
+                          child: Center(child: Text(bankInitials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10))),
+                        )
+                      : Image.network(
+                          'https://assets.paystack.com/assets/img/logos/merchants/$bankLogo.png',
+                          width: 28, height: 28, fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(color: bankColor, borderRadius: BorderRadius.circular(6)),
+                            child: Center(child: Text(bankInitials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10))),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            value,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedBank = newValue;
-                    });
-                  }
-                },
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Text(_selectedBank, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w600))),
+                  const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 24),
-
-          // 2. ACCOUNT NUMBER FIELD
-          Text(
-            'Account Number',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Account Number', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
             child: TextField(
               controller: _fiatAccountNumberController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-              onChanged: _simulateFlutterwaveNameLookup,
+              onChanged: (val) {
+                if (val.length == 10) _triggerFlutterwaveAccountLookup();
+                else setState(() {
+                  _accountResolvedSuccessfully = false;
+                  _fiatAccountNameController.clear();
+                  _resolutionErrorMessage = null;
+                });
+              },
               style: TextStyle(color: textColor, fontSize: 14),
               decoration: InputDecoration(
-                hintText: 'Enter 10-digit account number',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
-                ),
+                hintText: 'Enter 10-digit number',
+                hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]),
                 border: InputBorder.none,
                 suffixIcon: _isResolvingAccountName
-                    ? const Padding(
-                        padding: EdgeInsets.all(12.0),
-                        child: SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: brandOrangeColor),
-                        ),
-                      )
-                    : _accountResolvedSuccessfully
-                        ? const Icon(Icons.check_circle_rounded, color: emeraldColor)
-                        : null,
+                    ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: brandOrangeColor)))
+                    : _accountResolvedSuccessfully ? const Icon(Icons.check_circle_rounded, color: emeraldColor) : null,
               ),
             ),
           ),
-          const SizedBox(height: 24),
-
-          // 3. ACCOUNT NAME FIELD (AUTO RESOLVED BY API RAIL)
-          Text(
-            'Resolved Account Name',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
-            child: TextField(
-              controller: _fiatAccountNameController,
-              readOnly: true,
-              style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                hintText: 'Account name resolves instantly...',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
-                ),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 4. AMOUNT FIELD
-          Text(
-            'Amount to Withdraw (\$)',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: isDark ? null : Border.all(color: Colors.grey[300]!),
-            ),
-            child: TextField(
-              controller: _fiatAmountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(
-                color: textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: InputDecoration(
-                hintText: '0.00',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
-                ),
-                border: InputBorder.none,
-              ),
-              onChanged: _calculateFiatWithdrawal,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 5. SAAS BREAKDOWN MATRIX
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey.withValues(
-                  alpha: isDark ? 0.05 : 0.2,
-                ),
-              ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Flutterwave Processing Fee (1%)',
-                      style: TextStyle(
-                        color: secondaryTextColor,
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      '\$${fiatSasFee.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: warningRedColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12.0),
-                  child: Divider(color: Colors.grey, height: 1),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Net Disbursed Payout',
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '\$${fiatNetPayout.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: emeraldColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // 6. CONFIRM BUTTON
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
+          const SizedBox(height: 20),
+          if (_isResolvingAccountName || _accountResolvedSuccessfully || _resolutionErrorMessage != null)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _accountResolvedSuccessfully ? emeraldColor.withValues(alpha: 0.08) : _resolutionErrorMessage != null ? warningRedColor.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _accountResolvedSuccessfully ? emeraldColor.withValues(alpha: 0.2) : _resolutionErrorMessage != null ? warningRedColor.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  Icon(_accountResolvedSuccessfully ? Icons.verified_user : _resolutionErrorMessage != null ? Icons.error_outline_rounded : Icons.hourglass_top_rounded, color: _accountResolvedSuccessfully ? emeraldColor : _resolutionErrorMessage != null ? warningRedColor : Colors.grey, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_accountResolvedSuccessfully ? 'Verified Beneficiary Name:' : _resolutionErrorMessage != null ? 'Verification Failed' : 'Verifying Account Details...', style: TextStyle(color: _accountResolvedSuccessfully ? emeraldColor : _resolutionErrorMessage != null ? warningRedColor : secondaryTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Text(_accountResolvedSuccessfully ? _fiatAccountNameController.text : _resolutionErrorMessage != null ? _resolutionErrorMessage! : 'Validating account credentials with Flutterwave...', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            onPressed: !_accountResolvedSuccessfully || _fiatInputAmount <= 0 ? null : _executeFiatWithdrawalFlow,
-            child: const Text(
-              'Confirm & Disburse FIAT',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+          if (_isResolvingAccountName || _accountResolvedSuccessfully || _resolutionErrorMessage != null) const SizedBox(height: 24),
+          AnimatedOpacity(
+            opacity: _accountResolvedSuccessfully ? 1.0 : 0.4,
+            duration: const Duration(milliseconds: 250),
+            child: IgnorePointer(
+              ignoring: !_accountResolvedSuccessfully,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Amount to Withdraw (\$)', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: isDark ? null : Border.all(color: Colors.grey[300]!)),
+                    child: TextField(
+                      controller: _fiatAmountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(hintText: '0.00', hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]), border: InputBorder.none),
+                      onChanged: _calculateFiatWithdrawal,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.withValues(alpha: isDark ? 0.05 : 0.2))),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Processing Fee (1%)', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
+                            Text('\$${fiatSasFee.toStringAsFixed(2)}', style: const TextStyle(color: warningRedColor, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12.0), child: Divider(color: Colors.grey, height: 1)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Net Disbursed Payout', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                            Text('\$${fiatNetPayout.toStringAsFixed(2)}', style: const TextStyle(color: emeraldColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6), padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: !_accountResolvedSuccessfully || _fiatInputAmount <= 0 ? null : _executeFiatWithdrawalFlow,
+                    child: const Text('Confirm & Disburse Funds', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ],
               ),
             ),
           ),
