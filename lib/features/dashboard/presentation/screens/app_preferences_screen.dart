@@ -9,8 +9,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-// ✅ MAIN ACCESS IMPORT
+// ✅ MAIN ACCESS & PROVIDER IMPORTS
 import 'package:fintech/main.dart';
+import 'package:fintech/features/dashboard/providers/wallet_provider.dart'; // Adjust path based on your exact file structure
 
 // ============================================
 // 🔐 SECURE API KEY CONFIGURATION
@@ -38,30 +39,10 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
 
   static const String _ngnWalletId = 'YOUR_NGN_WALLET_ID';
 
-  // Supabase Realtime subscription stream
-  late final Stream<List<Map<String, dynamic>>> _walletStream;
-
   @override
   void initState() {
     super.initState();
-    _setupWalletStream();
     _fetchAllBalances();
-  }
-
-  // ============================================
-  // 📡 SETUP SUPABASE REALTIME SUBSCRIPTION
-  // ============================================
-  void _setupWalletStream() {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-
-    if (currentUserId != null) {
-      _walletStream = Supabase.instance.client
-          .from('fiat_wallets')
-          .stream(primaryKey: ['user_id'])
-          .eq('user_id', currentUserId);
-    } else {
-      _walletStream = const Stream.empty();
-    }
   }
 
   // ============================================
@@ -170,7 +151,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
   }
 
   // ============================================
-  /// 🔄 SYNC BALANCES TO SUPABASE
+  /// 🔄 SYNC BALANCES TO SUPABASE (FIAT WALLETS & DASHBOARD PROFILES)
   // ============================================
   Future<void> _syncBalances(
     double flutterwaveBalance,
@@ -186,6 +167,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         'last_synced_at': DateTime.now().toIso8601String(),
       };
 
+      // 1. Sync data to the fiat_wallets table
       if (supabaseData != null) {
         await Supabase.instance.client
             .from('fiat_wallets')
@@ -194,6 +176,14 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
       } else {
         await Supabase.instance.client.from('fiat_wallets').insert(updateData);
       }
+
+      // 2. ⚡ DASHBOARD SYNC: Pushes data update to profiles table
+      await Supabase.instance.client
+          .from('profiles')
+          .update({
+            'naira_balance': flutterwaveBalance,
+          })
+          .eq('id', currentUserId);
 
       await _createBalanceAuditLog(flutterwaveBalance);
     } catch (e) {
@@ -248,6 +238,9 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         : Colors.grey[200];
     final fallbackTitleColor = isDarkPalette ? Colors.white : Colors.black87;
 
+    // ⚡ WATCH RIVERPOD STREAM PROVIDER INSTEAD OF LOCAL STREAMBUILDER STATE
+    final walletAsyncValue = ref.watch(fiatWalletStreamProvider);
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -257,7 +250,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             color: isDarkPalette ? Colors.white : Colors.black87,
             size: 20,
           ),
-          // 🛠️ CRITICAL NAVIGATION POP FIX
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -290,7 +282,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         children: [
-          // 📋 GENERAL SECTION
           _buildSectionHeader('GENERAL', headerTextColor),
           _buildMenuTile(
             context,
@@ -300,96 +291,99 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
 
           // ====================================================================
-          // ⚡ FIXED REAL-TIME CURRENCY HOLDINGS POOL WIDGET
+          // ⚡ RIVERPOD INTEGRATED RESPONSIVE HOLDINGS POOL WIDGET
           // ====================================================================
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _walletStream, // ⚡ Uses our unified initialized stream state
-              builder: (context, snapshot) {
-                // Instantly update from the active real-time stream subscription if running
-                double displayedNgn = _ngnBalance;
-
-                if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                  final data = snapshot.data!.first;
-                  displayedNgn = (data['ngn_balance'] ?? 0.0).toDouble();
-                }
-
-                return Theme(
-                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: tileBackground,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: _isLoadingBalances
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF10B981),
-                              ),
-                            )
-                          : const Icon(
-                              Icons.monetization_on_outlined,
-                              color: Color(0xFF10B981),
-                              size: 20,
-                            ),
-                    ),
-                    title: Text(
-                      'Currency Holdings Pool',
-                      style: TextStyle(
-                        color: fallbackTitleColor,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_lastError != null || snapshot.hasError)
-                          Icon(
-                            Icons.error_outline_rounded,
-                            color: Colors.redAccent,
-                            size: 18,
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: tileBackground,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _isLoadingBalances
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF10B981),
                           ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: isDarkPalette ? Colors.grey[400] : Colors.grey[600],
+                        )
+                      : const Icon(
+                          Icons.monetization_on_outlined,
+                          color: Color(0xFF10B981),
+                          size: 20,
                         ),
-                      ],
+                ),
+                title: Text(
+                  'Currency Holdings Pool',
+                  style: TextStyle(
+                    color: fallbackTitleColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_lastError != null || walletAsyncValue.hasError)
+                      Icon(
+                        Icons.error_outline_rounded,
+                        color: Colors.redAccent,
+                        size: 18,
+                      ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: isDarkPalette ? Colors.grey[400] : Colors.grey[600],
                     ),
-                    children: [
-                      // NGN Real-time Row Layout
-                      _buildSubCurrencyRow(
+                  ],
+                ),
+                children: [
+                  // Real-time currency balance processing mapping through Riverpod async states
+                  walletAsyncValue.when(
+                    data: (walletData) {
+                      final double displayedNgn = (walletData?['ngn_balance'] ?? _ngnBalance).toDouble();
+                      return _buildSubCurrencyRow(
                         context,
                         label: 'Nigerian Naira (NGN)',
                         value: '₦${displayedNgn.toStringAsFixed(2)}',
                         icon: '🇳🇬',
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Real-time responsive timestamp
-                      Padding(
-                        padding: const EdgeInsets.only(left: 52.0, top: 8.0, bottom: 4.0, right: 4.0),
-                        child: Text(
-                          'Last updated: ${DateTime.now().toLocal().toString().split('.').first}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDarkPalette ? Colors.grey[500] : Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
+                    loading: () => _buildSubCurrencyRow(
+                      context,
+                      label: 'Nigerian Naira (NGN)',
+                      value: '₦${_ngnBalance.toStringAsFixed(2)}',
+                      icon: '🇳🇬',
+                    ),
+                    error: (err, stack) => _buildSubCurrencyRow(
+                      context,
+                      label: 'Nigerian Naira (NGN) [Error]',
+                      value: '₦${_ngnBalance.toStringAsFixed(2)}',
+                      icon: '🇳🇬',
+                    ),
                   ),
-                );
-              },
+                  const SizedBox(height: 4),
+
+                  Padding(
+                    padding: const EdgeInsets.only(left: 52.0, top: 8.0, bottom: 4.0, right: 4.0),
+                    child: Text(
+                      'Last updated: ${DateTime.now().toLocal().toString().split('.').first}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDarkPalette ? Colors.grey[500] : Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

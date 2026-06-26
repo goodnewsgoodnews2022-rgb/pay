@@ -3,6 +3,7 @@
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
+import 'package:fintech/features/profile/presentation/bank_accounts_cards_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -16,6 +17,8 @@ import 'security_settings_screen.dart';
 import 'settings_screen.dart';
 import 'support_help_screen.dart';
 import 'invite_friends_screen.dart'; // Imported your new screen target file
+import '../../../../core/presentation/widgets/rate_us_bottom_sheet.dart';
+
 
 class MoreScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -124,18 +127,15 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'Bank Accounts & Cards',
                 subtitle: 'Traditional funding pipelines and accounts',
                 textColor: titleTextColor,
-                onTap: () =>
-                    widget.onNavigateToSubScreen(const LinkedAccountsScreen()),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddBankCardAccountScreen (),
+                    ),
+                  );
+                },
               ),
-              _buildDivider(isDark),
-              _buildMenuTile(
-                icon: Icons.language_rounded,
-                title: 'Web3 & Crypto Ecosystem',
-                subtitle: 'Non-custodial infrastructure and networks',
-                textColor: titleTextColor,
-                onTap: () =>
-                    widget.onNavigateToSubScreen(const LanguageScreen()),
-              ),
+            
             ],
           ),
           const SizedBox(height: 12),
@@ -200,6 +200,16 @@ class _MoreScreenState extends State<MoreScreen> {
             ],
           ),
           const SizedBox(height: 36),
+            ListTile(
+  leading: const Icon(Icons.rate_review_outlined, color: Colors.blueAccent),
+  title: const Text("Rate App Experience"),
+  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  onTap: () {
+    // Launches the uncorrupted modal interface instantly
+    RateUsBottomSheet.show(context);
+  },
+),
+                const SizedBox(height: 36),
 
           // ====================================================================
           // 🚪 SECURE SYSTEM DISCONNECT LOGOUT TRIGGER
