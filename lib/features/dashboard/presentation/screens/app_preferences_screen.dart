@@ -254,7 +254,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/dashboard');
+              context.go('/MoreScreen');
             }
           },
         ),
