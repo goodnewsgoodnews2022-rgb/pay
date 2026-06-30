@@ -20,3 +20,14 @@ entrypoint = "./functions/flw-webhook/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/flw-webhook/*.html" ]
+
+[functions.crypto-gateway]
+enabled = true
+verify_jwt = false
+import_map = "./functions/crypto-gateway/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/crypto-gateway/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/crypto-gateway/*.html" ]

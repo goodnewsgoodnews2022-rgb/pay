@@ -14,6 +14,7 @@ import 'package:fintech/features/notifications/presentation/bloc/notification_bl
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added dependency import
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -28,6 +29,16 @@ Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
 
   widgetsBinding.deferFirstFrame();
+
+  // Load environment configurations before validated dependencies run
+  try {
+    debugPrint("Loading environment variables...");
+    await dotenv.load(fileName: ".env");
+    debugPrint("✅ Environment loaded successfully!");
+  } catch (e) {
+    debugPrint("⚠️ Warning: Environment config file (.env) failed to load: $e");
+    debugPrint("Verify that your .env file is present at the project root and is declared in your pubspec.yaml assets.");
+  }
 
   // 1. Core Framework Initializations using Environment Manager constants
   try {
