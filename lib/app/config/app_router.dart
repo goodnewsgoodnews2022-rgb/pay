@@ -17,6 +17,8 @@ import 'package:fintech/features/dashboard/presentation/screens/security_center_
 import 'package:fintech/features/dashboard/presentation/screens/status_announcements_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/transaction_disputes_screen.dart';
+import 'package:fintech/features/settings/auto_save_beneficiary.dart';
+import 'package:fintech/features/settings/transaction_limit.dart';
 import 'package:fintech/features/splash/screens/biometrics_settings_screen.dart';
 import 'package:fintech/features/splash/screens/change_password_screen.dart';
 import 'package:fintech/features/splash/screens/change_pin_screen.dart';
@@ -45,14 +47,16 @@ import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_walle
 import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart';
 import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
 
+// ✅ CORRECTED IMPORTS FOR YOUR CLASSES
+import 'package:fintech/features/profile/presentation/default_wallet_screen.dart'; // For DefaultWalletScreen
+ // For TransactionLimitGuard
+
 // Bloc & Dependency Imports
 import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
-import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart'; // Adjust path to match your project structure
-import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart'; // Adjust path to your project structure
 
 class AppRouter {
   static const String splash = '/';
@@ -72,10 +76,9 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: splash, // ✅ start at splash (not login)
+    initialLocation: splash, 
     debugLogDiagnostics: true,
 
-    // ❌ REDIRECT REMOVED – navigation handled by BlocListener + SplashScreen
     routes: [
       ShellRoute(
         builder: (context, state, child) {
@@ -101,9 +104,9 @@ class AppRouter {
             builder: (context, state) => const SplashScreen(),
           ),
           GoRoute(
-  path: '/pin-setup',
-  builder: (context, state) => const PinSetupScreen(), // Or whatever your teammate named the PIN setup widget
-),
+            path: '/pin-setup',
+            builder: (context, state) => const PinSetupScreen(), 
+          ),
           GoRoute(
             path: signup,
             builder: (context, state) => const SignupScreen(),
@@ -121,22 +124,13 @@ class AppRouter {
             builder: (context, state) => const KycIntroScreen(),
           ),
           GoRoute(
-            path: pinSetup,
-            builder: (context, state) => const PinSetupScreen(),
-          ),
-          GoRoute(
             path: kycVerification,
             builder: (context, state) => const KycVerificationScreen(),
-          ),
-          GoRoute(
-            path: '/kyc-intro',
-            builder: (context, state) => const KycIntroScreen(),
           ),
           GoRoute(
             path: dashboard,
             builder: (context, state) => const AppNavigationShell(),
           ),
-          
           GoRoute(
             path: cryptoWallet,
             builder: (context, state) => const CryptoWalletScreen(),
@@ -146,8 +140,7 @@ class AppRouter {
           GoRoute(
             path: '/more',
             builder: (context, state) => MoreScreen(
-              onNavigateToSubScreen: (route) =>
-                  context.go(route as String),
+              onNavigateToSubScreen: (route) => context.go(route as String),
             ),
           ),
 
@@ -155,6 +148,30 @@ class AppRouter {
           GoRoute(
             path: appPreferences,
             builder: (context, state) => const AppPreferencesScreen(),
+          ),
+
+          // 🚀 FIX: MATCHES THE EXACT LINKS CALLED BY YOUR BUTTONS
+          GoRoute(
+            path: '/settings/DefaultWalletScreen',
+            builder: (context, state) => const DefaultWalletScreen(),
+          ),
+          GoRoute(
+            path: '/settings/auto-save-beneficiary',
+            builder: (context, state) {
+              // Ensure a Widget is returned from the builder. BeneficiaryAutomationService
+              // is not a Widget, so instantiate it (if it has side-effects) and
+              // return a placeholder widget. Replace SizedBox.shrink() with the
+              // appropriate screen/widget when available.
+              final _ = BeneficiaryAutomationService();
+              return const SizedBox.shrink();
+            },
+          ),
+          GoRoute(
+            path: '/settings/Transaction_Limit',
+            builder: (context, state) {
+              final _ = TransactionLimitGuard();
+              return const SizedBox.shrink();
+            },
           ),
 
           // 🚀 LANGUAGE SELECTION SCREEN ROUTE

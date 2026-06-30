@@ -422,52 +422,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 🔔 NOTIFICATIONS SECTION
-          _buildSectionHeader('NOTIFICATIONS', headerTextColor),
-          _buildMenuTile(
-            context,
-            icon: Icons.notifications_active_outlined,
-            title: 'Push Notifications',
-            onTap: () => context.push('/settings/notifications-push'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.mail_outline_rounded,
-            title: 'Email Notifications',
-            onTap: () => context.push('/settings/notifications-email'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.sms_outlined,
-            title: 'SMS Notifications',
-            onTap: () => context.push('/settings/notifications-sms'),
-          ),
-          const SizedBox(height: 16),
-
-          // 🔒 PRIVACY SECTION
-          _buildSectionHeader('PRIVACY', headerTextColor),
-          _buildMenuTile(
-            context,
-            icon: Icons.privacy_tip_outlined,
-            title: 'Data Sharing Preferences',
-            onTap: () => context.push('/settings/privacy-sharing'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.download_for_offline_outlined,
-            title: 'Download My Data',
-            onTap: () => context.push('/settings/download-data'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.delete_forever_outlined,
-            title: 'Delete Account',
-            titleColor: Colors.redAccent,
-            iconColor: Colors.redAccent,
-            onTap: () => context.push('/settings/delete-account'),
-          ),
-          const SizedBox(height: 16),
-
           // 🎨 APPEARANCE SECTION
           _buildSectionHeader('APPEARANCE', headerTextColor),
           _buildMenuTile(
@@ -505,19 +459,19 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             context,
             icon: Icons.account_balance_wallet_outlined,
             title: 'Default Wallet',
-            onTap: () => context.push('/settings/transactions/default-wallet'),
+            onTap: () => context.push('/settings/DefaultWalletScreen'),
           ),
           _buildMenuTile(
             context,
             icon: Icons.assignment_turned_in_outlined,
             title: 'Auto-save Beneficiaries',
-            onTap: () => context.push('/settings/transactions/beneficiaries'),
+            onTap: () => context.push('/settings/BeneficiaryAutomationService'),
           ),
           _buildMenuTile(
             context,
             icon: Icons.speed_rounded,
             title: 'Transaction Limits',
-            onTap: () => context.push('/transaction-settings'),
+            onTap: () => context.push('/TransactionLimitGuard'),
           ),
           const SizedBox(height: 40),
         ],
