@@ -46,10 +46,11 @@ import 'package:fintech/features/dashboard/presentation/screens/dashboard_screen
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart';
 import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
+import 'package:fintech/features/settings/auto_save_beneficiary.dart';
+import 'package:fintech/features/settings/transaction_limit.dart';
 
-// ✅ CORRECTED IMPORTS FOR YOUR CLASSES
-import 'package:fintech/features/profile/presentation/default_wallet_screen.dart'; // For DefaultWalletScreen
- // For TransactionLimitGuard
+// ✅ ALIGNED & CLEANED CORE IMPORTS
+import 'package:fintech/features/profile/presentation/default_wallet_screen.dart'; 
 
 // Bloc & Dependency Imports
 import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
@@ -71,8 +72,7 @@ class AppRouter {
   static const String kycVerification = '/kyc-verify';
   static const String biometricSetup = '/biometric-setup';
 
-  static final GlobalKey<NavigatorState> rootNavigatorKey =
-      GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
   static final GoRouter router = GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -150,28 +150,27 @@ class AppRouter {
             builder: (context, state) => const AppPreferencesScreen(),
           ),
 
-          // 🚀 FIX: MATCHES THE EXACT LINKS CALLED BY YOUR BUTTONS
+          // 🚀 FIXED: ALIGNED EXACT STRINGS CALLED BY YOUR UI SELECTIONS
           GoRoute(
             path: '/settings/DefaultWalletScreen',
             builder: (context, state) => const DefaultWalletScreen(),
           ),
           GoRoute(
-            path: '/settings/auto-save-beneficiary',
-            builder: (context, state) {
-              // Ensure a Widget is returned from the builder. BeneficiaryAutomationService
-              // is not a Widget, so instantiate it (if it has side-effects) and
-              // return a placeholder widget. Replace SizedBox.shrink() with the
-              // appropriate screen/widget when available.
-              final _ = BeneficiaryAutomationService();
-              return const SizedBox.shrink();
-            },
+            path: '/settings/BeneficiaryAutomationService',
+            builder: (context, state) => const BeneficiaryAutomationService(),
           ),
           GoRoute(
-            path: '/settings/Transaction_Limit',
-            builder: (context, state) {
-              final _ = TransactionLimitGuard();
-              return const SizedBox.shrink();
-            },
+            path: '/settings/TransactionLimitGuard',
+            builder: (context, state) => const TransactionLimitGuard(),
+          ),
+          GoRoute(
+            path: '/settings/TransactionLimitGuard',
+            builder: (context, state) => Scaffold(
+              appBar: AppBar(title: const Text('Transaction Limit Guard')),
+              body: const Center(
+                child: Text('This feature is handled by a service layer.'),
+              ),
+            ),
           ),
 
           // 🚀 LANGUAGE SELECTION SCREEN ROUTE

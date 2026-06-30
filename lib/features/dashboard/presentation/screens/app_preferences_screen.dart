@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 
 // ✅ MAIN ACCESS & PROVIDER IMPORTS
 import 'package:fintech/main.dart';
-import 'package:fintech/features/dashboard/providers/wallet_provider.dart'; // Adjust path based on your exact file structure
+import 'package:fintech/features/dashboard/providers/wallet_provider.dart';
 
 // ============================================
 // 🔐 SECURE API KEY CONFIGURATION
@@ -25,8 +25,7 @@ class AppPreferencesScreen extends ConsumerStatefulWidget {
   const AppPreferencesScreen({super.key});
 
   @override
-  ConsumerState<AppPreferencesScreen> createState() =>
-      _AppPreferencesScreenState();
+  ConsumerState<AppPreferencesScreen> createState() => _AppPreferencesScreenState();
 }
 
 class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
@@ -57,16 +56,10 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     });
 
     try {
-      // 1. Fetch NGN balance from Flutterwave API
       final flutterwaveBalance = await _fetchFlutterwaveBalance();
-
-      // 2. Fetch current Supabase wallet data
       final supabaseData = await _fetchSupabaseWallet();
-
-      // 3. Merge and update database state
       await _syncBalances(flutterwaveBalance, supabaseData);
 
-      // 4. Update local state fallback context safely
       if (mounted) {
         setState(() {
           _ngnBalance = flutterwaveBalance;
@@ -110,16 +103,13 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             final currency = wallet['currency'] ?? '';
             if (currency == 'NGN') {
               final balance = (wallet['balance'] ?? 0.0).toDouble();
-              final availableBalance = (wallet['available_balance'] ?? balance)
-                  .toDouble();
+              final availableBalance = (wallet['available_balance'] ?? balance).toDouble();
               return availableBalance;
             }
           }
         }
       } else {
-        debugPrint(
-          'Flutterwave API error: ${response.statusCode} - ${response.body}',
-        );
+        debugPrint('Flutterwave API error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to fetch Flutterwave balance');
       }
     } catch (e) {
@@ -151,12 +141,9 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
   }
 
   // ============================================
-  /// 🔄 SYNC BALANCES TO SUPABASE (FIAT WALLETS & DASHBOARD PROFILES)
+  /// 🔄 SYNC BALANCES TO SUPABASE
   // ============================================
-  Future<void> _syncBalances(
-    double flutterwaveBalance,
-    Map<String, dynamic>? supabaseData,
-  ) async {
+  Future<void> _syncBalances(double flutterwaveBalance, Map<String, dynamic>? supabaseData) async {
     try {
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       if (currentUserId == null) return;
@@ -167,7 +154,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         'last_synced_at': DateTime.now().toIso8601String(),
       };
 
-      // 1. Sync data to the fiat_wallets table
       if (supabaseData != null) {
         await Supabase.instance.client
             .from('fiat_wallets')
@@ -177,12 +163,9 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         await Supabase.instance.client.from('fiat_wallets').insert(updateData);
       }
 
-      // 2. ⚡ DASHBOARD SYNC: Pushes data update to profiles table
       await Supabase.instance.client
           .from('profiles')
-          .update({
-            'naira_balance': flutterwaveBalance,
-          })
+          .update({'naira_balance': flutterwaveBalance})
           .eq('id', currentUserId);
 
       await _createBalanceAuditLog(flutterwaveBalance);
@@ -230,15 +213,11 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
   Widget build(BuildContext context) {
     final currentThemeMode = ref.watch(themeStateProvider);
     final isDarkPalette = Theme.of(context).brightness == Brightness.dark;
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     const headerTextColor = Color(0xFF6E7A8A);
-    final tileBackground = isDarkPalette
-        ? const Color(0xFF111622)
-        : Colors.grey[200];
+    final tileBackground = isDarkPalette ? const Color(0xFF111622) : Colors.grey[200];
     final fallbackTitleColor = isDarkPalette ? Colors.white : Colors.black87;
 
-    // ⚡ WATCH RIVERPOD STREAM PROVIDER INSTEAD OF LOCAL STREAMBUILDER STATE
     final walletAsyncValue = ref.watch(fiatWalletStreamProvider);
 
     return Scaffold(
@@ -254,7 +233,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/MoreScreen');
+              context.go('/more'); // ✅ FIXED: Changed from /MoreScreen to /more
             }
           },
         ),
@@ -290,9 +269,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             onTap: () => context.push('/language'),
           ),
 
-          // ====================================================================
-          // ⚡ RIVERPOD INTEGRATED RESPONSIVE HOLDINGS POOL WIDGET
-          // ====================================================================
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: Theme(
@@ -332,11 +308,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_lastError != null || walletAsyncValue.hasError)
-                      Icon(
-                        Icons.error_outline_rounded,
-                        color: Colors.redAccent,
-                        size: 18,
-                      ),
+                      Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
                     const SizedBox(width: 8),
                     Icon(
                       Icons.keyboard_arrow_down_rounded,
@@ -345,7 +317,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
                   ],
                 ),
                 children: [
-                  // Real-time currency balance processing mapping through Riverpod async states
                   walletAsyncValue.when(
                     data: (walletData) {
                       final double displayedNgn = (walletData?['ngn_balance'] ?? _ngnBalance).toDouble();
@@ -370,7 +341,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-
                   Padding(
                     padding: const EdgeInsets.only(left: 52.0, top: 8.0, bottom: 4.0, right: 4.0),
                     child: Text(
@@ -388,7 +358,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 🛡️ SECURITY SECTION
           _buildSectionHeader('SECURITY', headerTextColor),
           _buildMenuTile(
             context,
@@ -422,7 +391,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 🎨 APPEARANCE SECTION
           _buildSectionHeader('APPEARANCE', headerTextColor),
           _buildMenuTile(
             context,
@@ -453,7 +421,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 💸 TRANSACTIONS SECTION
           _buildSectionHeader('TRANSACTIONS', headerTextColor),
           _buildMenuTile(
             context,
@@ -471,7 +438,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             context,
             icon: Icons.speed_rounded,
             title: 'Transaction Limits',
-            onTap: () => context.push('/TransactionLimitGuard'),
+            onTap: () => context.push('/settings/TransactionLimitGuard'),
           ),
           const SizedBox(height: 40),
         ],
@@ -534,12 +501,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     );
   }
 
-  Widget _buildSubCurrencyRow(
-    BuildContext context, {
-    required String label,
-    required String value,
-    String icon = '',
-  }) {
+  Widget _buildSubCurrencyRow(BuildContext context, {required String label, required String value, String icon = ''}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(left: 52.0, top: 4.0, bottom: 4.0, right: 4.0),
@@ -548,9 +510,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF0D111A) : Colors.grey[50],
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isDark ? const Color(0xFF1A202E) : Colors.grey[200]!,
-          ),
+          border: Border.all(color: isDark ? const Color(0xFF1A202E) : Colors.grey[200]!),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
