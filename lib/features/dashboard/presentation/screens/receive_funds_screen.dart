@@ -1,8 +1,8 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:go_router/go_router.dart'; // Safe context-level redirection
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_money_screen.dart';
@@ -18,8 +18,8 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   late TabController _tabController;
   final _cryptoDepositSimulationController = TextEditingController();
 
-  // NOWPayments API Credentials
-  static const String _nowPaymentsApiKey = "N8BR5V4-9X54A57-GT8QD1Z-P4GPCHX";
+  // NOWPayments API Credentials retrieved dynamically from secure environment variables
+  String get _nowPaymentsApiKey => dotenv.env['NOWPAYMENTS_API_KEY'] ?? '';
 
   // State Management Variables
   String _selectedNetwork = 'TRC20 (TRON)';
@@ -89,6 +89,45 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
     }
   }
 
+  // Translates base tickers to specific NOWPayments chain-identifiers (prevents 400 Bad Request error)
+  String _getNowPaymentsCurrencyCode(String asset, String network) {
+    final cleanAsset = asset.toLowerCase();
+    final cleanNetwork = network.toLowerCase();
+    
+    if (cleanAsset == 'usdt') {
+      if (cleanNetwork.contains('tron') || cleanNetwork.contains('trc20')) return 'usdttrc20';
+      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) return 'usdtbsc';
+      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) return 'usdterc20';
+      if (cleanNetwork.contains('polygon')) return 'usdtpolygon';
+      if (cleanNetwork.contains('arbitrum')) return 'usdtarbitrum';
+      if (cleanNetwork.contains('optimism')) return 'usdtop';
+      if (cleanNetwork.contains('avalanche')) return 'usdtavaxc';
+    }
+    if (cleanAsset == 'usdc') {
+      if (cleanNetwork.contains('tron') || cleanNetwork.contains('trc20')) return 'usdctrc20';
+      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) return 'usdcunibsc';
+      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) return 'usdcerc20';
+      if (cleanNetwork.contains('polygon')) return 'usdcpolygon';
+      if (cleanNetwork.contains('arbitrum')) return 'usdcarbitrum';
+      if (cleanNetwork.contains('optimism')) return 'usdcop';
+      if (cleanNetwork.contains('avalanche')) return 'usdcavaxc';
+      if (cleanNetwork.contains('solana')) return 'usdcsol';
+    }
+    if (cleanAsset == 'busd') {
+      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) return 'busdbsc';
+      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) return 'busderc20';
+    }
+    if (cleanAsset == 'eth') {
+      if (cleanNetwork.contains('arbitrum')) return 'etharbitrum';
+      if (cleanNetwork.contains('optimism')) return 'ethop';
+    }
+    if (cleanAsset == 'wbtc') {
+      if (cleanNetwork.contains('eth')) return 'wbtcerc20';
+    }
+    
+    return cleanAsset; // Fallback to native (e.g. 'btc', 'trx', 'sol')
+  }
+
   // Resolves SpotHQ CDN codes for dynamic brand logo retrieval
   String _getCdnCode(String assetOrNetwork) {
     final lower = assetOrNetwork.toLowerCase();
@@ -111,20 +150,6 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
     if (lower == 'aave') return 'aave';
     if (lower == 'shib') return 'shib';
     if (lower == 'pepe') return 'pepe';
-    if (lower == 'grt') return 'grt';
-    if (lower == 'mkr') return 'mkr';
-    if (lower == 'comp') return 'comp';
-    if (lower == 'mana') return 'mana';
-    if (lower == 'sand') return 'sand';
-    if (lower == 'sun') return 'sun';
-    if (lower == 'jst') return 'jst';
-    if (lower == 'cake') return 'cake';
-    if (lower == 'alpha') return 'alpha';
-    if (lower == 'bake') return 'bake';
-    if (lower == 'sfp') return 'sfp';
-    if (lower == 'ray') return 'ray';
-    if (lower == 'fida') return 'fida';
-    if (lower == 'quick') return 'quick';
     return 'usdt';
   }
 
@@ -147,12 +172,6 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
         return 'DJf89a2LdGjSqzTxQR2PA8Be6FG7HR3AK9j';
       case 'POLYGON (Matic)':
         return '0x2A7a84e9fB27a84e9fB27a84e9fB27a84e9fB27a84e9f';
-      case 'Arbitrum (ERC20)':
-        return '0x9A821A8bE6E30cCcCd4f762A7a84e9fB27a84e9f';
-      case 'Optimism (ERC20)':
-        return '0xeE30cCcCd4f762A7a84e9fB27a84e9fB27a84e9fB';
-      case 'AVAX (Avalanche C-Chain)':
-        return '0x8e6E30cCcCd4f762A7a84e9fB27a84e9fB27a84e9';
       default:
         return '0x7a84e9f9A821A8bE6E30cCcCd4f762A7a84e9fB2';
     }
@@ -174,12 +193,21 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
 
   // Dynamic live fetch triggering the NOWPayments engine API (POST /v1/payment)
   Future<void> _fetchLiveReceiveAddress() async {
+    if (!mounted) return;
     setState(() {
       _isAddressLoading = true;
       _liveAddress = '';
     });
 
+    // Guard Clause: Securely falling back locally if no API key is specified in the environment file
+    if (_nowPaymentsApiKey.isEmpty) {
+      _applyLocalAddressFallback();
+      return;
+    }
+
     try {
+      final String securePayCurrency = _getNowPaymentsCurrencyCode(_selectedCryptoAsset, _selectedNetwork);
+      
       final response = await http.post(
         Uri.parse("https://api.nowpayments.io/v1/payment"),
         headers: {
@@ -187,9 +215,9 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           "Content-Type": "application/json",
         },
         body: jsonEncode({
-          "price_amount": 10.0, // Stable default test/estimation payload reference
+          "price_amount": 10.0, // Base default payment amount
           "price_currency": "usd",
-          "pay_currency": _selectedCryptoAsset.toLowerCase(),
+          "pay_currency": securePayCurrency,
           "ipn_callback_url": "https://payme.io/nowpayments/callback",
         }),
       );
@@ -197,10 +225,12 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
       final decoded = jsonDecode(response.body);
 
       if (response.statusCode == 201 && decoded['pay_address'] != null) {
-        setState(() {
-          _liveAddress = decoded['pay_address'];
-          _isAddressLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _liveAddress = decoded['pay_address'];
+            _isAddressLoading = false;
+          });
+        }
       } else {
         _applyLocalAddressFallback();
       }
@@ -211,17 +241,28 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   }
 
   void _applyLocalAddressFallback() {
-    setState(() {
-      _liveAddress = _getMockAddress(_selectedNetwork);
-      _isAddressLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _liveAddress = _getMockAddress(_selectedNetwork);
+        _isAddressLoading = false;
+      });
+    }
   }
 
   Future<void> _simulateDepositReceipt() async {
     final double depositAmount = double.tryParse(_cryptoDepositSimulationController.text) ?? 0.0;
     final String assetName = _selectedCryptoAsset;
 
-    if (depositAmount <= 0) return;
+    if (depositAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+          content: Text('Please enter a valid amount to simulate deposit.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -230,15 +271,26 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
       final userId = client.auth.currentUser?.id;
 
       if (userId != null) {
+        // Query if wallet already exists
         final response = await client.from('wallets').select().eq('user_id', userId).maybeSingle();
-        double currentCryptoBalance = response != null ? (response['crypto_balance'] ?? 0.0).toDouble() : 0.0;
-        double newCryptoBalance = currentCryptoBalance + depositAmount;
+        
+        if (response != null) {
+          double currentCryptoBalance = (response['crypto_balance'] ?? 0.0).toDouble();
+          double newCryptoBalance = currentCryptoBalance + depositAmount;
 
-        await client.from('wallets').upsert({
-          'user_id': userId,
-          'crypto_balance': newCryptoBalance,
-        });
+          await client.from('wallets').update({
+            'crypto_balance': newCryptoBalance,
+          }).eq('user_id', userId);
+        } else {
+          final String uniqueSimulatedPublicKey = '0x${userId.replaceAll('-', '').substring(0, 32)}';
+          await client.from('wallets').insert({
+            'user_id': userId,
+            'crypto_balance': depositAmount,
+            'account_or_public_key': uniqueSimulatedPublicKey,
+          });
+        }
 
+        // Silent try-catch block for notifications (prevents crashing if notifications table is missing)
         try {
           await client.from('notifications').insert({
             'user_id': userId,
@@ -246,7 +298,9 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
             'message': 'You have received ${depositAmount.toStringAsFixed(2)} $assetName from an external source.',
             'created_at': DateTime.now().toIso8601String(),
           });
-        } catch (_) {}
+        } catch (dbError) {
+          debugPrint('Silent database error: Missing notifications table or metadata mapping: $dbError');
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -278,11 +332,28 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
             ),
           );
           _cryptoDepositSimulationController.clear();
-          Navigator.pop(context);
+          
+          // CRITICAL SAFE POP GUARD: Prevents blank grey-screen Navigator crashes!
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            context.go('/dashboard'); // Clean structural return path
+          }
         }
+      } else {
+        throw Exception("No authenticated user found in active Supabase session.");
       }
     } catch (e) {
       debugPrint('Error updating wallet balances: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.redAccent,
+            content: Text('Simulation Failed: $e'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -594,6 +665,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           const SizedBox(height: 32),
           const Divider(),
           const SizedBox(height: 16),
+          
           Text(
             'SIMULATED INBOUND DEPOSIT BLOCK',
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
