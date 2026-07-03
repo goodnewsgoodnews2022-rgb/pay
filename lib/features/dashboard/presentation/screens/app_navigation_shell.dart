@@ -1,8 +1,10 @@
 // ignore_for_file: undefined_hidden_name, unused_import
 
 import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
-import 'package:fintech/features/dashboard/presentation/screens/reports_statements_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart'; // ✅ Updated to match your new Analysis screen
+import 'package:fintech/features/dashboard/presentation/screens/ledger_screen.dart';   // ✅ Updated to match your new Ledger screen
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // 🚀 CRITICAL FOR ROUTING TO FUNCTION
 import 'dashboard_screen.dart';
 import 'extended_screens.dart' hide SettingsScreen, DashboardScreen;
 import '../../../settings/presentation/screens/settings_screen.dart';
@@ -24,8 +26,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
   void initState() {
     super.initState();
     
-    // 🚀 CRITICAL FIX: Instantiating pages inside initState guarantees that 
-    // the DashboardScreen state (and its Supabase real-time stream) is persistent.
+    // 🚀 THE REAL UI SCREENS LINKED HERE
     _pages = [
       DashboardScreen(
         onNavigateToSubScreen: (Widget customScreen) {
@@ -34,8 +35,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           });
         },
       ),
-      const ReportsStatementsScreen(),
-      const Center(child: Text('Ledger Screen', style: TextStyle(color: Colors.white))),
+      const AnalysisScreen(), // ✅ Swapped your old placeholder for the premium chart dashboard
+      const LedgerScreen(),   // ✅ Swapped the white text widget for your official ledger database table
       MoreScreen(
         onNavigateToSubScreen: (Widget customScreen) {
           setState(() {
@@ -46,11 +47,34 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     ];
   }
 
+  // 🔄 Syncs bottom tab bar highlight with browser URL state updates
+  void _syncRouteToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      _activeSubScreen = null; // Clears active sub-screens on structural tab switches
+    });
+
+    // 🚀 ROUTE PATH ENFORCEMENT
+    switch (index) {
+      case 0:
+        context.go('/dashboard');
+        break;
+      case 1:
+        context.go('/reports-statements'); // Navigates to Analysis route path
+        break;
+      case 2:
+        context.go('/ledger'); // Navigates to Ledger route path
+        break;
+      case 3:
+        context.go('/more');
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 🎨 Layout Guard: Using an AnimatedSwitcher or clean layout bounds prevents overflows 
-      // when popping in or out of nested sub-screens.
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: _activeSubScreen != null 
             ? _activeSubScreen! 
@@ -59,12 +83,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            _activeSubScreen = null; // Clears active sub-screens on structural tab switches
-          });
-        },
+        onTap: _syncRouteToTab, // ✅ Connected routing controller here
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.black,
         selectedItemColor: const Color(0xFF8B5CF6),

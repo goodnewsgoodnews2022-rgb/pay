@@ -8,9 +8,11 @@ import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart'
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
+import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/invite_friends_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/ledger_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/live_chat_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/report_problem_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/security_center_screen.dart';
@@ -36,7 +38,6 @@ import '../../features/dashboard/presentation/screens/more_screen.dart';
 import '../../features/dashboard/presentation/screens/security_settings_screen.dart';
 import '../../features/dashboard/presentation/screens/linked_accounts_screen.dart';
 import '../../features/dashboard/presentation/screens/web3_settings_screen.dart';
-import '../../features/dashboard/presentation/screens/reports_statements_screen.dart';
 import '../../features/dashboard/presentation/screens/support_help_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
@@ -46,8 +47,6 @@ import 'package:fintech/features/dashboard/presentation/screens/dashboard_screen
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart';
 import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
-import 'package:fintech/features/settings/auto_save_beneficiary.dart';
-import 'package:fintech/features/settings/transaction_limit.dart';
 
 // ✅ ALIGNED & CLEANED CORE IMPORTS
 import 'package:fintech/features/profile/presentation/default_wallet_screen.dart'; 
@@ -99,6 +98,7 @@ class AppRouter {
           );
         },
         routes: [
+          // 🚀 ROOT LEVEL PRE-AUTH PATHS
           GoRoute(
             path: splash,
             builder: (context, state) => const SplashScreen(),
@@ -127,16 +127,20 @@ class AppRouter {
             path: kycVerification,
             builder: (context, state) => const KycVerificationScreen(),
           ),
+
+          // 🏛️ CORE SHELL: Binds Dashboard and App Bottom Nav tabs safely
           GoRoute(
             path: dashboard,
             builder: (context, state) => const AppNavigationShell(),
           ),
           GoRoute(
-            path: cryptoWallet,
-            builder: (context, state) => const CryptoWalletScreen(),
+            path: '/reports-statements',
+            builder: (context, state) => const AnalysisScreen(), 
           ),
-
-          // 📂 MORE SCREEN ROOT PATH
+          GoRoute(
+            path: '/ledger', 
+            builder: (context, state) => const LedgerScreen(), 
+          ),
           GoRoute(
             path: '/more',
             builder: (context, state) => MoreScreen(
@@ -144,13 +148,15 @@ class AppRouter {
             ),
           ),
 
-          // ⚙️ APP PREFERENCES CLEAN ROOT PATH
+          // ⚙️ SUBSCREENS & FINANCIAL FEATURES PATHS
+          GoRoute(
+            path: cryptoWallet,
+            builder: (context, state) => const CryptoWalletScreen(),
+          ),
           GoRoute(
             path: appPreferences,
             builder: (context, state) => const AppPreferencesScreen(),
           ),
-
-          // 🚀 FIXED: ALIGNED EXACT STRINGS CALLED BY YOUR UI SELECTIONS
           GoRoute(
             path: '/settings/DefaultWalletScreen',
             builder: (context, state) => const DefaultWalletScreen(),
@@ -161,25 +167,12 @@ class AppRouter {
           ),
           GoRoute(
             path: '/settings/TransactionLimitGuard',
-            builder: (context, state) => const TransactionLimitGuard(),
+            builder: (context, state) => const TransactionLimitGuard(), // Cleaned up duplicate placeholder widget implementation
           ),
-          GoRoute(
-            path: '/settings/TransactionLimitGuard',
-            builder: (context, state) => Scaffold(
-              appBar: AppBar(title: const Text('Transaction Limit Guard')),
-              body: const Center(
-                child: Text('This feature is handled by a service layer.'),
-              ),
-            ),
-          ),
-
-          // 🚀 LANGUAGE SELECTION SCREEN ROUTE
           GoRoute(
             path: language,
             builder: (context, state) => const LanguageScreen(),
           ),
-
-          // Standalone Sub-features Root Path Definitions
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
@@ -199,10 +192,6 @@ class AppRouter {
           GoRoute(
             path: '/web3-settings',
             builder: (context, state) => const Web3SettingsScreen(),
-          ),
-          GoRoute(
-            path: '/reports-statements',
-            builder: (context, state) => const ReportsStatementsScreen(),
           ),
           GoRoute(
             path: '/support-help',

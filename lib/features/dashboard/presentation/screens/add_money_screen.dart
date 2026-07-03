@@ -1,15 +1,16 @@
-// ignore_for_file: use_build_context_synchronously, unused_local_variable, deprecated_member_use, curly_braces_in_flow_control_structures
+// ignore_for_file: unused_import, use_build_context_synchronously, unused_local_variable, deprecated_member_use, curly_braces_in_flow_control_structures
 
+import 'dart:convert'; // 🚀 Added for processing backend JSON payload
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:fintech/app/config/environment.dart';
 import 'package:flutterwave_standard/core/flutterwave.dart';
 import 'package:flutterwave_standard/models/requests/customer.dart';
 import 'package:flutterwave_standard/models/requests/customizations.dart';
 import 'package:flutterwave_standard/models/responses/charge_response.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'web_payment_stub.dart' if (dart.library.js_util) 'web_payment_web.dart' as web_payment;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:url_launcher/url_launcher.dart'; // 🚀 CRITICAL FOR WEB REDIRECTION
 
 class AddMoneyScreen extends StatefulWidget {
   const AddMoneyScreen({super.key});
@@ -22,11 +23,20 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   final TextEditingController _amountController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  RealtimeChannel? _depositSubscription; // 🚀 Keep track of stream to avoid memory leaks
 
   @override
   void dispose() {
     _amountController.dispose();
+    _cleanupSubscription();
     super.dispose();
+  }
+
+  void _cleanupSubscription() {
+    if (_depositSubscription != null) {
+      Supabase.instance.client.removeChannel(_depositSubscription!);
+      _depositSubscription = null;
+    }
   }
 
   bool _isSuccessfulFlutterwaveStatus(String? status) {
@@ -37,12 +47,12 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         normalized == '00';
   }
 
-  /// Keeps the deposit pending while the hashed Flutterwave webhook verifies and funds the wallet.
   Future<void> _awaitWebhookConfirmation(
     SupabaseClient client,
     String uniqueTxRef,
     double amount,
   ) async {
+    // 1. Ensure the transaction row is initialized to pending status
     await client
         .from('deposits')
         .update({'status': 'pending'})
@@ -50,30 +60,72 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
     if (!mounted) return;
 
-    // FIX: Execute state resets and navigation safely on the next frame callback.
-    // This resolves the 'Cannot hit test a render box that has never been laid out' gesture error on Flutter Web!
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      
-      setState(() {
-        _isLoading = false;
-        _amountController.clear();
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Successfully funded NGN ${amount.toStringAsFixed(2)} via Flutterwave checkout secure channel.',
+    // 🚀 REALTIME ENGINE: Listen for backend changes broadcasted by Supabase
+    _cleanupSubscription(); // Reset any residual stream leaks safely
+    
+    _depositSubscription = client
+        .channel('public:deposits:tx_ref=$uniqueTxRef')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'deposits',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'tx_ref',
+            value: uniqueTxRef,
           ),
-          backgroundColor: Colors.green,
+          callback: (payload) {
+            final String currentStatus = payload.newRecord['status'] ?? 'pending';
+            
+            if (currentStatus == 'completed') {
+              _cleanupSubscription();
+              
+              if (!mounted) return;
+              setState(() {
+                _isLoading = false;
+                _amountController.clear();
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Successfully funded NGN ${amount.toStringAsFixed(2)} via Flutterwave secure channel.',
+                  ),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              context.go('/dashboard');
+            } else if (currentStatus == 'failed') {
+              _cleanupSubscription();
+              if (!mounted) return;
+              setState(() => _isLoading = false);
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment validation failed or checkout was rejected.'),
+                  backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+        );
+
+    _depositSubscription!.subscribe();
+
+    // Give a friendly hint on web layout keeping them engaged while the other tab finishes processing
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Awaiting secure payment validation... Complete checkout in the new tab.'),
           behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
         ),
       );
-      context.go('/dashboard');
-    });
+    }
   }
 
-  /// Marks a transaction as failed in Supabase when canceled or rejected
   Future<void> _failDepositTransaction(
     SupabaseClient client,
     String uniqueTxRef,
@@ -99,13 +151,10 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     });
   }
 
-  /// Handles validation, triggers the Flutterwave checkout gateway payment instance,
-  /// and updates transaction ledgers and fiat wallet balances inside Supabase securely.
   Future<void> _initiateDepositPipeline() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Safely load the key only when the user clicks the button
-    final String publicKey = dotenv.env['FLUTTERWAVE_PUBLIC_KEY'] ?? "";
+    const String publicKey = Environment.flutterwavePublicKey;
     if (publicKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error: Payment keys not loaded')),
@@ -128,7 +177,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       final String userName =
           user.userMetadata?['full_name'] ?? 'Smart Wallet Customer';
 
-      // 1. Log transaction safely into 'deposits' table in a 'pending' state
+      // 1. Log transaction payload safely into Supabase local table
       final Map<String, dynamic> depositPayload = {
         'user_id': user.id,
         'amount': inputAmount,
@@ -138,51 +187,57 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       };
       await client.from('deposits').insert(depositPayload);
 
+      // 2. Platform Conditional Gateway Routing
       if (kIsWeb) {
-        // CORS Bypass: Trigger inline JavaScript SDK checkout for Flutter Web
-        web_payment.triggerWebCheckout(
-          publicKey: publicKey,
-          txRef: uniqueTxRef,
-          amount: inputAmount,
-          userEmail: userEmail,
-          userName: userName,
-          phoneNumber: user.userMetadata?['phone_number'] ?? "00000000000",
-          onSuccess: (response) async {
-            final String status =
-                response['status']?.toString().toLowerCase() ?? 'failed';
-            final String chargeResponseCode =
-                response['charge_response_code']?.toString() ?? '';
-            final String transactionId =
-                response['transaction_id']?.toString() ?? '';
-            if (_isSuccessfulFlutterwaveStatus(status) ||
-                _isSuccessfulFlutterwaveStatus(chargeResponseCode) ||
-                transactionId.isNotEmpty) {
-              await _awaitWebhookConfirmation(client, uniqueTxRef, inputAmount);
-            } else {
-              await _failDepositTransaction(client, uniqueTxRef, status);
-            }
-          },
-          onCancel: () async {
-            await _failDepositTransaction(client, uniqueTxRef, 'cancelled');
-          },
-          onError: (error) {
-            if (mounted) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Web checkout error: $error'),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                setState(() => _isLoading = false);
-              });
-            }
+        // 🌐 FLUTTER WEB MODE: Secure Server-Side Checkout Initialization
+        
+        // 🚀 NEW: Dynamically grab the exact runtime origin port address (e.g., http://localhost:61432)
+        final String currentOrigin = Uri.base.origin;
+
+        final response = await client.functions.invoke(
+          'flw-webhook',
+          body: {
+            'action': 'initialize_payment',
+            'tx_ref': uniqueTxRef,
+            'amount': inputAmount.toStringAsFixed(2),
+            'currency': 'NGN',
+            'email': userEmail,
+            'name': userName,
+            // 🚀 PASS THE DYNAMIC REDIRECT URL TO THE BACKEND PAYLOAD:
+            'redirect_url': '$currentOrigin/dashboard',
           },
         );
+
+        if (response.status != 200) {
+          throw Exception("Backend failed to build secure transaction session.");
+        }
+
+        final responseData = response.data is String 
+            ? jsonDecode(response.data) 
+            : response.data;
+            
+        final String? checkoutUrl = responseData['checkout_url'] ?? responseData['data']?['link'];
+
+        if (checkoutUrl == null || checkoutUrl.isEmpty) {
+          throw Exception("Flutterwave gateway rejected standard link creation.");
+        }
+
+        final Uri checkoutUri = Uri.parse(checkoutUrl);
+
+        if (await canLaunchUrl(checkoutUri)) {
+          // Keep loader tracking live across background execution loops
+          await _awaitWebhookConfirmation(client, uniqueTxRef, inputAmount);
+
+          await launchUrl(
+            checkoutUri,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          throw Exception("System failed to follow external redirection window.");
+        }
+
       } else {
-        // 2. Configure Flutterwave Standard payment instance for Mobile devices
+        // 📱 MOBILE MODE: Standard Native Flutterwave UI Sheets
         final Customer customer = Customer(
           name: userName,
           email: userEmail,
@@ -198,14 +253,12 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
           paymentOptions: "card, account, transfer, ussd",
           customization: Customization(
             title: "Wallet Cash-In",
-            description:
-                "Fund your account pool via Flutterwave Checkout Gateway",
+            description: "Fund your account pool via Flutterwave Checkout Gateway",
           ),
           isTestMode: true,
           redirectUrl: 'https://gisrbsjzzdtmvjsdnyym.supabase.co/functions/v1/flw-webhook',
         );
 
-        // 3. Launch Flutterwave UI Sheets safely on Mobile
         if (!mounted) return;
         final ChargeResponse response = await flutterwave.charge(context);
 
@@ -213,10 +266,8 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
         final String? paymentStatus = response.status?.toLowerCase();
         final bool hasTransactionId =
-            response.transactionId != null &&
-            response.transactionId!.isNotEmpty;
+            response.transactionId != null && response.transactionId!.isNotEmpty;
 
-        // 4. Leave final verification and funding to the hashed Flutterwave webhook.
         if (_isSuccessfulFlutterwaveStatus(paymentStatus) ||
             response.success == true ||
             hasTransactionId) {
@@ -231,6 +282,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       }
     } catch (error) {
       if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Transaction setup failed: $error'),
@@ -238,8 +290,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } finally {
-      if (mounted && !kIsWeb) setState(() => _isLoading = false);
     }
   }
 
