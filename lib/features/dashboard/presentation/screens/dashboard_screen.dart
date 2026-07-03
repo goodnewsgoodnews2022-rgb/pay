@@ -139,11 +139,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               liveCryptoAddress = row['crypto_address'] ?? "0xWeb3...Wallet";
             }
 
-            // Read real-time balance context from Riverpod stream data state
-            final dynamic activeWalletMap = walletAsyncValue.value;
-            final double actualLiveNaira = (activeWalletMap?['ngn_balance'] ?? profileNairaBalanceFallback).toDouble();
+            // 💸 SAFE RIVERPOD STREAM VALUE EXTRACTION PARSER ENGINE
+            final double actualLiveNaira = walletAsyncValue.when(
+              data: (walletMap) => (walletMap?['ngn_balance'] ?? profileNairaBalanceFallback).toDouble(),
+              loading: () => profileNairaBalanceFallback,
+              error: (_, __) => profileNairaBalanceFallback,
+            );
 
-            // Compute dynamic net worth aggregation formulas instantly
+            // Compute dynamic net worth aggregation formulas instantly using exchange rate matrix
             double convertedNairaToUSD = actualLiveNaira / 1500.0;
             final double totalNetWorth = convertedNairaToUSD + liveCryptoFiatValue;
 
@@ -289,7 +292,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: Row(
                             children: [
                               // CARD 1: FIAT WALLET (Deep Blue Gradient)
-                              // Only shows the converted USD balance here. 
                               _buildDashboardCard(
                                 width: 310,
                                 gradient: const LinearGradient(
@@ -299,7 +301,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                                 title: "FIAT WALLET",
                                 balance: _isBalanceHidden ? '••••••' : '\$${convertedNairaToUSD.toStringAsFixed(2)}',
-                                subBalance: null, // Removed NGN breakdown string completely as requested
+                                subBalance: null, 
                                 footerText: "USD wallet",
                                 footerTrailing: "VISA",
                               ),
