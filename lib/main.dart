@@ -33,7 +33,7 @@ Future<void> main() async {
   // Load environment configurations before validated dependencies run
   try {
     debugPrint("Loading environment variables...");
-    await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: "assets/.env");
     debugPrint("✅ Environment loaded successfully!");
   } catch (e) {
     debugPrint("⚠️ Warning: Environment config file (.env) failed to load: $e");
