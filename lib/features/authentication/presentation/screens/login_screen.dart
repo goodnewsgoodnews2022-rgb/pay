@@ -1,7 +1,5 @@
 // lib/features/authentication/presentation/screens/login_screen.dart
 
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -27,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   bool _isBiometricSupported = false;
-  bool _obscurePassword = true; // ✅ toggle state
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -161,7 +159,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ✅ Password field with visibility toggle
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -217,13 +214,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Icons.fingerprint,
                                 color: Colors.black,
                               ),
-                              label: const Text('Fingerprint'),
+                              label: const Text('Sign in with Biometrics'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.dev2Green,
                                 foregroundColor: Colors.black,
                               ),
                             ),
                           ],
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              context.read<AuthBloc>().add(
+                                AuthSignInWithGoogleRequested(),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.g_mobiledata,
+                              color: Colors.black,
+                            ),
+                            label: const Text('Sign in with Google'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
                         ],
                       );
                     },

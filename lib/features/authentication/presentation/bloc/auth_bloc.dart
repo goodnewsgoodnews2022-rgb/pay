@@ -1,9 +1,9 @@
 // ignore_for_file: avoid_print
-
+import 'package:fintech/features/authentication/domain/usecases/sign_in_with_google.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:fintech/features/authentication/domain/usecases/get_current_user.dart'; 
+import 'package:fintech/features/authentication/domain/usecases/get_current_user.dart';
 import 'package:fintech/features/authentication/domain/usecases/sign_in.dart';
-import 'package:fintech/features/authentication/domain/usecases/sign_out.dart'; 
+import 'package:fintech/features/authentication/domain/usecases/sign_out.dart';
 import 'package:fintech/features/authentication/domain/usecases/sign_up.dart';
 import 'package:fintech/features/authentication/domain/usecases/send_password_reset.dart';
 import 'auth_event.dart';
@@ -15,6 +15,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOut signOut;
   final GetCurrentUser getCurrentUser;
   final SendPasswordReset sendPasswordReset;
+  final SignInWithGoogle signInWithGoogle;
 
   AuthBloc({
     required this.signUp,
@@ -22,12 +23,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.signOut,
     required this.getCurrentUser,
     required this.sendPasswordReset,
+    required this.signInWithGoogle,
   }) : super(AuthInitial()) {
     on<AuthSignUpRequested>(_onSignUp);
     on<AuthSignInRequested>(_onSignIn);
     on<AuthSignOutRequested>(_onSignOut);
     on<AuthCheckStatus>(_onCheckStatus);
     on<AuthPasswordResetRequested>(_onPasswordReset);
+    on<AuthSignInWithGoogleRequested>(_onSignInWithGoogle);
   }
 
   Future<void> _onSignUp(
@@ -72,7 +75,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       await signOut();
-      print('✅ [AuthBloc] Sign-out successful, emitting AuthUnauthenticated');
+      print(
+        '✅ [AuthBloc] Sign-out successful, emitting AuthUnauthenticated',
+      );
       emit(AuthUnauthenticated());
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -100,6 +105,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await sendPasswordReset(event.email);
       emit(AuthPasswordResetSent());
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
+  }
+
+  // ✅ Google Sign‑In handler – now inside the class
+  Future<void> _onSignInWithGoogle(
+    AuthSignInWithGoogleRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final user = await signInWithGoogle(); // uses the injected usecase
+      emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));
     }

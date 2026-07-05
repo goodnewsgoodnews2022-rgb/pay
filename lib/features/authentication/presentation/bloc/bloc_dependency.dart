@@ -10,6 +10,7 @@ import 'package:fintech/features/KYC/domain/usecases/set_pin.dart';
 import 'package:fintech/features/KYC/domain/usecases/update_kyc_status.dart';
 import 'package:fintech/features/KYC/domain/usecases/verify_pin.dart';
 import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
+import 'package:fintech/features/authentication/domain/usecases/sign_in_with_google.dart';
 import 'package:fintech/features/fiat_wallet/data/repositories/fiat_repository_impl.dart';
 import 'package:fintech/features/fiat_wallet/domain/repositories/fiat_repository.dart';
 import 'package:fintech/features/fiat_wallet/domain/usecases/deposit_funds.dart';
@@ -149,6 +150,11 @@ Future<void> setupDependencies() async {
     );
   }
 
+  if (!getIt.isRegistered<SignInWithGoogle>()) {
+    getIt.registerLazySingleton(
+      () => SignInWithGoogle(getIt<AuthRepository>()),
+    );
+  }
   // 3. Presentation State Controllers (Factories)
   if (!getIt.isRegistered<AuthBloc>()) {
     getIt.registerLazySingleton<AuthBloc>(
@@ -158,6 +164,7 @@ Future<void> setupDependencies() async {
         signOut: getIt<SignOut>(),
         getCurrentUser: getIt<GetCurrentUser>(),
         sendPasswordReset: getIt<SendPasswordReset>(),
+        signInWithGoogle: getIt<SignInWithGoogle>(),
       ),
     );
   }

@@ -59,7 +59,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
           'status': 'pending',
         };
         await client.from('deposits').insert(depositPayload);
+        print ('gotten from deposit to the depositpayload');
       } catch (databaseTriggerError) {
+        
         // If your deposits table has a corrupted constraint trigger, we log it natively 
         // but do NOT crash, allowing the app execution pipeline to cleanly move to Flutterwave!
         debugPrint("Handled internal index exception logging transaction ledger: $databaseTriggerError");

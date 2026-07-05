@@ -250,6 +250,28 @@ class _SignupScreenState extends State<SignupScreen> {
                       },
                     ),
 
+                    // Inside the BlocBuilder, after the GreenButton and the "Already have an account?" row
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        context.read<AuthBloc>().add(
+                          AuthSignInWithGoogleRequested(),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.g_mobiledata,
+                        color: Colors.black,
+                      ),
+                      label: const Text('Sign up with Google'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
