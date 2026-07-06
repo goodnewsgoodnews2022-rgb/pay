@@ -1,10 +1,12 @@
-// ignore_for_file: avoid_print, unused_local_variable, prefer_const_declarations, prefer_const_literals_to_create_immutables, prefer_const_constructor, deprecated_member_use, unused_import
+// ignore_for_file: unused_element, avoid_print, unused_local_variable, prefer_const_declarations, prefer_const_literals_to_create_immutables, prefer_const_constructor, deprecated_member_use, unused_import
 
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
+import 'package:fintech/features/profile/presentation/bank_accounts_cards_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../main.dart';
 import 'app_preferences_screen.dart';
@@ -16,6 +18,8 @@ import 'security_settings_screen.dart';
 import 'settings_screen.dart';
 import 'support_help_screen.dart';
 import 'invite_friends_screen.dart'; // Imported your new screen target file
+import '../../../../core/presentation/widgets/rate_us_bottom_sheet.dart';
+
 
 class MoreScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -77,7 +81,11 @@ class _MoreScreenState extends State<MoreScreen> {
                 subtitle: 'Manage your identity settings',
                 textColor: titleTextColor,
                 onTap: () =>
-                    widget.onNavigateToSubScreen(const ProfileScreen()),
+                   Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                ),
               ),
             ],
           ),
@@ -96,17 +104,13 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'App Preferences',
                 subtitle: 'Theme modes, display options, and data defaults',
                 textColor: titleTextColor,
-                onTap: () =>
-                    widget.onNavigateToSubScreen(const AppPreferencesScreen()),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AppPreferencesScreen(),
+                  ),
+                ),
               ),
-              // _buildDivider(isDark),
-              // _buildMenuTile(
-              //   icon: Icons.security_rounded,
-              //   title: 'Security Settings',
-              //   subtitle: 'Biometrics, PIN codes, and recovery protocols',
-              //   textColor: titleTextColor,
-              //   onTap: () => widget.onNavigateToSubScreen(const SecuritySettingsScreen()),
-              // ),
+              _buildDivider(isDark),
             ],
           ),
           const SizedBox(height: 12),
@@ -124,18 +128,15 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'Bank Accounts & Cards',
                 subtitle: 'Traditional funding pipelines and accounts',
                 textColor: titleTextColor,
-                onTap: () =>
-                    widget.onNavigateToSubScreen(const LinkedAccountsScreen()),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddBankCardAccountScreen (),
+                    ),
+                  );
+                },
               ),
-              _buildDivider(isDark),
-              _buildMenuTile(
-                icon: Icons.language_rounded,
-                title: 'Web3 & Crypto Ecosystem',
-                subtitle: 'Non-custodial infrastructure and networks',
-                textColor: titleTextColor,
-                onTap: () =>
-                    widget.onNavigateToSubScreen(const LanguageScreen()),
-              ),
+            
             ],
           ),
           const SizedBox(height: 12),
@@ -153,8 +154,10 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'Download Statements',
                 subtitle: 'Export comprehensive Fiat & Web3 histories',
                 textColor: titleTextColor,
-                onTap: () => widget.onNavigateToSubScreen(
-                  const AccountStatementScreen(),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AccountStatementScreen(),
+                  ),
                 ),
               ),
             ],
@@ -175,7 +178,11 @@ class _MoreScreenState extends State<MoreScreen> {
                 subtitle: 'Share your code and secure transactional bonuses',
                 textColor: titleTextColor,
                 onTap: () =>
-                    widget.onNavigateToSubScreen(const InviteFriendsScreen()),
+                   Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const InviteFriendsScreen(),
+                  ),
+                ),
               ),
             ],
           ),
@@ -195,9 +202,25 @@ class _MoreScreenState extends State<MoreScreen> {
                 subtitle: 'Connect instantly with global agent support teams',
                 textColor: titleTextColor,
                 onTap: () =>
-                    widget.onNavigateToSubScreen(const SupportCenterScreen()),
+                    Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const SupportCenterScreen(),
+                  ),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 36),
+          ListTile(
+            tileColor: cardBackgroundColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            leading: const Icon(Icons.rate_review_outlined, color: Colors.greenAccent, size: 22),
+            title: const Text("Rate App Experience"),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              // Launches the uncorrupted modal interface instantly
+              RateUsBottomSheet.show(context);
+            },
           ),
           const SizedBox(height: 36),
 

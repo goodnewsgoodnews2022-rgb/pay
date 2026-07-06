@@ -199,16 +199,15 @@ class AuthRepositoryImpl implements AuthRepository {
       });
 
       const redirectUrl = kIsWeb
-          ? null
-          : 'https://gisrbsjzzdtmvsjdsnyym.supabase.co/auth/v1/callback';
+          ? null // web uses default Supabase redirect (page reload)
+          : 'com.yourcompany.fintech://login-callback'; // mobile custom scheme
 
-           print('🔍 [Google Sign-In] Using redirectTo: $redirectUrl');
+      print('🔍 [Google Sign-In] Using redirectTo: $redirectUrl');
 
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: redirectUrl,
       );
-
       return await completer.future.timeout(
         const Duration(seconds: 60),
         onTimeout: () {

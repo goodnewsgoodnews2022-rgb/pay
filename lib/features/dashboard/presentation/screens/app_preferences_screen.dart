@@ -1,6 +1,6 @@
 // lib/features/dashboard/presentation/screens/app_preferences_screen.dart
 
-// ignore_for_file: prefer_const_constructors, unused_element, unused_field, implementation_imports, unused_import
+// ignore_for_file: unused_local_variable, unused_element_parameter, prefer_const_constructors, unused_element, unused_field, implementation_imports, unused_import
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,16 +9,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-// ✅ CRITICAL FIX: Import your main.dart file to gain access to the global themeStateProvider
+// ✅ MAIN ACCESS & PROVIDER IMPORTS
 import 'package:fintech/main.dart';
+import 'package:fintech/features/dashboard/providers/wallet_provider.dart';
 
 // ============================================
 // 🔐 SECURE API KEY CONFIGURATION
 // ============================================
 class FlutterwaveConfig {
-  // IMPORTANT: In production, NEVER hardcode API keys. Use environment variables
-  // or secure storage. This is for demonstration purposes only.
-  static const String secretKey = 'YOUR_FLUTTERWAVE_SECRET_KEY';
+  static const String secretKey = 'FLWSECK_TEST-07e819a991ccfe75ddac4a9fbb8a75d3-X';
   static const String baseUrl = 'https://api.flutterwave.com/v3';
 }
 
@@ -26,8 +25,7 @@ class AppPreferencesScreen extends ConsumerStatefulWidget {
   const AppPreferencesScreen({super.key});
 
   @override
-  ConsumerState<AppPreferencesScreen> createState() =>
-      _AppPreferencesScreenState();
+  ConsumerState<AppPreferencesScreen> createState() => _AppPreferencesScreenState();
 }
 
 class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
@@ -38,34 +36,12 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
   bool _isLoadingBalances = false;
   String? _lastError;
 
-  // Flutterwave wallet ID for NGN
   static const String _ngnWalletId = 'YOUR_NGN_WALLET_ID';
-
-  // Supabase Realtime subscription
-  late final Stream<List<Map<String, dynamic>>> _walletStream;
 
   @override
   void initState() {
     super.initState();
-    _setupWalletStream();
     _fetchAllBalances();
-  }
-
-  // ============================================
-  // 📡 SETUP SUPABASE REALTIME SUBSCRIPTION
-  // ============================================
-  void _setupWalletStream() {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-
-    if (currentUserId != null) {
-      _walletStream = Supabase.instance.client
-          .from('wallets')
-          .stream(primaryKey: ['user_id'])
-          .eq('user_id', currentUserId);
-    } else {
-      // Empty stream if no user
-      _walletStream = const Stream.empty();
-    }
   }
 
   // ============================================
@@ -80,23 +56,21 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     });
 
     try {
-      // 1. Fetch NGN balance from Flutterwave API
       final flutterwaveBalance = await _fetchFlutterwaveBalance();
-
-      // 2. Fetch current Supabase wallet data
       final supabaseData = await _fetchSupabaseWallet();
-
-      // 3. Merge and update
       await _syncBalances(flutterwaveBalance, supabaseData);
 
-      // 4. Update local state
-      setState(() {
-        _ngnBalance = flutterwaveBalance;
-      });
+      if (mounted) {
+        setState(() {
+          _ngnBalance = flutterwaveBalance;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _lastError = 'Failed to fetch balances: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _lastError = 'Failed to fetch balances: $e';
+        });
+      }
       debugPrint('Error fetching balances: $e');
     } finally {
       if (mounted) {
@@ -112,7 +86,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
   // ============================================
   Future<double> _fetchFlutterwaveBalance() async {
     try {
-      // Fetch wallet balances from Flutterwave
       final response = await http.get(
         Uri.parse('${FlutterwaveConfig.baseUrl}/wallet-balances'),
         headers: {
@@ -126,28 +99,23 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         if (data['status'] == 'success') {
           final walletData = data['data'] as List;
 
-          // Find NGN wallet balance
           for (var wallet in walletData) {
             final currency = wallet['currency'] ?? '';
             if (currency == 'NGN') {
               final balance = (wallet['balance'] ?? 0.0).toDouble();
-              final availableBalance = (wallet['available_balance'] ?? balance)
-                  .toDouble();
+              final availableBalance = (wallet['available_balance'] ?? balance).toDouble();
               return availableBalance;
             }
           }
         }
       } else {
-        debugPrint(
-          'Flutterwave API error: ${response.statusCode} - ${response.body}',
-        );
+        debugPrint('Flutterwave API error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to fetch Flutterwave balance');
       }
     } catch (e) {
       debugPrint('Error fetching Flutterwave balance: $e');
       rethrow;
     }
-
     return 0.0;
   }
 
@@ -160,7 +128,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
       if (currentUserId == null) return null;
 
       final response = await Supabase.instance.client
-          .from('wallets')
+          .from('fiat_wallets')
           .select()
           .eq('user_id', currentUserId)
           .maybeSingle();
@@ -175,34 +143,31 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
   // ============================================
   /// 🔄 SYNC BALANCES TO SUPABASE
   // ============================================
-  Future<void> _syncBalances(
-    double flutterwaveBalance,
-    Map<String, dynamic>? supabaseData,
-  ) async {
+  Future<void> _syncBalances(double flutterwaveBalance, Map<String, dynamic>? supabaseData) async {
     try {
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       if (currentUserId == null) return;
 
-      // Prepare update data
       final Map<String, dynamic> updateData = {
         'user_id': currentUserId,
         'ngn_balance': flutterwaveBalance,
         'last_synced_at': DateTime.now().toIso8601String(),
       };
 
-      // Update or insert wallet data
       if (supabaseData != null) {
-        // Update existing record
         await Supabase.instance.client
-            .from('wallets')
+            .from('fiat_wallets')
             .update(updateData)
             .eq('user_id', currentUserId);
       } else {
-        // Insert new record
-        await Supabase.instance.client.from('wallets').insert(updateData);
+        await Supabase.instance.client.from('fiat_wallets').insert(updateData);
       }
 
-      // Create audit log for transparency
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'naira_balance': flutterwaveBalance})
+          .eq('id', currentUserId);
+
       await _createBalanceAuditLog(flutterwaveBalance);
     } catch (e) {
       debugPrint('Error syncing balances to Supabase: $e');
@@ -244,38 +209,16 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     }
   }
 
-  // ============================================
-  // 💰 HANDLE DEPOSIT WEBHOOK (NGN ONLY)
-  // ============================================
-  // This would be called by your webhook handler
-  // when Flutterwave notifies you of a successful deposit
-  static Future<void> handleDepositWebhook(Map<String, dynamic> payload) async {
-    // Extract deposit details from webhook
-    final amount = (payload['amount'] ?? 0.0).toDouble();
-    final userId =
-        payload['user_id']; // You'll need to map this from your system
-
-    if (userId == null) return;
-
-    // Update user's wallet balance using the stored procedure
-    await Supabase.instance.client.rpc(
-      'increment_balance',
-      params: {'p_user_id': userId, 'p_amount': amount},
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentThemeMode = ref.watch(themeStateProvider);
     final isDarkPalette = Theme.of(context).brightness == Brightness.dark;
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
-    // Layout configuration constants
     const headerTextColor = Color(0xFF6E7A8A);
-    final tileBackground = isDarkPalette
-        ? const Color(0xFF111622)
-        : Colors.grey[200];
+    final tileBackground = isDarkPalette ? const Color(0xFF111622) : Colors.grey[200];
     final fallbackTitleColor = isDarkPalette ? Colors.white : Colors.black87;
+
+    final walletAsyncValue = ref.watch(fiatWalletStreamProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -286,7 +229,13 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             color: isDarkPalette ? Colors.white : Colors.black87,
             size: 20,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/more'); // ✅ FIXED: Changed from /MoreScreen to /more
+            }
+          },
         ),
         title: Text(
           'App Preferences',
@@ -300,7 +249,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
-          // Refresh button
           IconButton(
             icon: Icon(
               _isLoadingBalances ? Icons.sync : Icons.refresh_rounded,
@@ -313,7 +261,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         children: [
-          // 📋 GENERAL SECTION
           _buildSectionHeader('GENERAL', headerTextColor),
           _buildMenuTile(
             context,
@@ -322,119 +269,95 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             onTap: () => context.push('/language'),
           ),
 
-          // ====================================================================
-          // REAL-TIME CURRENCY HOLDINGS DROP-DOWN MENU (NGN ONLY)
-          // ====================================================================
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: currentUserId != null
-                  ? Supabase.instance.client
-                        .from('wallets')
-                        .stream(primaryKey: ['user_id'])
-                        .eq('user_id', currentUserId)
-                  : null,
-              builder: (context, snapshot) {
-                // Use local state values as fallback
-                double ngn = _ngnBalance;
-
-                // Update from snapshot if data is available
-                if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                  final data = snapshot.data!.first;
-                  ngn = (data['ngn_balance'] ?? _ngnBalance).toDouble();
-                }
-
-                return Theme(
-                  data: Theme.of(
-                    context,
-                  ).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: tileBackground,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: _isLoadingBalances
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF10B981),
-                              ),
-                            )
-                          : const Icon(
-                              Icons.monetization_on_outlined,
-                              color: Color(0xFF10B981),
-                              size: 20,
-                            ),
-                    ),
-                    title: Text(
-                      'Currency Holdings Pool',
-                      style: TextStyle(
-                        color: fallbackTitleColor,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_lastError != null)
-                          Icon(
-                            Icons.error_outline_rounded,
-                            color: Colors.redAccent,
-                            size: 18,
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: tileBackground,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _isLoadingBalances
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF10B981),
                           ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: isDarkPalette
-                              ? Colors.grey[400]
-                              : Colors.grey[600],
+                        )
+                      : const Icon(
+                          Icons.monetization_on_outlined,
+                          color: Color(0xFF10B981),
+                          size: 20,
                         ),
-                      ],
+                ),
+                title: Text(
+                  'Currency Holdings Pool',
+                  style: TextStyle(
+                    color: fallbackTitleColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_lastError != null || walletAsyncValue.hasError)
+                      Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: isDarkPalette ? Colors.grey[400] : Colors.grey[600],
                     ),
-                    children: [
-                      // NGN Balance
-                      _buildSubCurrencyRow(
+                  ],
+                ),
+                children: [
+                  walletAsyncValue.when(
+                    data: (walletData) {
+                      final double displayedNgn = (walletData?['ngn_balance'] ?? _ngnBalance).toDouble();
+                      return _buildSubCurrencyRow(
                         context,
                         label: 'Nigerian Naira (NGN)',
-                        value: '₦${ngn.toStringAsFixed(2)}',
+                        value: '₦${displayedNgn.toStringAsFixed(2)}',
                         icon: '🇳🇬',
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Last updated timestamp
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 52.0,
-                          top: 8.0,
-                          bottom: 4.0,
-                          right: 4.0,
-                        ),
-                        child: Text(
-                          'Last updated: ${DateTime.now().toLocal().toString().split('.').first}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDarkPalette
-                                ? Colors.grey[500]
-                                : Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
+                    loading: () => _buildSubCurrencyRow(
+                      context,
+                      label: 'Nigerian Naira (NGN)',
+                      value: '₦${_ngnBalance.toStringAsFixed(2)}',
+                      icon: '🇳🇬',
+                    ),
+                    error: (err, stack) => _buildSubCurrencyRow(
+                      context,
+                      label: 'Nigerian Naira (NGN) [Error]',
+                      value: '₦${_ngnBalance.toStringAsFixed(2)}',
+                      icon: '🇳🇬',
+                    ),
                   ),
-                );
-              },
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 52.0, top: 8.0, bottom: 4.0, right: 4.0),
+                    child: Text(
+                      'Last updated: ${DateTime.now().toLocal().toString().split('.').first}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDarkPalette ? Colors.grey[500] : Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // 🛡️ SECURITY SECTION
           _buildSectionHeader('SECURITY', headerTextColor),
           _buildMenuTile(
             context,
@@ -468,117 +391,54 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 🔔 NOTIFICATIONS SECTION
-          _buildSectionHeader('NOTIFICATIONS', headerTextColor),
-          _buildMenuTile(
-            context,
-            icon: Icons.notifications_active_outlined,
-            title: 'Push Notifications',
-            onTap: () => context.push('/settings/notifications-push'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.mail_outline_rounded,
-            title: 'Email Notifications',
-            onTap: () => context.push('/settings/notifications-email'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.sms_outlined,
-            title: 'SMS Notifications',
-            onTap: () => context.push('/settings/notifications-sms'),
-          ),
-          const SizedBox(height: 16),
-
-          // 🔒 PRIVACY SECTION
-          _buildSectionHeader('PRIVACY', headerTextColor),
-          _buildMenuTile(
-            context,
-            icon: Icons.privacy_tip_outlined,
-            title: 'Data Sharing Preferences',
-            onTap: () => context.push('/settings/privacy-sharing'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.download_for_offline_outlined,
-            title: 'Download My Data',
-            onTap: () => context.push('/settings/download-data'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.delete_forever_outlined,
-            title: 'Delete Account',
-            titleColor: Colors.redAccent,
-            iconColor: Colors.redAccent,
-            onTap: () => context.push('/settings/delete-account'),
-          ),
-          const SizedBox(height: 16),
-
-          // 🎨 APPEARANCE SECTION
           _buildSectionHeader('APPEARANCE', headerTextColor),
           _buildMenuTile(
             context,
             icon: Icons.wb_sunny_outlined,
             title: 'Light Mode',
             trailing: currentThemeMode == ThemeMode.light
-                ? const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF10B981),
-                    size: 18,
-                  )
+                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18)
                 : null,
-            onTap: () =>
-                ref.read(themeStateProvider.notifier).state = ThemeMode.light,
+            onTap: () => ref.read(themeStateProvider.notifier).state = ThemeMode.light,
           ),
           _buildMenuTile(
             context,
             icon: Icons.nightlight_round_outlined,
             title: 'Dark Mode',
             trailing: currentThemeMode == ThemeMode.dark
-                ? const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF10B981),
-                    size: 18,
-                  )
+                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18)
                 : null,
-            onTap: () =>
-                ref.read(themeStateProvider.notifier).state = ThemeMode.dark,
+            onTap: () => ref.read(themeStateProvider.notifier).state = ThemeMode.dark,
           ),
           _buildMenuTile(
             context,
             icon: Icons.brightness_auto_outlined,
             title: 'System Default',
             trailing: currentThemeMode == ThemeMode.system
-                ? const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF10B981),
-                    size: 18,
-                  )
+                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18)
                 : null,
-            onTap: () =>
-                ref.read(themeStateProvider.notifier).state = ThemeMode.system,
+            onTap: () => ref.read(themeStateProvider.notifier).state = ThemeMode.system,
           ),
           const SizedBox(height: 16),
 
-          // 💸 TRANSACTIONS SECTION
           _buildSectionHeader('TRANSACTIONS', headerTextColor),
           _buildMenuTile(
             context,
             icon: Icons.account_balance_wallet_outlined,
             title: 'Default Wallet',
-            onTap: () => context.push('/settings/transactions/default-wallet'),
+            onTap: () => context.push('/settings/DefaultWalletScreen'),
           ),
           _buildMenuTile(
             context,
             icon: Icons.assignment_turned_in_outlined,
             title: 'Auto-save Beneficiaries',
-            onTap: () => context.push('/settings/transactions/beneficiaries'),
+            onTap: () => context.push('/settings/BeneficiaryAutomationService'),
           ),
           _buildMenuTile(
             context,
             icon: Icons.speed_rounded,
             title: 'Transaction Limits',
-            onTap: () => context.push('/transaction-settings'),
+            onTap: () => context.push('/settings/TransactionLimitGuard'),
           ),
           const SizedBox(height: 40),
         ],
@@ -606,6 +466,7 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    widget,
     Widget? trailing,
     Color iconColor = const Color(0xFF10B981),
     Color? titleColor,
@@ -635,39 +496,21 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             fontSize: 14,
           ),
         ),
-        trailing:
-            trailing ??
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Color(0xFF374151),
-              size: 13,
-            ),
+        trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF374151), size: 13),
       ),
     );
   }
 
-  Widget _buildSubCurrencyRow(
-    BuildContext context, {
-    required String label,
-    required String value,
-    String icon = '',
-  }) {
+  Widget _buildSubCurrencyRow(BuildContext context, {required String label, required String value, String icon = ''}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(
-        left: 52.0,
-        top: 4.0,
-        bottom: 4.0,
-        right: 4.0,
-      ),
+      padding: const EdgeInsets.only(left: 52.0, top: 4.0, bottom: 4.0, right: 4.0),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF0D111A) : Colors.grey[50],
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isDark ? const Color(0xFF1A202E) : Colors.grey[200]!,
-          ),
+          border: Border.all(color: isDark ? const Color(0xFF1A202E) : Colors.grey[200]!),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

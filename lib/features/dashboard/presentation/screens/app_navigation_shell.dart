@@ -7,6 +7,7 @@ import 'dashboard_screen.dart';
 import 'extended_screens.dart' hide SettingsScreen, DashboardScreen;
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
+import 'ledger_screen.dart'; 
 
 class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({super.key});
@@ -35,7 +36,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
         },
       ),
       const ReportsStatementsScreen(),
-      const Center(child: Text('Ledger Screen', style: TextStyle(color: Colors.white))),
+      const LedgerScreen(),
       MoreScreen(
         onNavigateToSubScreen: (Widget customScreen) {
           setState(() {

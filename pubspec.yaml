@@ -19,6 +19,7 @@ dependencies:
   dio: ^5.9.2
   web3dart: ^3.0.2
   http: ^1.6.0
+  flutter_dotenv: ^5.0.2
 
   image_picker: ^1.1.2
 
@@ -33,6 +34,7 @@ dependencies:
   flutterwave_standard: ^1.1.0
   flutterwave_standard_smart: ^1.0.4
   local_auth: ^3.0.1
+ 
   flutter_secure_storage: ^10.3.1
   google_sign_in: ^6.1.0
 
@@ -41,6 +43,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^2.0.0
 
-# 🚀 CRITICAL FIX: This MUST sit at the very root level of the file to bundle your icon assets!
 flutter:
   uses-material-design: true
+

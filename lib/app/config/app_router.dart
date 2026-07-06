@@ -8,15 +8,19 @@ import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart'
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
+import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/invite_friends_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/ledger_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/live_chat_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/report_problem_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/security_center_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/status_announcements_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/transaction_disputes_screen.dart';
+import 'package:fintech/features/settings/auto_save_beneficiary.dart';
+import 'package:fintech/features/settings/transaction_limit.dart';
 import 'package:fintech/features/splash/screens/biometrics_settings_screen.dart';
 import 'package:fintech/features/splash/screens/change_password_screen.dart';
 import 'package:fintech/features/splash/screens/change_pin_screen.dart';
@@ -34,7 +38,6 @@ import '../../features/dashboard/presentation/screens/more_screen.dart';
 import '../../features/dashboard/presentation/screens/security_settings_screen.dart';
 import '../../features/dashboard/presentation/screens/linked_accounts_screen.dart';
 import '../../features/dashboard/presentation/screens/web3_settings_screen.dart';
-import '../../features/dashboard/presentation/screens/reports_statements_screen.dart';
 import '../../features/dashboard/presentation/screens/support_help_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import 'package:fintech/features/authentication/presentation/screens/login_screen.dart';
@@ -45,14 +48,15 @@ import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_walle
 import 'package:fintech/features/dashboard/presentation/screens/app_navigation_shell.dart';
 import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
 
+// ✅ ALIGNED & CLEANED CORE IMPORTS
+import 'package:fintech/features/profile/presentation/default_wallet_screen.dart'; 
+
 // Bloc & Dependency Imports
 import 'package:fintech/features/splash/presentation/splash_navigation_cubit.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
-import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart'; // Adjust path to match your project structure
-import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart'; // Adjust path to your project structure
 
 class AppRouter {
   static const String splash = '/';
@@ -67,15 +71,13 @@ class AppRouter {
   static const String kycVerification = '/kyc-verify';
   static const String biometricSetup = '/biometric-setup';
 
-  static final GlobalKey<NavigatorState> rootNavigatorKey =
-      GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
   static final GoRouter router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: splash, // ✅ start at splash (not login)
+    initialLocation: splash, 
     debugLogDiagnostics: true,
 
-    // ❌ REDIRECT REMOVED – navigation handled by BlocListener + SplashScreen
     routes: [
       ShellRoute(
         builder: (context, state, child) {
@@ -96,14 +98,15 @@ class AppRouter {
           );
         },
         routes: [
+          // 🚀 ROOT LEVEL PRE-AUTH PATHS
           GoRoute(
             path: splash,
             builder: (context, state) => const SplashScreen(),
           ),
           GoRoute(
-  path: '/pin-setup',
-  builder: (context, state) => const PinSetupScreen(), // Or whatever your teammate named the PIN setup widget
-),
+            path: '/pin-setup',
+            builder: (context, state) => const PinSetupScreen(), 
+          ),
           GoRoute(
             path: signup,
             builder: (context, state) => const SignupScreen(),
@@ -121,49 +124,55 @@ class AppRouter {
             builder: (context, state) => const KycIntroScreen(),
           ),
           GoRoute(
-            path: pinSetup,
-            builder: (context, state) => const PinSetupScreen(),
-          ),
-          GoRoute(
             path: kycVerification,
             builder: (context, state) => const KycVerificationScreen(),
           ),
-          GoRoute(
-            path: '/kyc-intro',
-            builder: (context, state) => const KycIntroScreen(),
-          ),
+
+          // 🏛️ CORE SHELL: Binds Dashboard and App Bottom Nav tabs safely
           GoRoute(
             path: dashboard,
             builder: (context, state) => const AppNavigationShell(),
           ),
-          
+          GoRoute(
+            path: '/reports-statements',
+            builder: (context, state) => const AnalysisScreen(), 
+          ),
+          GoRoute(
+            path: '/ledger', 
+            builder: (context, state) => const LedgerScreen(), 
+          ),
+          GoRoute(
+            path: '/more',
+            builder: (context, state) => MoreScreen(
+              onNavigateToSubScreen: (route) => context.go(route as String),
+            ),
+          ),
+
+          // ⚙️ SUBSCREENS & FINANCIAL FEATURES PATHS
           GoRoute(
             path: cryptoWallet,
             builder: (context, state) => const CryptoWalletScreen(),
           ),
-
-          // 📂 MORE SCREEN ROOT PATH
-          GoRoute(
-            path: '/more',
-            builder: (context, state) => MoreScreen(
-              onNavigateToSubScreen: (route) =>
-                  context.go(route as String),
-            ),
-          ),
-
-          // ⚙️ APP PREFERENCES CLEAN ROOT PATH
           GoRoute(
             path: appPreferences,
             builder: (context, state) => const AppPreferencesScreen(),
           ),
-
-          // 🚀 LANGUAGE SELECTION SCREEN ROUTE
+          GoRoute(
+            path: '/settings/DefaultWalletScreen',
+            builder: (context, state) => const DefaultWalletScreen(),
+          ),
+          GoRoute(
+            path: '/settings/BeneficiaryAutomationService',
+            builder: (context, state) => const BeneficiaryAutomationService(),
+          ),
+          GoRoute(
+            path: '/settings/TransactionLimitGuard',
+            builder: (context, state) => const TransactionLimitGuard(), // Cleaned up duplicate placeholder widget implementation
+          ),
           GoRoute(
             path: language,
             builder: (context, state) => const LanguageScreen(),
           ),
-
-          // Standalone Sub-features Root Path Definitions
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
@@ -183,10 +192,6 @@ class AppRouter {
           GoRoute(
             path: '/web3-settings',
             builder: (context, state) => const Web3SettingsScreen(),
-          ),
-          GoRoute(
-            path: '/reports-statements',
-            builder: (context, state) => const ReportsStatementsScreen(),
           ),
           GoRoute(
             path: '/support-help',

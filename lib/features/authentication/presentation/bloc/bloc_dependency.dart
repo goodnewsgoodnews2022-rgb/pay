@@ -55,7 +55,6 @@ import 'auth_bloc.dart';
 
 final getIt = GetIt.instance;
 
-// 💡 Converted to Future<void> async to handle SharedPreferences native initialization
 Future<void> setupDependencies() async {
   // ====================================================================
   // ⚡ CORE INFRASTRUCTURE CONFIGURATIONS
@@ -66,7 +65,6 @@ Future<void> setupDependencies() async {
     );
   }
 
-  // Native Device Storage Instance Injection
   if (!getIt.isRegistered<SharedPreferences>()) {
     final sharedPreferences = await SharedPreferences.getInstance();
     getIt.registerLazySingleton<SharedPreferences>(
@@ -77,22 +75,30 @@ Future<void> setupDependencies() async {
   // ====================================================================
   // ⚙️ SETTINGS CLEAN ARCHITECTURE FEATURE MODULE
   // ====================================================================
-
-  // 1. Local Device Cache Data Source Allocation
   if (!getIt.isRegistered<SettingsLocalDataSource>()) {
     getIt.registerLazySingleton<SettingsLocalDataSource>(
       () => SettingsLocalDataSourceImpl(getIt<SharedPreferences>()),
     );
   }
 
-  // 2. Repository Contract Binding Link
   if (!getIt.isRegistered<SettingsRepository>()) {
     getIt.registerLazySingleton<SettingsRepository>(
       () => SettingsRepositoryImpl(getIt<SettingsLocalDataSource>()),
     );
   }
 
-  // 3. UI State Management Controller Injection
+  // ⚡ FIX: Registered Settings Use Cases BEFORE injecting the SettingsBloc
+  if (!getIt.isRegistered<ToggleBiometrics>()) {
+    getIt.registerLazySingleton(
+      () => ToggleBiometrics(getIt<SettingsRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<UpdateTheme>()) {
+    getIt.registerLazySingleton(
+      () => UpdateTheme(getIt<SettingsRepository>()),
+    );
+  }
+
   if (!getIt.isRegistered<SettingsBloc>()) {
     getIt.registerFactory(
       () => SettingsBloc(
@@ -121,15 +127,12 @@ Future<void> setupDependencies() async {
   // ====================================================================
   // 🔑 AUTHENTICATION CLEAN ARCHITECTURE CORE
   // ====================================================================
-
-  // 1. Repository Implementation Allocation
   if (!getIt.isRegistered<AuthRepository>()) {
     getIt.registerLazySingleton<AuthRepository>(
       () => AuthRepositoryImpl(),
     );
   }
 
-  // 2. Domain Layer Use Case Registrations
   if (!getIt.isRegistered<SignUp>()) {
     getIt.registerLazySingleton(() => SignUp(getIt<AuthRepository>()));
   }
@@ -150,12 +153,13 @@ Future<void> setupDependencies() async {
     );
   }
 
+  // ✅ Register Google Sign‑In usecase
   if (!getIt.isRegistered<SignInWithGoogle>()) {
     getIt.registerLazySingleton(
       () => SignInWithGoogle(getIt<AuthRepository>()),
     );
   }
-  // 3. Presentation State Controllers (Factories)
+
   if (!getIt.isRegistered<AuthBloc>()) {
     getIt.registerLazySingleton<AuthBloc>(
       () => AuthBloc(
@@ -169,66 +173,56 @@ Future<void> setupDependencies() async {
     );
   }
 
-  // ========== Notifications ==========
+  // ====================================================================
+  // 🔔 NOTIFICATIONS FEATURE MODULE
+  // ====================================================================
   if (!getIt.isRegistered<NotificationRepository>()) {
-      getIt.registerLazySingleton<NotificationRepository>(
-        () => NotificationRepositoryImpl(),
-      );
-    }
-
-    // 2. Use Cases
-    if (!getIt.isRegistered<FetchNotifications>()) {
-      getIt.registerLazySingleton(
-        () => FetchNotifications(getIt<NotificationRepository>()),
-      );
-    }
-    if (!getIt.isRegistered<MarkAsRead>()) {
-      getIt.registerLazySingleton(
-        () => MarkAsRead(getIt<NotificationRepository>()),
-      );
-    }
-    if (!getIt.isRegistered<MarkAllAsRead>()) {
-      getIt.registerLazySingleton(
-        () => MarkAllAsRead(getIt<NotificationRepository>()),
-      );
-    }
-    if (!getIt.isRegistered<GetUnreadCount>()) {
-      getIt.registerLazySingleton(
-        () => GetUnreadCount(getIt<NotificationRepository>()),
-      );
-    }
-    if (!getIt.isRegistered<SubscribeToNotifications>()) {
-      getIt.registerLazySingleton(
-        () => SubscribeToNotifications(getIt<NotificationRepository>()),
-      );
-    }
-
-    // 3. Bloc (factory)
-    if (!getIt.isRegistered<NotificationBloc>()) {
-      getIt.registerFactory(
-        () => NotificationBloc(
-          fetchNotifications: getIt<FetchNotifications>(),
-          markAsRead: getIt<MarkAsRead>(),
-          markAllAsRead: getIt<MarkAllAsRead>(),
-          getUnreadCount: getIt<GetUnreadCount>(),
-          subscribeToNotifications: getIt<SubscribeToNotifications>(),
-        ),
-      );
-    }
-
-  // --- Settings Use Cases ---
-  if (!getIt.isRegistered<ToggleBiometrics>()) {
-    getIt.registerLazySingleton(
-      () => ToggleBiometrics(getIt<SettingsRepository>()),
-    );
-  }
-  if (!getIt.isRegistered<UpdateTheme>()) {
-    getIt.registerLazySingleton(
-      () => UpdateTheme(getIt<SettingsRepository>()),
+    getIt.registerLazySingleton<NotificationRepository>(
+      () => NotificationRepositoryImpl(),
     );
   }
 
-  // --- Fiat Wallet Feature Dependencies ---
+  if (!getIt.isRegistered<FetchNotifications>()) {
+    getIt.registerLazySingleton(
+      () => FetchNotifications(getIt<NotificationRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<MarkAsRead>()) {
+    getIt.registerLazySingleton(
+      () => MarkAsRead(getIt<NotificationRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<MarkAllAsRead>()) {
+    getIt.registerLazySingleton(
+      () => MarkAllAsRead(getIt<NotificationRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<GetUnreadCount>()) {
+    getIt.registerLazySingleton(
+      () => GetUnreadCount(getIt<NotificationRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<SubscribeToNotifications>()) {
+    getIt.registerLazySingleton(
+      () => SubscribeToNotifications(getIt<NotificationRepository>()),
+    );
+  }
+
+  if (!getIt.isRegistered<NotificationBloc>()) {
+    getIt.registerFactory(
+      () => NotificationBloc(
+        fetchNotifications: getIt<FetchNotifications>(),
+        markAsRead: getIt<MarkAsRead>(),
+        markAllAsRead: getIt<MarkAllAsRead>(),
+        getUnreadCount: getIt<GetUnreadCount>(),
+        subscribeToNotifications: getIt<SubscribeToNotifications>(),
+      ),
+    );
+  }
+
+  // ====================================================================
+  // 💼 FIAT WALLET FEATURE DEPENDENCIES
+  // ====================================================================
   if (!getIt.isRegistered<FiatRepository>()) {
     getIt.registerLazySingleton<FiatRepository>(
       () => FiatRepositoryImpl(),
@@ -254,6 +248,7 @@ Future<void> setupDependencies() async {
       () => GetTransactionHistory(getIt<FiatRepository>()),
     );
   }
+
   if (!getIt.isRegistered<FiatWalletBloc>()) {
     getIt.registerFactory(
       () => FiatWalletBloc(
@@ -263,45 +258,58 @@ Future<void> setupDependencies() async {
         getTransactionHistory: getIt(),
       ),
     );
-  
+  }
 
-if (!getIt.isRegistered<BiometricLocalDataSource>()) {
-  getIt.registerLazySingleton(() => BiometricLocalDataSource());
+  // ====================================================================
+  // 🪪 KYC CLEAN ARCHITECTURE MODULE
+  // ====================================================================
+  if (!getIt.isRegistered<BiometricLocalDataSource>()) {
+    getIt.registerLazySingleton(() => BiometricLocalDataSource());
+  }
+  if (!getIt.isRegistered<PinLocalDataSource>()) {
+    getIt.registerLazySingleton(() => PinLocalDataSource());
+  }
+  if (!getIt.isRegistered<KycRepository>()) {
+    getIt.registerLazySingleton<KycRepository>(
+      () => KycRepositoryImpl(biometricDS: getIt(), pinDS: getIt()),
+    );
+  }
+  if (!getIt.isRegistered<CheckBiometricSupport>()) {
+    getIt.registerLazySingleton(
+      () => CheckBiometricSupport(getIt<KycRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<AuthenticateWithBiometric>()) {
+    getIt.registerLazySingleton(
+      () => AuthenticateWithBiometric(getIt<KycRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<SetPin>()) {
+    getIt.registerLazySingleton(() => SetPin(getIt<KycRepository>()));
+  }
+  if (!getIt.isRegistered<VerifyPin>()) {
+    getIt.registerLazySingleton(() => VerifyPin(getIt<KycRepository>()));
+  }
+  if (!getIt.isRegistered<GetKycStatus>()) {
+    getIt.registerLazySingleton(
+      () => GetKycStatus(getIt<KycRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<UpdateKycStatus>()) {
+    getIt.registerLazySingleton(
+      () => UpdateKycStatus(getIt<KycRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<KycBloc>()) {
+    getIt.registerFactory(
+      () => KycBloc(
+        checkBiometricSupport: getIt(),
+        authenticateWithBiometric: getIt(),
+        setPin: getIt(),
+        verifyPin: getIt(),
+        getKycStatus: getIt(),
+        updateKycStatus: getIt(),
+      ),
+    );
+  }
 }
-if (!getIt.isRegistered<PinLocalDataSource>()) {
-  getIt.registerLazySingleton(() => PinLocalDataSource());
-}
-if (!getIt.isRegistered<KycRepository>()) {
-  getIt.registerLazySingleton<KycRepository>(() => KycRepositoryImpl(
-    biometricDS: getIt(),
-    pinDS: getIt(),
-  ));
-}
-if (!getIt.isRegistered<CheckBiometricSupport>()) {
-  getIt.registerLazySingleton(() => CheckBiometricSupport(getIt<KycRepository>()));
-}
-if (!getIt.isRegistered<AuthenticateWithBiometric>()) {
-  getIt.registerLazySingleton(() => AuthenticateWithBiometric(getIt<KycRepository>()));
-}
-if (!getIt.isRegistered<SetPin>()) {
-  getIt.registerLazySingleton(() => SetPin(getIt<KycRepository>()));
-}
-if (!getIt.isRegistered<VerifyPin>()) {
-  getIt.registerLazySingleton(() => VerifyPin(getIt<KycRepository>()));
-}
-if (!getIt.isRegistered<GetKycStatus>()) {
-  getIt.registerLazySingleton(() => GetKycStatus(getIt<KycRepository>()));
-}
-if (!getIt.isRegistered<UpdateKycStatus>()) {
-  getIt.registerLazySingleton(() => UpdateKycStatus(getIt<KycRepository>()));
-}
-if (!getIt.isRegistered<KycBloc>()) {
-  getIt.registerFactory(() => KycBloc(
-    checkBiometricSupport: getIt(),
-    authenticateWithBiometric: getIt(),
-    setPin: getIt(),
-    verifyPin: getIt(),
-    getKycStatus: getIt(),
-    updateKycStatus: getIt(),
-  ));
-}}}
