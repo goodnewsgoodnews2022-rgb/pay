@@ -33,7 +33,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bgSurface,
         title: const Text(
-          'Biometric Login',
+          'FingerPrint',
           style: TextStyle(color: AppColors.textPrimary),
         ),
         leading: IconButton(
@@ -101,7 +101,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                   Text(
                     isEnabled
                         ? 'You can use your fingerprint or face ID to sign in.'
-                        : 'Enable biometrics for faster and more secure access.',
+                        : 'Enable biometrics Scan',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
@@ -109,7 +109,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                   // Switch to toggle biometrics
                   SwitchListTile(
                     title: const Text(
-                      'Enable Biometric Login',
+                      'FingerPrint',
                       style: TextStyle(color: AppColors.textPrimary),
                     ),
                     subtitle: Text(

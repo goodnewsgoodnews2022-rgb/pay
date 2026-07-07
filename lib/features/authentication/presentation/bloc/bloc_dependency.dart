@@ -10,6 +10,7 @@ import 'package:fintech/features/KYC/domain/usecases/set_pin.dart';
 import 'package:fintech/features/KYC/domain/usecases/update_kyc_status.dart';
 import 'package:fintech/features/KYC/domain/usecases/verify_pin.dart';
 import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
+import 'package:fintech/features/authentication/domain/usecases/sign_in_with_google.dart';
 import 'package:fintech/features/fiat_wallet/data/repositories/fiat_repository_impl.dart';
 import 'package:fintech/features/fiat_wallet/domain/repositories/fiat_repository.dart';
 import 'package:fintech/features/fiat_wallet/domain/usecases/deposit_funds.dart';
@@ -152,6 +153,13 @@ Future<void> setupDependencies() async {
     );
   }
 
+  // ✅ Register Google Sign‑In usecase
+  if (!getIt.isRegistered<SignInWithGoogle>()) {
+    getIt.registerLazySingleton(
+      () => SignInWithGoogle(getIt<AuthRepository>()),
+    );
+  }
+
   if (!getIt.isRegistered<AuthBloc>()) {
     getIt.registerLazySingleton<AuthBloc>(
       () => AuthBloc(
@@ -160,6 +168,7 @@ Future<void> setupDependencies() async {
         signOut: getIt<SignOut>(),
         getCurrentUser: getIt<GetCurrentUser>(),
         sendPasswordReset: getIt<SendPasswordReset>(),
+        signInWithGoogle: getIt<SignInWithGoogle>(),
       ),
     );
   }
@@ -239,8 +248,7 @@ Future<void> setupDependencies() async {
       () => GetTransactionHistory(getIt<FiatRepository>()),
     );
   }
-  
-  // ⚡ FIX: Added the missing closing constructor formatting blocks here
+
   if (!getIt.isRegistered<FiatWalletBloc>()) {
     getIt.registerFactory(
       () => FiatWalletBloc(
@@ -262,16 +270,19 @@ Future<void> setupDependencies() async {
     getIt.registerLazySingleton(() => PinLocalDataSource());
   }
   if (!getIt.isRegistered<KycRepository>()) {
-    getIt.registerLazySingleton<KycRepository>(() => KycRepositoryImpl(
-      biometricDS: getIt(),
-      pinDS: getIt(),
-    ));
+    getIt.registerLazySingleton<KycRepository>(
+      () => KycRepositoryImpl(biometricDS: getIt(), pinDS: getIt()),
+    );
   }
   if (!getIt.isRegistered<CheckBiometricSupport>()) {
-    getIt.registerLazySingleton(() => CheckBiometricSupport(getIt<KycRepository>()));
+    getIt.registerLazySingleton(
+      () => CheckBiometricSupport(getIt<KycRepository>()),
+    );
   }
   if (!getIt.isRegistered<AuthenticateWithBiometric>()) {
-    getIt.registerLazySingleton(() => AuthenticateWithBiometric(getIt<KycRepository>()));
+    getIt.registerLazySingleton(
+      () => AuthenticateWithBiometric(getIt<KycRepository>()),
+    );
   }
   if (!getIt.isRegistered<SetPin>()) {
     getIt.registerLazySingleton(() => SetPin(getIt<KycRepository>()));
@@ -280,19 +291,25 @@ Future<void> setupDependencies() async {
     getIt.registerLazySingleton(() => VerifyPin(getIt<KycRepository>()));
   }
   if (!getIt.isRegistered<GetKycStatus>()) {
-    getIt.registerLazySingleton(() => GetKycStatus(getIt<KycRepository>()));
+    getIt.registerLazySingleton(
+      () => GetKycStatus(getIt<KycRepository>()),
+    );
   }
   if (!getIt.isRegistered<UpdateKycStatus>()) {
-    getIt.registerLazySingleton(() => UpdateKycStatus(getIt<KycRepository>()));
+    getIt.registerLazySingleton(
+      () => UpdateKycStatus(getIt<KycRepository>()),
+    );
   }
   if (!getIt.isRegistered<KycBloc>()) {
-    getIt.registerFactory(() => KycBloc(
-      checkBiometricSupport: getIt(),
-      authenticateWithBiometric: getIt(),
-      setPin: getIt(),
-      verifyPin: getIt(),
-      getKycStatus: getIt(),
-      updateKycStatus: getIt(),
-    ));
+    getIt.registerFactory(
+      () => KycBloc(
+        checkBiometricSupport: getIt(),
+        authenticateWithBiometric: getIt(),
+        setPin: getIt(),
+        verifyPin: getIt(),
+        getKycStatus: getIt(),
+        updateKycStatus: getIt(),
+      ),
+    );
   }
 }

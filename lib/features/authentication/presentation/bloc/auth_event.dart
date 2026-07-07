@@ -34,3 +34,5 @@ class AuthPasswordResetRequested extends AuthEvent {
   final String email;
   AuthPasswordResetRequested(this.email);
 }
+
+class AuthSignInWithGoogleRequested extends AuthEvent {}
