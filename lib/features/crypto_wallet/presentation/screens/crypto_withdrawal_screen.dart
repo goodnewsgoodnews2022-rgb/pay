@@ -1,12 +1,12 @@
 // ignore_for_file: prefer_const_constructors, unnecessary_import, unused_local_variable, use_build_context_synchronously, curly_braces_in_flow_control_structures
 
 import 'dart:convert';
+import 'package:fintech/app/config/environment.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CryptoWithdrawalScreen extends StatefulWidget {
   const CryptoWithdrawalScreen({super.key});
@@ -19,8 +19,11 @@ class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with Si
   late TabController _tabController;
 
   // Secure local runtime extraction
-  static final String _flutterwaveSecretKey = dotenv.maybeGet('FLUTTERWAVE_SECRET_KEY') ?? ''; 
-  static final String _nowPaymentsApiKey = dotenv.maybeGet('NOWPAYMENTS_API_KEY') ?? ''; 
+final pubKey = Environment.flutterwavePublicKey;
+final secKey = Environment.flutterwaveSecretKey;
+final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
+  // Backwards-compatible alias used in older code references
+  String get _flutterwaveSecretKey => secKey;
 
   // Crypto Controllers
   final _addressController = TextEditingController();
