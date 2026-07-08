@@ -1,7 +1,9 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
+import 'package:fintech/app/config/environment.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart'; // Safe context-level redirection
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,18 +16,19 @@ class ReceiveFundsScreen extends StatefulWidget {
   State<ReceiveFundsScreen> createState() => _ReceiveFundsScreenState();
 }
 
-class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTickerProviderStateMixin {
+class _ReceiveFundsScreenState extends State<ReceiveFundsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _cryptoDepositSimulationController = TextEditingController();
 
   // NOWPayments API Credentials retrieved dynamically from secure environment variables
-  String get _nowPaymentsApiKey => dotenv.env['NOWPAYMENTS_API_KEY'] ?? '';
+  String get _nowPaymentsApiKey => Environment.nowPaymentsApiKey;
 
   // State Management Variables
   String _selectedNetwork = 'TRC20 (TRON)';
   String _selectedCryptoAsset = 'USDT';
   bool _isLoading = false;
-  
+
   // API Address Retrieval States
   String _liveAddress = '';
   bool _isAddressLoading = false;
@@ -93,20 +96,32 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   String _getNowPaymentsCurrencyCode(String asset, String network) {
     final cleanAsset = asset.toLowerCase();
     final cleanNetwork = network.toLowerCase();
-    
+
     if (cleanAsset == 'usdt') {
-      if (cleanNetwork.contains('tron') || cleanNetwork.contains('trc20')) return 'usdttrc20';
-      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) return 'usdtbsc';
-      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) return 'usdterc20';
+      if (cleanNetwork.contains('tron') || cleanNetwork.contains('trc20')) {
+        return 'usdttrc20';
+      }
+      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) {
+        return 'usdtbsc';
+      }
+      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) {
+        return 'usdterc20';
+      }
       if (cleanNetwork.contains('polygon')) return 'usdtpolygon';
       if (cleanNetwork.contains('arbitrum')) return 'usdtarbitrum';
       if (cleanNetwork.contains('optimism')) return 'usdtop';
       if (cleanNetwork.contains('avalanche')) return 'usdtavaxc';
     }
     if (cleanAsset == 'usdc') {
-      if (cleanNetwork.contains('tron') || cleanNetwork.contains('trc20')) return 'usdctrc20';
-      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) return 'usdcunibsc';
-      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) return 'usdcerc20';
+      if (cleanNetwork.contains('tron') || cleanNetwork.contains('trc20')) {
+        return 'usdctrc20';
+      }
+      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) {
+        return 'usdcunibsc';
+      }
+      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) {
+        return 'usdcerc20';
+      }
       if (cleanNetwork.contains('polygon')) return 'usdcpolygon';
       if (cleanNetwork.contains('arbitrum')) return 'usdcarbitrum';
       if (cleanNetwork.contains('optimism')) return 'usdcop';
@@ -114,8 +129,12 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
       if (cleanNetwork.contains('solana')) return 'usdcsol';
     }
     if (cleanAsset == 'busd') {
-      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) return 'busdbsc';
-      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) return 'busderc20';
+      if (cleanNetwork.contains('bsc') || cleanNetwork.contains('bep20')) {
+        return 'busdbsc';
+      }
+      if (cleanNetwork.contains('eth') || cleanNetwork.contains('erc20')) {
+        return 'busderc20';
+      }
     }
     if (cleanAsset == 'eth') {
       if (cleanNetwork.contains('arbitrum')) return 'etharbitrum';
@@ -124,7 +143,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
     if (cleanAsset == 'wbtc') {
       if (cleanNetwork.contains('eth')) return 'wbtcerc20';
     }
-    
+
     return cleanAsset; // Fallback to native (e.g. 'btc', 'trx', 'sol')
   }
 
@@ -206,22 +225,31 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
     }
 
     try {
-      final String securePayCurrency = _getNowPaymentsCurrencyCode(_selectedCryptoAsset, _selectedNetwork);
-      
+      final String securePayCurrency = _getNowPaymentsCurrencyCode(
+        _selectedCryptoAsset,
+        _selectedNetwork,
+      );
+      final Map<String, dynamic> requestBody = {
+        "price_amount": 10.0, // Base default payment amount
+        "price_currency": "usd",
+        "pay_currency": securePayCurrency,
+        "ipn_callback_url": "https://payme.io/nowpayments/callback",
+      };
+
+      debugPrint("NOWPayments Sending Body: ${jsonEncode(requestBody)}");
+      debugPrint("Using API Key: ${Environment.nowPaymentsApiKey}");
+
       final response = await http.post(
         Uri.parse("https://api.nowpayments.io/v1/payment"),
         headers: {
-          "x-api-key": _nowPaymentsApiKey,
+          "x-api-key": Environment.nowPaymentsApiKey,
           "Content-Type": "application/json",
         },
-        body: jsonEncode({
-          "price_amount": 10.0, // Base default payment amount
-          "price_currency": "usd",
-          "pay_currency": securePayCurrency,
-          "ipn_callback_url": "https://payme.io/nowpayments/callback",
-        }),
+        body: jsonEncode(requestBody),
       );
 
+      print("NOWPayments Response Status: ${response.statusCode}");
+      print("NOWPayments Response Body: ${response.body}");
       final decoded = jsonDecode(response.body);
 
       if (response.statusCode == 201 && decoded['pay_address'] != null) {
@@ -250,7 +278,8 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   }
 
   Future<void> _simulateDepositReceipt() async {
-    final double depositAmount = double.tryParse(_cryptoDepositSimulationController.text) ?? 0.0;
+    final double depositAmount =
+        double.tryParse(_cryptoDepositSimulationController.text) ?? 0.0;
     final String assetName = _selectedCryptoAsset;
 
     if (depositAmount <= 0) {
@@ -272,17 +301,24 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
 
       if (userId != null) {
         // Query if wallet already exists
-        final response = await client.from('wallets').select().eq('user_id', userId).maybeSingle();
-        
+        final response = await client
+            .from('wallets')
+            .select()
+            .eq('user_id', userId)
+            .maybeSingle();
+
         if (response != null) {
-          double currentCryptoBalance = (response['crypto_balance'] ?? 0.0).toDouble();
+          double currentCryptoBalance = (response['crypto_balance'] ?? 0.0)
+              .toDouble();
           double newCryptoBalance = currentCryptoBalance + depositAmount;
 
-          await client.from('wallets').update({
-            'crypto_balance': newCryptoBalance,
-          }).eq('user_id', userId);
+          await client
+              .from('wallets')
+              .update({'crypto_balance': newCryptoBalance})
+              .eq('user_id', userId);
         } else {
-          final String uniqueSimulatedPublicKey = '0x${userId.replaceAll('-', '').substring(0, 32)}';
+          final String uniqueSimulatedPublicKey =
+              '0x${userId.replaceAll('-', '').substring(0, 32)}';
           await client.from('wallets').insert({
             'user_id': userId,
             'crypto_balance': depositAmount,
@@ -295,11 +331,14 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           await client.from('notifications').insert({
             'user_id': userId,
             'title': 'Crypto Received',
-            'message': 'You have received ${depositAmount.toStringAsFixed(2)} $assetName from an external source.',
+            'message':
+                'You have received ${depositAmount.toStringAsFixed(2)} $assetName from an external source.',
             'created_at': DateTime.now().toIso8601String(),
           });
         } catch (dbError) {
-          debugPrint('Silent database error: Missing notifications table or metadata mapping: $dbError');
+          debugPrint(
+            'Silent database error: Missing notifications table or metadata mapping: $dbError',
+          );
         }
 
         if (mounted) {
@@ -309,7 +348,10 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
               backgroundColor: const Color(0xFF10B981),
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+                  const Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: Colors.white,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -318,11 +360,17 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                       children: [
                         const Text(
                           'Payment Credited Successfully',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
                           'Received $depositAmount $assetName! Dashboard updated in real-time.',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -332,7 +380,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
             ),
           );
           _cryptoDepositSimulationController.clear();
-          
+
           // CRITICAL SAFE POP GUARD: Prevents blank grey-screen Navigator crashes!
           if (Navigator.canPop(context)) {
             Navigator.pop(context);
@@ -341,7 +389,9 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           }
         }
       } else {
-        throw Exception("No authenticated user found in active Supabase session.");
+        throw Exception(
+          "No authenticated user found in active Supabase session.",
+        );
       }
     } catch (e) {
       debugPrint('Error updating wallet balances: $e');
@@ -376,7 +426,11 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
       appBar: AppBar(
         title: Text(
           'Receive Funds',
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
         ),
         backgroundColor: isDark ? const Color(0xFF111622) : Colors.white,
         elevation: 0,
@@ -385,9 +439,14 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           controller: _tabController,
           labelColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
           unselectedLabelColor: secondaryTextColor,
-          indicatorColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
+          indicatorColor: isDark
+              ? Colors.purpleAccent
+              : const Color(0xFF8B5CF6),
           tabs: const [
-            Tab(icon: Icon(Icons.account_balance_wallet_outlined), text: 'FIAT Deposit'),
+            Tab(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              text: 'FIAT Deposit',
+            ),
             Tab(icon: Icon(Icons.qr_code_2_rounded), text: 'Crypto Scanner'),
           ],
         ),
@@ -397,14 +456,35 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildFiatReceiveView(cardColor, elementBgColor, textColor, secondaryTextColor, accentColor, isDark),
-                _buildCryptoReceiveView(cardColor, elementBgColor, textColor, secondaryTextColor, accentColor, isDark),
+                _buildFiatReceiveView(
+                  cardColor,
+                  elementBgColor,
+                  textColor,
+                  secondaryTextColor,
+                  accentColor,
+                  isDark,
+                ),
+                _buildCryptoReceiveView(
+                  cardColor,
+                  elementBgColor,
+                  textColor,
+                  secondaryTextColor,
+                  accentColor,
+                  isDark,
+                ),
               ],
             ),
     );
   }
 
-  Widget _buildFiatReceiveView(Color cardColor, Color elementBg, Color textColor, Color secondaryColor, Color accentColor, bool isDark) {
+  Widget _buildFiatReceiveView(
+    Color cardColor,
+    Color elementBg,
+    Color textColor,
+    Color secondaryColor,
+    Color accentColor,
+    bool isDark,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -412,7 +492,11 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Spacer(),
-          Icon(Icons.account_balance_wallet_rounded, color: accentColor, size: 80),
+          Icon(
+            Icons.account_balance_wallet_rounded,
+            color: accentColor,
+            size: 80,
+          ),
           const SizedBox(height: 24),
           Text(
             'Deposit FIAT',
@@ -427,18 +511,18 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           Text(
             'Add money safely to your fiat wallet using our Flutterwave payment gateway corridor. Supported channels include Cards, Bank Transfer, and USSD.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: secondaryColor,
-              fontSize: 14,
-              height: 1.5,
-            ),
+            style: TextStyle(color: secondaryColor, fontSize: 14, height: 1.5),
           ),
           const Spacer(),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
+              backgroundColor: isDark
+                  ? Colors.purpleAccent
+                  : const Color(0xFF8B5CF6),
               padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               elevation: isDark ? 0 : 2,
             ),
             onPressed: () {
@@ -469,7 +553,14 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
     );
   }
 
-  Widget _buildCryptoReceiveView(Color cardColor, Color elementBg, Color textColor, Color secondaryColor, Color accentColor, bool isDark) {
+  Widget _buildCryptoReceiveView(
+    Color cardColor,
+    Color elementBg,
+    Color textColor,
+    Color secondaryColor,
+    Color accentColor,
+    bool isDark,
+  ) {
     final availableCrypto = _getAssetsForNetwork(_selectedNetwork);
     if (!availableCrypto.contains(_selectedCryptoAsset)) {
       _selectedCryptoAsset = availableCrypto.first;
@@ -481,7 +572,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildInputLabel('Target Network', textColor),
-          
+
           // Network Dropdown Menu carrying HD network logos
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -499,7 +590,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                 items: _networks.map((val) {
                   final netCdn = _getCdnCode(val);
                   return DropdownMenuItem(
-                    value: val, 
+                    value: val,
                     child: Row(
                       children: [
                         ClipRRect(
@@ -508,11 +599,15 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                             'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/$netCdn.png',
                             width: 22,
                             height: 22,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.lan, size: 16),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.lan, size: 16),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(val, style: TextStyle(color: textColor, fontSize: 14)),
+                        Text(
+                          val,
+                          style: TextStyle(color: textColor, fontSize: 14),
+                        ),
                       ],
                     ),
                   );
@@ -535,7 +630,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           const SizedBox(height: 20),
 
           _buildInputLabel('Select Token Type', textColor),
-          
+
           // Token Selection Dropdown Menu with Asset Logos
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -553,7 +648,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                 items: availableCrypto.map((val) {
                   final assetCdn = _getCdnCode(val);
                   return DropdownMenuItem(
-                    value: val, 
+                    value: val,
                     child: Row(
                       children: [
                         ClipRRect(
@@ -562,11 +657,15 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                             'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/$assetCdn.png',
                             width: 22,
                             height: 22,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.token, size: 16),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.token, size: 16),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(val, style: TextStyle(color: textColor, fontSize: 14)),
+                        Text(
+                          val,
+                          style: TextStyle(color: textColor, fontSize: 14),
+                        ),
                       ],
                     ),
                   );
@@ -581,7 +680,7 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 28),
-          
+
           // API-generated barcode viewer card
           Center(
             child: Container(
@@ -594,8 +693,8 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                     color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
-                  )
-                ]
+                  ),
+                ],
               ),
               child: _isAddressLoading
                   ? const SizedBox(
@@ -618,7 +717,11 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                           return const SizedBox(
                             width: 180,
                             height: 180,
-                            child: Icon(Icons.qr_code, size: 80, color: Colors.grey),
+                            child: Icon(
+                              Icons.qr_code,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
                           );
                         },
                       ),
@@ -630,7 +733,11 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
             child: Text(
               'Your Web3 Address:',
               textAlign: TextAlign.center,
-              style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: 6),
@@ -639,25 +746,40 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
                 ? const SizedBox(
                     height: 14,
                     width: 14,
-                    child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.grey),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: Colors.grey,
+                    ),
                   )
                 : Text(
                     _liveAddress,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: secondaryColor, fontSize: 11, fontFamily: 'monospace'),
+                    style: TextStyle(
+                      color: secondaryColor,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                    ),
                   ),
           ),
           const SizedBox(height: 8),
           Center(
             child: TextButton.icon(
               icon: const Icon(Icons.copy, size: 16, color: Color(0xFF8B5CF6)),
-              label: const Text('Copy Address', style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Copy Address',
+                style: TextStyle(
+                  color: Color(0xFF8B5CF6),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               onPressed: _isAddressLoading || _liveAddress.isEmpty
                   ? null
                   : () {
                       Clipboard.setData(ClipboardData(text: _liveAddress));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Address copied to clipboard!')),
+                        const SnackBar(
+                          content: Text('Address copied to clipboard!'),
+                        ),
                       );
                     },
             ),
@@ -665,23 +787,40 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
           const SizedBox(height: 32),
           const Divider(),
           const SizedBox(height: 16),
-          
+
           Text(
             'SIMULATED INBOUND DEPOSIT BLOCK',
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 8),
           _buildInputLabel('Simulate Inbound Amount', textColor),
-          _buildInputField(_cryptoDepositSimulationController, 'e.g. 1.25', cardColor, isDark),
+          _buildInputField(
+            _cryptoDepositSimulationController,
+            'e.g. 1.25',
+            cardColor,
+            isDark,
+          ),
           const SizedBox(height: 20),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: accentColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: _isAddressLoading ? null : _simulateDepositReceipt,
-            child: const Text('Simulate Inbound Wallet Deposit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Simulate Inbound Wallet Deposit',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -691,11 +830,23 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
   Widget _buildInputLabel(String label, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+        ),
+      ),
     );
   }
 
-  Widget _buildInputField(TextEditingController controller, String hint, Color cardColor, bool isDark) {
+  Widget _buildInputField(
+    TextEditingController controller,
+    String hint,
+    Color cardColor,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -709,7 +860,9 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen> with SingleTick
         style: TextStyle(color: isDark ? Colors.white : Colors.black87),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: isDark ? Colors.grey[600]! : Colors.grey[400]!),
+          hintStyle: TextStyle(
+            color: isDark ? Colors.grey[600]! : Colors.grey[400]!,
+          ),
           border: InputBorder.none,
         ),
       ),

@@ -2,10 +2,9 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:fintech/app/config/environment.dart';
 class SendFundsScreen extends StatefulWidget {
   const SendFundsScreen({super.key});
 
@@ -195,7 +194,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     });
 
     try {
-      final secretKey = dotenv.env['FLUTTERWAVE_SECRET_KEY'] ?? '';
+      const secretKey = Environment.flutterwaveSecretKey;
       final response = await http.get(
         Uri.parse("https://api.flutterwave.com/v3/rates?from_currency=$_senderCurrency&to_currency=$_resolvedRecipientCurrency&amount=$_fiatInputAmount"),
         headers: {
@@ -248,7 +247,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     });
 
     try {
-      final apiKey = dotenv.env['NOWPAYMENTS_API_KEY'] ?? '';
+      const apiKey = Environment.nowPaymentsApiKey;
       final url = "https://api-sandbox.nowpayments.io/v1/estimate?amount=$_cryptoInputAmount&currency_from=usd&currency_to=${_selectedCryptoAsset.toLowerCase()}";
       
       final response = await http.get(
@@ -399,7 +398,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
           return;
         }
 
-        final apiKey = dotenv.env['NOWPAYMENTS_API_KEY'] ?? '';
+        const apiKey = Environment.nowPaymentsApiKey;
         final nowPaymentsResponse = await http.post(
           Uri.parse("https://api-sandbox.nowpayments.io/v1/payment"),
           headers: {
