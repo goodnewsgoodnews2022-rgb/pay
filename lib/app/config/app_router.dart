@@ -8,6 +8,7 @@ import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart'
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
+import 'package:fintech/features/authentication/presentation/screens/forget_password_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
@@ -70,6 +71,8 @@ class AppRouter {
   static const String pinSetup = '/pin-setup';
   static const String kycVerification = '/kyc-verify';
   static const String biometricSetup = '/biometric-setup';
+  static const String forgotPassword = '/forgot-password';
+  
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -110,6 +113,10 @@ class AppRouter {
           GoRoute(
             path: signup,
             builder: (context, state) => const SignupScreen(),
+          ),
+          GoRoute(
+            path: forgotPassword,
+            builder: (context, state) => const ForgotPasswordScreen(),
           ),
           GoRoute(
             path: login,

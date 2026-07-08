@@ -1,6 +1,7 @@
 // ignore_for_file: unrelated_type_equality_checks, unused_import
 
 import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
+import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,6 +22,7 @@ class DashboardRoutes {
   static const String biometricSetup = '/biometric-setup';
   // Explicit location constant tracking path for the Add Money sub-root
   static const String addMoney = 'add-money';
+  static const String chatScreen = '/Chat_UI';
 
   static List<RouteBase> get routes => [
         GoRoute(
@@ -47,6 +49,10 @@ class DashboardRoutes {
                 GoRoute(
                   path: 'card-topup',
                   builder: (context, state) => const Placeholder(),
+                ),
+                GoRoute(
+                  path: 'Chat_UI',
+                  builder: (context, state) => const ChatScreen(),
                 ),
                 GoRoute(
                   path: 'bank-ussd',

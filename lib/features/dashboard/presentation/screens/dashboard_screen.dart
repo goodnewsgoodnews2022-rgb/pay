@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_const_constructors, duplicate_import, unnecessary_non_null_assertion, deprecated_member_use, unused_import
 
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_withdrawal_screen.dart';
+import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -187,7 +188,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   IconButton(
                     icon: Icon(Icons.help_outline, color: mainTextColor),
-                    onPressed: () => widget.onNavigateToSubScreen(const SupportHelpScreen()),
+                    onPressed: () => widget.onNavigateToSubScreen(const ChatScreen()),
                   ),
                 ],
               ),

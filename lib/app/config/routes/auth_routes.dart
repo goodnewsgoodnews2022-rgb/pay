@@ -3,6 +3,7 @@ import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen
 import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
+import 'package:fintech/features/authentication/presentation/screens/forget_password_screen.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../features/authentication/presentation/screens/login_screen.dart';
 import '../../../../features/authentication/presentation/screens/signup_screen.dart';
@@ -14,7 +15,7 @@ class AuthRoutes {
   static const String pinSetup = '/pin-setup';
   static const String kycVerification = '/kyc-verify';
   static const String biometricSetup = '/biometric-setup';
-
+  static const String forgotPassword = '/forgot-password';
 
   static List<RouteBase> get routes => [
         GoRoute(
@@ -25,7 +26,10 @@ class AuthRoutes {
           path: AppRouter.signup,
           builder: (context, state) => const SignupScreen(),
         ),
-      
+        GoRoute(
+          path: forgotPassword,
+          builder: (context, state) => const ForgotPasswordScreen(),
+        ),
         GoRoute(
           path: biometricSetup,
           builder: (context, state) => const BiometricSetupScreen(),

@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'config/app_router.dart';
 import 'config/environment.dart';
-import '../core/theme/app_theme.dart'; // 1. Imported your brand new unified theme compiler
+import '../core/theme/app_theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // 1. Imported your brand new unified theme compiler
 
 class FintechApp extends StatefulWidget {
   const FintechApp({super.key});
