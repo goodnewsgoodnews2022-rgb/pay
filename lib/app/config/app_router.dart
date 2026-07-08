@@ -27,6 +27,7 @@ import 'package:fintech/features/splash/screens/change_password_screen.dart';
 import 'package:fintech/features/splash/screens/change_pin_screen.dart';
 import 'package:fintech/features/splash/screens/device_management_screen.dart';
 import 'package:fintech/features/splash/screens/two_factor_auth_screen.dart';
+import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -72,6 +73,7 @@ class AppRouter {
   static const String kycVerification = '/kyc-verify';
   static const String biometricSetup = '/biometric-setup';
   static const String forgotPassword = '/forgot-password';
+  static const String chatScreen = '/Chat_UI';
   
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -109,6 +111,10 @@ class AppRouter {
           GoRoute(
             path: '/pin-setup',
             builder: (context, state) => const PinSetupScreen(), 
+          ),
+          GoRoute(
+            path: chatScreen,
+            builder: (context, state) => const ChatScreen(),
           ),
           GoRoute(
             path: signup,

@@ -93,7 +93,7 @@ class SupportCenterScreen extends StatelessWidget {
                     icon: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: accentPrimaryColor),
                     onPressed: () {
                       // Routes directly to your dynamic live messaging environment
-                      context.push('/support/live-chat');
+                      context.push('/Chat_UI');
                     },
                   ),
                 ],

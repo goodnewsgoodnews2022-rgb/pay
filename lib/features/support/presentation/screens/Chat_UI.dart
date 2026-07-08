@@ -1,5 +1,6 @@
 // lib/features/support/presentation/screens/chat_screen.dart
 
+import 'package:fintech/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,7 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _messages.add(
       ChatMessage(
         text:
-            "Hello! I'm your Fintech assistant. How can I help you today?",
+            "Hello! I'm your PAY Support assistant. How can I help you today?",
         isUser: false,
       ),
     );
@@ -80,8 +81,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Support Chat'),
-        backgroundColor: Colors.deepPurple,
+        title: const Text('PAY Support System'),
+        backgroundColor: AppColors.dev3Purple,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -123,7 +124,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.send),
-                  color: Colors.deepPurple,
+                  color: AppColors.dev3Purple,
                   onPressed: _isLoading ? null : _sendMessage,
                 ),
               ],
@@ -142,7 +143,7 @@ class _ChatScreenState extends State<ChatScreen> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? Colors.deepPurple : Colors.grey[300],
+          color: isUser ? AppColors.dev3Purple : Colors.grey[300],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
