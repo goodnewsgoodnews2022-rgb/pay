@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 
 import 'package:fintech/features/authentication/data/datasources/models/app_user_model.dart';
@@ -34,10 +36,11 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       final user = response.user;
-      if (user == null)
+      if (user == null) {
         throw const AuthException(
           'Registration returned an empty user payload.',
         );
+      }
 
       // 2. Explicitly create the public profile document entry safely
       try {
@@ -90,8 +93,9 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       final user = response.user;
-      if (user == null)
+      if (user == null) {
         throw const AuthException('Login failed: user payload missing.');
+      }
 
       // 2. Fetch the corresponding profile document defensively
       final profile = await _supabase
