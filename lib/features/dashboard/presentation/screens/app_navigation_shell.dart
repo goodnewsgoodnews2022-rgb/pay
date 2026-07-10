@@ -8,7 +8,7 @@ import 'extended_screens.dart' hide SettingsScreen, DashboardScreen;
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 import 'ledger_screen.dart'; 
-
+import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
 class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({super.key});
 
@@ -35,7 +35,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           });
         },
       ),
-      const ReportsStatementsScreen(),
+      const AnalysisScreen(),
       const LedgerScreen(),
       MoreScreen(
         onNavigateToSubScreen: (Widget customScreen) {
