@@ -1,4 +1,8 @@
+// ignore: duplicate_ignore
+// ignore: file_names
 // lib/features/support/presentation/screens/chat_screen.dart
+
+// ignore_for_file: file_names, use_build_context_synchronously
 
 import 'package:fintech/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';

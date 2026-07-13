@@ -1,5 +1,7 @@
 // lib/app/app.dart
 
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'config/app_router.dart';
 import 'config/environment.dart';
