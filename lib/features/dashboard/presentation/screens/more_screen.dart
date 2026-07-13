@@ -2,6 +2,7 @@
 
 import 'package:fintech/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:fintech/features/authentication/presentation/bloc/auth_event.dart';
+import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
 import 'package:fintech/features/dashboard/presentation/screens/support_center_screen.dart';
 import 'package:fintech/features/profile/presentation/bank_accounts_cards_screen.dart';
 import 'package:flutter/material.dart';
@@ -17,9 +18,8 @@ import 'account_statement_screen.dart';
 import 'security_settings_screen.dart';
 import 'settings_screen.dart';
 import 'support_help_screen.dart';
-import 'invite_friends_screen.dart'; // Imported your new screen target file
+import 'invite_friends_screen.dart';
 import '../../../../core/presentation/widgets/rate_us_bottom_sheet.dart';
-
 
 class MoreScreen extends StatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -36,17 +36,21 @@ class _MoreScreenState extends State<MoreScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Matches your dashboard surface configuration perfectly
     final titleTextColor = isDark ? Colors.white : Colors.black87;
-    final sectionHeaderColor = isDark ? Colors.grey[500]! : Colors.grey[600]!;
-
-    // Dynamic background variables matching standard dashboard cards
+    final sectionHeaderColor = isDark
+        ? Colors.grey[500]!
+        : Colors.grey[600]!;
     final cardBackgroundColor = isDark
         ? const Color(0xFF0D0C14)
         : Colors.grey[100];
     final cardBorderColor = isDark
         ? const Color(0xFF1B1A26)
         : Colors.grey[300]!;
+
+    // ✅ Check if current user is admin
+    final authState = context.watch<AuthBloc>().state;
+    final isAdmin =
+        authState is AuthAuthenticated && authState.user.isAdmin == true;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -65,8 +69,34 @@ class _MoreScreenState extends State<MoreScreen> {
       ),
       body: ListView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16.0,
+          vertical: 8.0,
+        ),
         children: [
+          // ====================================================================
+          // 👑 ADMIN DASHBOARD (only visible to admins)
+          // ====================================================================
+          if (isAdmin) ...[
+            _buildSectionHeader('ADMIN', sectionHeaderColor),
+            _buildMenuCard(
+              cardBackgroundColor!,
+              cardBorderColor,
+              children: [
+                _buildMenuTile(
+                  icon: Icons.admin_panel_settings,
+                  title: 'Admin Dashboard',
+                  subtitle: 'Manage users, KYC, transactions & more',
+                  textColor: titleTextColor,
+                  onTap: () {
+                    context.push('/admin');
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // ====================================================================
           // 👤 PROFILE LAYER
           // ====================================================================
@@ -80,8 +110,7 @@ class _MoreScreenState extends State<MoreScreen> {
                 title: 'PROFILE',
                 subtitle: 'Manage your identity settings',
                 textColor: titleTextColor,
-                onTap: () =>
-                   Navigator.of(context).push(
+                onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const ProfileScreen(),
                   ),
@@ -102,7 +131,8 @@ class _MoreScreenState extends State<MoreScreen> {
               _buildMenuTile(
                 icon: Icons.settings_outlined,
                 title: 'App Preferences',
-                subtitle: 'Theme modes, display options, and data defaults',
+                subtitle:
+                    'Theme modes, display options, and data defaults',
                 textColor: titleTextColor,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
@@ -131,12 +161,12 @@ class _MoreScreenState extends State<MoreScreen> {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const AddBankCardAccountScreen (),
+                      builder: (context) =>
+                          const AddBankCardAccountScreen(),
                     ),
                   );
                 },
               ),
-            
             ],
           ),
           const SizedBox(height: 12),
@@ -165,7 +195,7 @@ class _MoreScreenState extends State<MoreScreen> {
           const SizedBox(height: 12),
 
           // ====================================================================
-          // 🎁 GROWTH REFERRALS PIPELINE (Updated for Routing Navigation)
+          // 🎁 GROWTH REFERRALS PIPELINE
           // ====================================================================
           _buildSectionHeader('REFERRALS', sectionHeaderColor),
           _buildMenuCard(
@@ -175,10 +205,10 @@ class _MoreScreenState extends State<MoreScreen> {
               _buildMenuTile(
                 icon: Icons.card_giftcard_rounded,
                 title: 'Invite Friends',
-                subtitle: 'Share your code and secure transactional bonuses',
+                subtitle:
+                    'Share your code and secure transactional bonuses',
                 textColor: titleTextColor,
-                onTap: () =>
-                   Navigator.of(context).push(
+                onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const InviteFriendsScreen(),
                   ),
@@ -199,10 +229,10 @@ class _MoreScreenState extends State<MoreScreen> {
               _buildMenuTile(
                 icon: Icons.support_agent_rounded,
                 title: 'Help Desk & Live Chat',
-                subtitle: 'Connect instantly with global agent support teams',
+                subtitle:
+                    'Connect instantly with global agent support teams',
                 textColor: titleTextColor,
-                onTap: () =>
-                    Navigator.of(context).push(
+                onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const SupportCenterScreen(),
                   ),
@@ -211,14 +241,23 @@ class _MoreScreenState extends State<MoreScreen> {
             ],
           ),
           const SizedBox(height: 36),
+
+          // ====================================================================
+          // ⭐ RATE APP
+          // ====================================================================
           ListTile(
             tileColor: cardBackgroundColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            leading: const Icon(Icons.rate_review_outlined, color: Colors.greenAccent, size: 22),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            leading: const Icon(
+              Icons.rate_review_outlined,
+              color: Colors.greenAccent,
+              size: 22,
+            ),
             title: const Text("Rate App Experience"),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
-              // Launches the uncorrupted modal interface instantly
               RateUsBottomSheet.show(context);
             },
           ),
@@ -233,7 +272,10 @@ class _MoreScreenState extends State<MoreScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent.withOpacity(0.08),
                 elevation: 0,
-                side: const BorderSide(color: Colors.redAccent, width: 0.6),
+                side: const BorderSide(
+                  color: Colors.redAccent,
+                  width: 0.6,
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -243,7 +285,11 @@ class _MoreScreenState extends State<MoreScreen> {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                  Icon(
+                    Icons.logout_rounded,
+                    color: Colors.redAccent,
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Logout Account',
@@ -320,13 +366,13 @@ class _MoreScreenState extends State<MoreScreen> {
         ? const Color(0xFF222035)
         : Colors.grey[300]!;
     final arrowColor = isDark ? Colors.white30 : Colors.black26;
-    final neonAccentColor = const Color(
-      0xFF00E676,
-    ); // Unified vibrant tint matching your design icons
+    final neonAccentColor = const Color(0xFF00E676);
 
     return ListTile(
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16.0,
         vertical: 4.0,
@@ -372,33 +418,38 @@ class _MoreScreenState extends State<MoreScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Inside your more page build method
-showDialog(
-  context: context,
-  builder: (innerContext) => AlertDialog(
-    title: const Text('Are you sure?'),
-    content: const Text('Do you want to logout?'),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(innerContext),
-        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-      ),
-      TextButton(
-        onPressed: () {
-          print('🔐 Logout confirmed by user, dispatching AuthSignOutRequested event');
-          // Close dialog
-          Navigator.pop(innerContext);
-          // Dispatch signout
-          context.read<AuthBloc>().add(AuthSignOutRequested());
-        },
-        child: const Text(
-          'Logout',
-          style: TextStyle(
-            color: Colors.redAccent,
-            fontWeight: FontWeight.bold,
+    showDialog(
+      context: context,
+      builder: (innerContext) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1B2B) : Colors.white,
+        title: const Text('Are you sure?'),
+        content: const Text('Do you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(innerContext),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
-        ),
+          TextButton(
+            onPressed: () {
+              print(
+                '🔐 Logout confirmed by user, dispatching AuthSignOutRequested event',
+              );
+              Navigator.pop(innerContext);
+              context.read<AuthBloc>().add(AuthSignOutRequested());
+            },
+            child: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
-    ],
-  ),
-);}}
+    );
+  }
+}

@@ -49,6 +49,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'date_of_birth': dateOfBirth,
           'address': address,
           'kyc_status': 'PENDING',
+          'is_admin': false, // ✅ default admin status
         });
       } catch (dbError) {
         throw AuthException(
@@ -72,6 +73,7 @@ class AuthRepositoryImpl implements AuthRepository {
         address: address,
         accountNumber: profile['account_number'],
         kycStatus: 'PENDING',
+        isAdmin: profile['is_admin'] ?? false, // ✅ add isAdmin
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -116,6 +118,9 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: profile?['avatar_url'],
         accountNumber: profile?['account_number'],
         kycStatus: finalKycStatus,
+        biometricEnabled:
+            profile?['biometric_enabled'] ?? false, // ✅ add biometric
+        isAdmin: profile?['is_admin'] ?? false, // ✅ add isAdmin
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -160,6 +165,9 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: profile['avatar_url'],
         accountNumber: profile['account_number'],
         kycStatus: profile['kyc_status'] ?? 'PENDING',
+        biometricEnabled:
+            profile['biometric_enabled'] ?? false, // ✅ add biometric
+        isAdmin: profile['is_admin'] ?? false, // ✅ add isAdmin
       );
     } catch (e) {
       // Return null to drop session gracefully instead of crashing global BLoC lifecycle
@@ -179,6 +187,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   // ✅ Google Sign‑In (inside the class)
+  @override
   Future<AppUser> signInWithGoogle() async {
     try {
       final completer = Completer<AppUser>();
@@ -194,7 +203,7 @@ class AuthRepositoryImpl implements AuthRepository {
               completer.complete(appUser);
               subscription?.cancel();
             }
-                    }
+          }
         }
       });
 
@@ -235,6 +244,8 @@ class AuthRepositoryImpl implements AuthRepository {
         'id': user.id,
         'full_name': user.userMetadata?['full_name'] ?? 'Fintech User',
         'kyc_status': 'PENDING',
+        'is_admin': false, // ✅ default admin
+        'biometric_enabled': false, // ✅ default biometric
       });
 
       final created = await _supabase
@@ -252,6 +263,8 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: created['avatar_url'],
         accountNumber: created['account_number'],
         kycStatus: created['kyc_status'] ?? 'PENDING',
+        biometricEnabled: created['biometric_enabled'] ?? false, // ✅ add
+        isAdmin: created['is_admin'] ?? false, // ✅ add
       );
     }
 
@@ -267,6 +280,8 @@ class AuthRepositoryImpl implements AuthRepository {
       avatarUrl: profile['avatar_url'],
       accountNumber: profile['account_number'],
       kycStatus: profile['kyc_status'] ?? 'PENDING',
+      biometricEnabled: profile['biometric_enabled'] ?? false, // ✅ add
+      isAdmin: profile['is_admin'] ?? false, // ✅ add
     );
   }
 }

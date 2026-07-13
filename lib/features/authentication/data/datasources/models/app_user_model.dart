@@ -1,5 +1,8 @@
+// lib/features/authentication/data/models/app_user_model.dart
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fintech/features/authentication/domain/entities/app_user.dart';
+
 class AppUserModel extends AppUser {
   const AppUserModel({
     required super.id,
@@ -11,14 +14,15 @@ class AppUserModel extends AppUser {
     super.address,
     super.avatarUrl,
     super.accountNumber,
-    super.kycStatus, 
+    super.kycStatus,
     super.biometricEnabled,
+    super.isAdmin,
   });
 
   factory AppUserModel.fromJson(Map<String, dynamic> json) {
     return AppUserModel(
       id: json['id'],
-      email: json['email'],
+      email: json['email'] ?? '',
       fullName: json['full_name'],
       mobileNumber: json['mobile_number'],
       gender: json['gender'],
@@ -27,8 +31,8 @@ class AppUserModel extends AppUser {
       avatarUrl: json['avatar_url'],
       accountNumber: json['account_number'],
       kycStatus: json['kyc_status'],
-      biometricEnabled: 
-       json['biometric_enabled'] ?? false
+      biometricEnabled: json['biometric_enabled'] ?? false,
+      isAdmin: json['is_admin'] ?? false, // ✅ map from database
     );
   }
 
@@ -45,6 +49,7 @@ class AppUserModel extends AppUser {
       'account_number': accountNumber,
       'kyc_status': kycStatus,
       'biometric_enabled': biometricEnabled,
+      'is_admin': isAdmin, // ✅ include in JSON
     };
   }
 
@@ -59,6 +64,7 @@ class AppUserModel extends AppUser {
     String? accountNumber,
     String? kycStatus,
     bool biometricEnabled = false,
+    bool isAdmin = false,
   }) {
     return AppUserModel(
       id: user.id,
@@ -72,6 +78,7 @@ class AppUserModel extends AppUser {
       accountNumber: accountNumber,
       kycStatus: kycStatus,
       biometricEnabled: biometricEnabled,
+      isAdmin: isAdmin,
     );
   }
 }

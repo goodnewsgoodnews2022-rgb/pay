@@ -1,4 +1,14 @@
 // ignore_for_file: depend_on_referenced_packages
+import 'package:fintech/admin/data/repositories/admin_repository_impl.dart';
+import 'package:fintech/admin/domain/repositories/admin_repository.dart';
+import 'package:fintech/admin/domain/usecases/approve_kyc.dart';
+import 'package:fintech/admin/domain/usecases/get_all_user.dart';
+import 'package:fintech/admin/domain/usecases/get_dashboard_stats.dart';
+import 'package:fintech/admin/domain/usecases/get_transaction.dart';
+import 'package:fintech/admin/domain/usecases/reject_kyc.dart';
+import 'package:fintech/admin/domain/usecases/send_broadcast_notification.dart';
+import 'package:fintech/admin/domain/usecases/update_user_status.dart';
+import 'package:fintech/admin/presentation/bloc/admin_bloc.dart';
 import 'package:fintech/features/KYC/data/datasources/biometric_local_ds.dart';
 import 'package:fintech/features/KYC/data/datasources/pin_local_ds.dart';
 import 'package:fintech/features/KYC/data/repositories/kyc_repositories_impl.dart';
@@ -52,6 +62,11 @@ import '../../domain/usecases/sign_out.dart';
 import '../../domain/usecases/get_current_user.dart';
 import '../../domain/usecases/send_password_reset.dart';
 import 'auth_bloc.dart';
+
+// Admin
+
+
+// inside setupDependencies()
 
 final getIt = GetIt.instance;
 
@@ -312,4 +327,57 @@ Future<void> setupDependencies() async {
       ),
     );
   }
+
+  if (!getIt.isRegistered<AdminRepository>()) {
+    getIt.registerLazySingleton<AdminRepository>(
+      () => AdminRepositoryImpl(),
+    );
+  }
+  if (!getIt.isRegistered<GetDashboardStats>()) {
+    getIt.registerLazySingleton(
+      () => GetDashboardStats(getIt<AdminRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<GetAllUsers>()) {
+    getIt.registerLazySingleton(
+      () => GetAllUsers(getIt<AdminRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<UpdateUserStatus>()) {
+    getIt.registerLazySingleton(
+      () => UpdateUserStatus(getIt<AdminRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<ApproveKyc>()) {
+    getIt.registerLazySingleton(
+      () => ApproveKyc(getIt<AdminRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<RejectKyc>()) {
+    getIt.registerLazySingleton(() => RejectKyc(getIt<AdminRepository>()));
+  }
+  if (!getIt.isRegistered<GetTransactions>()) {
+    getIt.registerLazySingleton(
+      () => GetTransactions(getIt<AdminRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<SendBroadcastNotification>()) {
+    getIt.registerLazySingleton(
+      () => SendBroadcastNotification(getIt<AdminRepository>()),
+    );
+  }
+  if (!getIt.isRegistered<AdminBloc>()) {
+    getIt.registerFactory(
+      () => AdminBloc(
+        getDashboardStats: getIt(),
+        getAllUsers: getIt(),
+        updateUserStatus: getIt(),
+        approveKyc: getIt(),
+        rejectKyc: getIt(),
+        getTransactions: getIt(),
+        sendBroadcastNotification: getIt(),
+      ),
+    );
+  }
+
 }

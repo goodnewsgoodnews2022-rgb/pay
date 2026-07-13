@@ -1,3 +1,5 @@
+// lib/features/authentication/domain/entities/app_user.dart
+
 class AppUser {
   final String id;
   final String email;
@@ -10,6 +12,7 @@ class AppUser {
   final String? accountNumber;
   final String? kycStatus;
   final bool biometricEnabled;
+  final bool isAdmin; // ✅ new field
 
   const AppUser({
     required this.id,
@@ -23,6 +26,7 @@ class AppUser {
     this.accountNumber,
     this.kycStatus,
     this.biometricEnabled = false,
+    this.isAdmin = false, // ✅ default false
   });
 
   @override
