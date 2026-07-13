@@ -63,11 +63,6 @@ import '../../domain/usecases/get_current_user.dart';
 import '../../domain/usecases/send_password_reset.dart';
 import 'auth_bloc.dart';
 
-// Admin
-
-
-// inside setupDependencies()
-
 final getIt = GetIt.instance;
 
 Future<void> setupDependencies() async {
@@ -102,7 +97,6 @@ Future<void> setupDependencies() async {
     );
   }
 
-  // ⚡ FIX: Registered Settings Use Cases BEFORE injecting the SettingsBloc
   if (!getIt.isRegistered<ToggleBiometrics>()) {
     getIt.registerLazySingleton(
       () => ToggleBiometrics(getIt<SettingsRepository>()),
@@ -328,6 +322,9 @@ Future<void> setupDependencies() async {
     );
   }
 
+  // ====================================================================
+  // 👑 ADMIN DASHBOARD FEATURE
+  // ====================================================================
   if (!getIt.isRegistered<AdminRepository>()) {
     getIt.registerLazySingleton<AdminRepository>(
       () => AdminRepositoryImpl(),
@@ -371,7 +368,7 @@ Future<void> setupDependencies() async {
       () => AdminBloc(
         getDashboardStats: getIt(),
         getAllUsers: getIt(),
-        updateUserStatus: getIt(),
+        updateUserStatus: getIt<UpdateUserStatus>(),
         approveKyc: getIt(),
         rejectKyc: getIt(),
         getTransactions: getIt(),
@@ -379,5 +376,4 @@ Future<void> setupDependencies() async {
       ),
     );
   }
-
 }

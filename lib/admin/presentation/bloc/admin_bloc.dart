@@ -6,15 +6,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fintech/admin/domain/usecases/get_dashboard_stats.dart';
 import 'package:fintech/admin/domain/usecases/approve_kyc.dart';
 import 'package:fintech/admin/domain/usecases/reject_kyc.dart';
-
 import 'package:fintech/admin/domain/usecases/send_broadcast_notification.dart';
+import 'package:fintech/admin/domain/usecases/update_user_status.dart'
+    as update_user_status;
 import 'admin_event.dart';
 import 'admin_state.dart';
 
 class AdminBloc extends Bloc<AdminEvent, AdminState> {
   final GetDashboardStats getDashboardStats;
   final GetAllUsers getAllUsers;
-  final UpdateUserStatus updateUserStatus;
+  final update_user_status.UpdateUserStatus updateUserStatus;
   final ApproveKyc approveKyc;
   final RejectKyc rejectKyc;
   final GetTransactions getTransactions;
@@ -72,9 +73,13 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     Emitter<AdminState> emit,
   ) async {
     try {
-      await updateUserStatus;
+      await updateUserStatus(
+        event.userId,
+        isSuspended: event.isSuspended,
+        suspensionReason: event.suspensionReason,
+      );
       emit(AdminOperationSuccess('User status updated'));
-      add(LoadAllUsers()); // Refresh list
+      // ✅ UI will reload via listener – no need to add LoadAllUsers here
     } catch (e) {
       emit(AdminError(e.toString()));
     }
@@ -87,7 +92,6 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     try {
       await approveKyc(event.userId);
       emit(AdminOperationSuccess('KYC approved successfully'));
-      add(LoadAllUsers());
     } catch (e) {
       emit(AdminError(e.toString()));
     }
@@ -100,7 +104,6 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     try {
       await rejectKyc(event.userId, reason: event.reason);
       emit(AdminOperationSuccess('KYC rejected'));
-      add(LoadAllUsers());
     } catch (e) {
       emit(AdminError(e.toString()));
     }

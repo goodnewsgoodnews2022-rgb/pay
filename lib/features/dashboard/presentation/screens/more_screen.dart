@@ -89,7 +89,7 @@ class _MoreScreenState extends State<MoreScreen> {
                   subtitle: 'Manage users, KYC, transactions & more',
                   textColor: titleTextColor,
                   onTap: () {
-                    context.push('/admin');
+                    context.push('/admin-dashboard');
                   },
                 ),
               ],

@@ -22,7 +22,6 @@ class AuthRepositoryImpl implements AuthRepository {
     String? address,
   }) async {
     try {
-      // 1. Create the Auth User with Metadata
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
@@ -42,7 +41,6 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
-      // 2. Explicitly create the public profile document entry safely
       try {
         await _supabase.from('profiles').insert({
           'id': user.id,
@@ -52,7 +50,8 @@ class AuthRepositoryImpl implements AuthRepository {
           'date_of_birth': dateOfBirth,
           'address': address,
           'kyc_status': 'PENDING',
-          'is_admin': false, // ✅ default admin status
+          'is_admin': false,
+          'is_suspended': false,
         });
       } catch (dbError) {
         throw AuthException(
@@ -60,7 +59,6 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
-      // 3. Fetch the created profile to get generated account_number
       final profile = await _supabase
           .from('profiles')
           .select()
@@ -76,7 +74,8 @@ class AuthRepositoryImpl implements AuthRepository {
         address: address,
         accountNumber: profile['account_number'],
         kycStatus: 'PENDING',
-        isAdmin: profile['is_admin'] ?? false, // ✅ add isAdmin
+        isAdmin: profile['is_admin'] ?? false,
+        isSuspended: profile['is_suspended'] ?? false,
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -88,7 +87,6 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<AppUser> signIn(String email, String password) async {
     try {
-      // 1. Authenticate with credentials
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -99,14 +97,21 @@ class AuthRepositoryImpl implements AuthRepository {
         throw const AuthException('Login failed: user payload missing.');
       }
 
-      // 2. Fetch the corresponding profile document defensively
       final profile = await _supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
-      // Fallback gracefully if the profile record is entirely missing or null
+      // ✅ BLOCK SUSPENDED USERS
+      if (profile?['is_suspended'] == true) {
+        // Sign out immediately to clear the session
+        await _supabase.auth.signOut();
+        throw const AuthException(
+          'Your account has been suspended. Please contact support.',
+        );
+      }
+
       final String finalFullName =
           profile?['full_name'] ??
           (user.userMetadata?['full_name'] ?? 'Fintech User');
@@ -122,9 +127,9 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: profile?['avatar_url'],
         accountNumber: profile?['account_number'],
         kycStatus: finalKycStatus,
-        biometricEnabled:
-            profile?['biometric_enabled'] ?? false, // ✅ add biometric
-        isAdmin: profile?['is_admin'] ?? false, // ✅ add isAdmin
+        biometricEnabled: profile?['biometric_enabled'] ?? false,
+        isAdmin: profile?['is_admin'] ?? false,
+        isSuspended: profile?['is_suspended'] ?? false,
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -157,6 +162,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
       if (profile == null) return null;
 
+      // ✅ BLOCK SUSPENDED USERS FROM RESTORING SESSION
+      if (profile['is_suspended'] == true) {
+        await _supabase.auth.signOut();
+        return null;
+      }
+
       return AppUserModel.fromSupabaseUser(
         user,
         fullName:
@@ -169,12 +180,11 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: profile['avatar_url'],
         accountNumber: profile['account_number'],
         kycStatus: profile['kyc_status'] ?? 'PENDING',
-        biometricEnabled:
-            profile['biometric_enabled'] ?? false, // ✅ add biometric
-        isAdmin: profile['is_admin'] ?? false, // ✅ add isAdmin
+        biometricEnabled: profile['biometric_enabled'] ?? false,
+        isAdmin: profile['is_admin'] ?? false,
+        isSuspended: profile['is_suspended'] ?? false,
       );
     } catch (e) {
-      // Return null to drop session gracefully instead of crashing global BLoC lifecycle
       return null;
     }
   }
@@ -190,7 +200,6 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  // ✅ Google Sign‑In (inside the class)
   @override
   Future<AppUser> signInWithGoogle() async {
     try {
@@ -212,8 +221,8 @@ class AuthRepositoryImpl implements AuthRepository {
       });
 
       const redirectUrl = kIsWeb
-          ? null // web uses default Supabase redirect (page reload)
-          : 'com.yourcompany.fintech://login-callback'; // mobile custom scheme
+          ? null
+          : 'com.yourcompany.fintech://login-callback';
 
       print('🔍 [Google Sign-In] Using redirectTo: $redirectUrl');
 
@@ -248,8 +257,9 @@ class AuthRepositoryImpl implements AuthRepository {
         'id': user.id,
         'full_name': user.userMetadata?['full_name'] ?? 'Fintech User',
         'kyc_status': 'PENDING',
-        'is_admin': false, // ✅ default admin
-        'biometric_enabled': false, // ✅ default biometric
+        'is_admin': false,
+        'biometric_enabled': false,
+        'is_suspended': false,
       });
 
       final created = await _supabase
@@ -257,6 +267,7 @@ class AuthRepositoryImpl implements AuthRepository {
           .select()
           .eq('id', user.id)
           .single();
+
       return AppUserModel.fromSupabaseUser(
         user,
         fullName: created['full_name'],
@@ -267,11 +278,14 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: created['avatar_url'],
         accountNumber: created['account_number'],
         kycStatus: created['kyc_status'] ?? 'PENDING',
-        biometricEnabled: created['biometric_enabled'] ?? false, // ✅ add
-        isAdmin: created['is_admin'] ?? false, // ✅ add
+        biometricEnabled: created['biometric_enabled'] ?? false,
+        isAdmin: created['is_admin'] ?? false,
+        isSuspended: created['is_suspended'] ?? false,
       );
     }
 
+    // ✅ Profile exists – check suspension (though new users won't be suspended)
+    // If you ever want to block suspended users from Google sign-in, you can add a check here.
     return AppUserModel.fromSupabaseUser(
       user,
       fullName:
@@ -284,8 +298,9 @@ class AuthRepositoryImpl implements AuthRepository {
       avatarUrl: profile['avatar_url'],
       accountNumber: profile['account_number'],
       kycStatus: profile['kyc_status'] ?? 'PENDING',
-      biometricEnabled: profile['biometric_enabled'] ?? false, // ✅ add
-      isAdmin: profile['is_admin'] ?? false, // ✅ add
+      biometricEnabled: profile['biometric_enabled'] ?? false,
+      isAdmin: profile['is_admin'] ?? false,
+      isSuspended: profile['is_suspended'] ?? false,
     );
   }
 }

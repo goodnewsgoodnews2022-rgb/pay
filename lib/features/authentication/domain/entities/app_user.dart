@@ -26,7 +26,7 @@ class AppUser {
     this.accountNumber,
     this.kycStatus,
     this.biometricEnabled = false,
-    this.isAdmin = false, // ✅ default false
+    this.isAdmin = false, Object? isSuspended, // ✅ default false
   });
 
   @override

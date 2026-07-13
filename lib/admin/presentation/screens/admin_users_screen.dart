@@ -1,3 +1,4 @@
+import 'package:fintech/admin/domain/entities/admin_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -31,6 +32,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       _currentOffset = 0;
       _hasMore = true;
     }
+    print('🔄 Loading users: offset=$_currentOffset, reset=$reset');
     context.read<AdminBloc>().add(
       LoadAllUsers(limit: _limit, offset: _currentOffset),
     );
@@ -85,7 +87,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 setState(() {
                   _searchQuery = value.toLowerCase().trim();
                 });
-                // For now we just filter locally, but ideally we'd pass to backend.
                 _loadUsers(reset: true);
               },
             ),
@@ -98,11 +99,23 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     context,
                   ).showSnackBar(SnackBar(content: Text(state.error)));
                 }
+                if (state is AdminOperationSuccess) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: AppColors.dev2Green,
+                    ),
+                  );
+                  // Refresh list after operation with a small delay
+                  print('✅ Operation success, reloading users...');
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (mounted) {
+                      _loadUsers(reset: true);
+                    }
+                  });
+                }
                 if (state is AdminUsersLoaded) {
                   _hasMore = state.hasMore;
-                  if (_currentOffset == 0) {
-                    // first load, no state change
-                  }
                 }
               },
               builder: (context, state) {
@@ -160,20 +173,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       return AdminUserTile(
                         user: user,
                         onTap: () {
-                          // Navigate to user details (optional)
+                          // Optional: navigate to user details
                           // context.push('/admin/user/${user.id}');
                         },
                         onSuspendToggle: () {
-                          final suspend = !(user.isSuspended ?? false);
-                          context.read<AdminBloc>().add(
-                            UpdateUserStatus(
-                              user.id,
-                              isSuspended: suspend,
-                              suspensionReason: suspend
-                                  ? 'Suspended by admin'
-                                  : null,
-                            ),
-                          );
+                          _confirmSuspendToggle(context, user);
                         },
                         onApproveKyc: () {
                           context.read<AdminBloc>().add(
@@ -194,6 +198,61 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSuspendToggle(BuildContext context, AdminUser user) {
+    final isCurrentlySuspended = user.isSuspended ?? false;
+    final action = isCurrentlySuspended ? 'Unsuspend' : 'Suspend';
+    final message = isCurrentlySuspended
+        ? 'Are you sure you want to unsuspend this user? They will regain full access.'
+        : 'Are you sure you want to suspend this user? They will lose access to their account.';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        title: Text(
+          '$action User',
+          style: const TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              final suspend = !isCurrentlySuspended;
+              print('🔁 Dispatching UpdateUserStatus: suspend=$suspend');
+              context.read<AdminBloc>().add(
+                UpdateUserStatus(
+                  user.id,
+                  isSuspended: suspend,
+                  suspensionReason: suspend ? 'Suspended by admin' : null,
+                ),
+              );
+            },
+            child: Text(
+              action,
+              style: TextStyle(
+                color: isCurrentlySuspended
+                    ? AppColors.dev2Green
+                    : AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

@@ -1,9 +1,9 @@
-// lib/features/authentication/data/models/app_user_model.dart
-
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fintech/features/authentication/domain/entities/app_user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppUserModel extends AppUser {
+  final bool? isSuspended;
+
   const AppUserModel({
     required super.id,
     required super.email,
@@ -17,11 +17,12 @@ class AppUserModel extends AppUser {
     super.kycStatus,
     super.biometricEnabled,
     super.isAdmin,
+    this.isSuspended,
   });
 
   factory AppUserModel.fromJson(Map<String, dynamic> json) {
     return AppUserModel(
-      id: json['id'],
+      id: json['id'] ?? '',
       email: json['email'] ?? '',
       fullName: json['full_name'],
       mobileNumber: json['mobile_number'],
@@ -32,7 +33,8 @@ class AppUserModel extends AppUser {
       accountNumber: json['account_number'],
       kycStatus: json['kyc_status'],
       biometricEnabled: json['biometric_enabled'] ?? false,
-      isAdmin: json['is_admin'] ?? false, // ✅ map from database
+      isAdmin: json['is_admin'] ?? false,
+      isSuspended: json['is_suspended'] ?? false,
     );
   }
 
@@ -49,7 +51,8 @@ class AppUserModel extends AppUser {
       'account_number': accountNumber,
       'kyc_status': kycStatus,
       'biometric_enabled': biometricEnabled,
-      'is_admin': isAdmin, // ✅ include in JSON
+      'is_admin': isAdmin,
+      'is_suspended': isSuspended,
     };
   }
 
@@ -65,6 +68,7 @@ class AppUserModel extends AppUser {
     String? kycStatus,
     bool biometricEnabled = false,
     bool isAdmin = false,
+    bool isSuspended = false,
   }) {
     return AppUserModel(
       id: user.id,
@@ -79,6 +83,7 @@ class AppUserModel extends AppUser {
       kycStatus: kycStatus,
       biometricEnabled: biometricEnabled,
       isAdmin: isAdmin,
+      isSuspended: isSuspended,
     );
   }
 }

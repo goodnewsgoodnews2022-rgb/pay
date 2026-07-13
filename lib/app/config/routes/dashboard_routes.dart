@@ -24,7 +24,7 @@ class DashboardRoutes {
   // Explicit location constant tracking path for the Add Money sub-root
   static const String addMoney = 'add-money';
   static const String chatScreen = '/Chat_UI';
-  static const String adminPanel = '/admin-panel';
+  static const String adminPanel = '/admin-dashboard';
 
   static List<RouteBase> get routes => [
         GoRoute(
@@ -49,7 +49,7 @@ class DashboardRoutes {
                   builder: (context, state) => const Placeholder(),
                 ),
                 GoRoute(
-                  path: 'admin-panel',
+                  path: 'admin-dashboard',
                   builder: (context, state) => const AdminDashboardScreen(),
                 ),
                 GoRoute(

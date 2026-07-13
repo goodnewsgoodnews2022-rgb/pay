@@ -12,6 +12,9 @@ import 'package:fintech/features/authentication/presentation/bloc/auth_state.dar
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
 
+// ✅ Add AdminBloc import (matches your project structure: lib/admin/)
+import 'package:fintech/admin/presentation/bloc/admin_bloc.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +25,9 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // Riverpod Theme Provider
-final themeStateProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
+final themeStateProvider = StateProvider<ThemeMode>(
+  (ref) => ThemeMode.dark,
+);
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -32,10 +37,10 @@ Future<void> main() async {
   // 1. Core Framework Initializations using Environment Manager constants
   try {
     debugPrint("Validating Environment & Initializing Supabase...");
-    
-    // Validate our String.fromEnvironment variables 
-    Environment.validate(); 
-    
+
+    // Validate our String.fromEnvironment variables
+    Environment.validate();
+
     await Supabase.initialize(
       url: Environment.supabaseUrl,
       anonKey: Environment.supabaseAnonKey,
@@ -53,21 +58,24 @@ Future<void> main() async {
     await getIt.allReady();
 
     debugPrint("AuthBloc registered: ${getIt.isRegistered<AuthBloc>()}");
-    debugPrint("NotificationBloc registered: ${getIt.isRegistered<NotificationBloc>()}");
+    debugPrint(
+      "NotificationBloc registered: ${getIt.isRegistered<NotificationBloc>()}",
+    );
     debugPrint("KycBloc registered: ${getIt.isRegistered<KycBloc>()}");
+    debugPrint(
+      "AdminBloc registered: ${getIt.isRegistered<AdminBloc>()}",
+    ); // ✅ Added
   } catch (e, stackTrace) {
-    debugPrint("❌ Core Error: GetIt Dependency Injection Registration crashed.");
+    debugPrint(
+      "❌ Core Error: GetIt Dependency Injection Registration crashed.",
+    );
     debugPrint(e.toString());
     debugPrint(stackTrace.toString());
   } finally {
     widgetsBinding.allowFirstFrame();
   }
 
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
@@ -85,9 +93,9 @@ class MyApp extends ConsumerWidget {
         BlocProvider<NotificationBloc>(
           create: (_) => getIt<NotificationBloc>(),
         ),
-        BlocProvider<KycBloc>(
-          create: (_) => getIt<KycBloc>(),
-        ),
+        BlocProvider<KycBloc>(create: (_) => getIt<KycBloc>()),
+        // ✅ Add AdminBloc
+        BlocProvider<AdminBloc>(create: (_) => getIt<AdminBloc>()),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {

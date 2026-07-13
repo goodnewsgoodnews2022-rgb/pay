@@ -1,4 +1,4 @@
-// lib/features/admin/presentation/screens/admin_dashboard_screen.dart
+// lib/admin/presentation/screens/admin_dashboard_screen.dart
 
 import 'package:fintech/admin/presentation/widgets/admin_stat_card.dart';
 import 'package:flutter/material.dart';
@@ -9,9 +9,29 @@ import '../bloc/admin_bloc.dart';
 import '../bloc/admin_event.dart';
 import '../bloc/admin_state.dart';
 
-
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
+
+  @override
+  State<AdminDashboardScreen> createState() =>
+      _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Dispatch the load event after the frame is built,
+    // and only if the bloc is still open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final bloc = context.read<AdminBloc>();
+        if (!bloc.isClosed) {
+          bloc.add(LoadDashboardStats());
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,102 +44,99 @@ class AdminDashboardScreen extends StatelessWidget {
           style: TextStyle(color: AppColors.textPrimary),
         ),
       ),
-      body: BlocProvider(
-        create: (context) =>
-            context.read<AdminBloc>()..add(LoadDashboardStats()),
-        child: BlocConsumer<AdminBloc, AdminState>(
-          listener: (context, state) {
-            if (state is AdminOperationSuccess) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
-            }
-            if (state is AdminError) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(state.error)));
-            }
-          },
-          builder: (context, state) {
-            if (state is AdminLoading) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.dev1Silver,
-                ),
-              );
-            }
-            if (state is AdminDashboardLoaded) {
-              final stats = state.stats;
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AdminStatsCard(
-                            title: 'Total Users',
-                            value: stats.totalUsers.toString(),
-                            icon: Icons.people,
-                            color: AppColors.dev1Silver,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AdminStatsCard(
-                            title: 'Pending KYC',
-                            value: stats.pendingKyc.toString(),
-                            icon: Icons.verified_user,
-                            color: AppColors.dev2Green,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AdminStatsCard(
-                            title: 'Total Deposits',
-                            value:
-                                '\$${stats.totalDeposits.toStringAsFixed(2)}',
-                            icon: Icons.arrow_downward,
-                            color: AppColors.success,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AdminStatsCard(
-                            title: 'Total Withdrawals',
-                            value:
-                                '\$${stats.totalWithdrawals.toStringAsFixed(2)}',
-                            icon: Icons.arrow_upward,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    AdminStatsCard(
-                      title: 'Total Transactions',
-                      value: stats.totalTransactions.toString(),
-                      icon: Icons.receipt,
-                      color: AppColors.dev3Purple,
-                    ),
-                    const SizedBox(height: 24),
-                    _buildQuickActions(context),
-                  ],
-                ),
-              );
-            }
+      body: BlocConsumer<AdminBloc, AdminState>(
+        listener: (context, state) {
+          if (state is AdminOperationSuccess) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
+          }
+          if (state is AdminError) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.error)));
+          }
+        },
+        builder: (context, state) {
+          if (state is AdminLoading) {
             return const Center(
-              child: Text(
-                'Failed to load dashboard',
-                style: TextStyle(color: AppColors.textSecondary),
+              child: CircularProgressIndicator(
+                color: AppColors.dev1Silver,
               ),
             );
-          },
-        ),
+          }
+          if (state is AdminDashboardLoaded) {
+            final stats = state.stats;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AdminStatsCard(
+                          title: 'Total Users',
+                          value: stats.totalUsers.toString(),
+                          icon: Icons.people,
+                          color: AppColors.dev1Silver,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AdminStatsCard(
+                          title: 'Pending KYC',
+                          value: stats.pendingKyc.toString(),
+                          icon: Icons.verified_user,
+                          color: AppColors.dev2Green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AdminStatsCard(
+                          title: 'Total Deposits',
+                          value:
+                              '\$${stats.totalDeposits.toStringAsFixed(2)}',
+                          icon: Icons.arrow_downward,
+                          color: AppColors.success,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AdminStatsCard(
+                          title: 'Total Withdrawals',
+                          value:
+                              '\$${stats.totalWithdrawals.toStringAsFixed(2)}',
+                          icon: Icons.arrow_upward,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  AdminStatsCard(
+                    title: 'Total Transactions',
+                    value: stats.totalTransactions.toString(),
+                    icon: Icons.receipt,
+                    color: AppColors.dev3Purple,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildQuickActions(context),
+                ],
+              ),
+            );
+          }
+          // Fallback for initial or error state
+          return const Center(
+            child: Text(
+              'Failed to load dashboard',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          );
+        },
       ),
     );
   }
@@ -168,7 +185,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 context,
                 'Broadcast',
                 Icons.notifications,
-                () => context.push('/admin/broadcast'),
+                () => context.push('/admin-broadcast'),
               ),
             ],
           ),

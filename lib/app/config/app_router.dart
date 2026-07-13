@@ -2,7 +2,11 @@
 
 // ignore_for_file: unused_import, unrelated_type_equality_checks, prefer_const_constructors, duplicate_import
 
+import 'package:fintech/admin/presentation/screens/admin_broadcast_screen.dart';
 import 'package:fintech/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_kyc_review_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_transactions_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_users_screen.dart';
 import 'package:fintech/features/KYC/presentation/bloc/kyc_bloc.dart';
 import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
 import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
@@ -76,6 +80,10 @@ class AppRouter {
   static const String forgotPassword = '/forgot-password';
   static const String chatScreen = '/Chat_UI';
   static const String adminDashboard = '/admin-dashboard';
+  static const String adminuser = '/admin/users';
+  static const String adminTransactions = '/admin/transactions';
+  static const String adminKyc = '/admin/kyc';
+  static const String adminbroadcast = '/admin/broadcast';
   
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -117,6 +125,14 @@ class AppRouter {
           GoRoute(
             path: '/admin-dashboard',
             builder: (context, state) => const AdminDashboardScreen(),),
+            GoRoute(path: '/admin/users',
+             builder: (context, state) => const AdminUsersScreen(),),
+            GoRoute(path: '/admin/transactions',
+             builder: (context, state) => const AdminTransactionsScreen(),),
+            GoRoute(path: '/admin/kyc',
+             builder: (context, state) =>  const AdminKycReviewScreen(),),
+            GoRoute(path: '/admin-broadcast',
+             builder: (context, state) => const AdminBroadcastScreen(),),
           GoRoute(
             path: chatScreen,
             builder: (context, state) => const ChatScreen(),
