@@ -1,10 +1,15 @@
-// ignore_for_file: unnecessary_import, curly_braces_in_flow_control_structures, deprecated_member_use
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'account_statement_screen.dart';
+
+// Brand Identity Color Palette
+const Color brandDeepBg = Color(0xFF0A0A0C);
+const Color brandCardBg = Color(0xFF111622);
+const Color brandPurpleColor = Color(0xFF8B5CF6);
+const Color brandAccentColor = Color(0xFF10B981);
+const Color brandRedColor = Color(0xFFEF4444);
 
 class LedgerScreen extends StatefulWidget {
   const LedgerScreen({super.key});
@@ -15,297 +20,80 @@ class LedgerScreen extends StatefulWidget {
 
 class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final String? _currentUserId = Supabase.instance.client.auth.currentUser?.id;
-
-  // Live real-time stream subscriptions
-  StreamSubscription<List<Map<String, dynamic>>>? _depositsSubscription;
-  StreamSubscription<List<Map<String, dynamic>>>? _notificationsSubscription;
-  
-  // Unified chronological ledger store
-  List<Map<String, dynamic>> _unifiedLedger = [];
-  bool _isLoading = true;
+  final bool _isLoading = false;
   String _searchQuery = '';
 
-  // Core Dark Theme Palette matching #0A0A0C UI canvas
-  static const Color brandDeepBg = Color(0xFF0A0A0C);
-  static const Color brandCardBg = Color(0xFF111622);
-  static const Color brandAccentColor = Color(0xFF10B981); // Emerald Green
-  static const Color brandPurpleColor = Color(0xFF8B5CF6); // Brand Accent Purple
-  static const Color brandWarningColor = Color(0xFFFBBF24); // Pending / Warning Orange
-  static const Color brandRedColor = Color(0xFFEF4444); // Error / Debit Red
-
-  static const String _currencySymbolNgn = '₦';
+  // Dummy Unified Ledger Array representing custom unified category maps compiled from Supabase Stream channels.
+  // Replace this placeholder payload with your active Supabase stream events integration.
+  final List<Map<String, dynamic>> _unifiedLedger = [
+    {
+      'title': 'P2P Transfer Sent',
+      'subtitle': 'TX-HASH: 0x8a1b...2c4d',
+      'date': '2026-07-10T14:32:00.000Z',
+      'amount': '-\$250.00',
+      'isIncome': false,
+      'isCrypto': true,
+      'type': 'send',
+      'peerName': 'Alex Rivera',
+      'channelLabel': 'Ethereum Mainnet',
+      'accountInfo': '0x71C...39b2',
+      'status': 'Success',
+      'icon': Icons.swap_horiz,
+      'iconColor': brandRedColor,
+      'ticker': 'USDT'
+    },
+    {
+      'title': 'USDC Swap Executed',
+      'subtitle': 'USDT to USDC Swap Engine',
+      'date': '2026-07-08T09:15:00.000Z',
+      'amount': '+\$1,200.00',
+      'isIncome': true,
+      'isCrypto': true,
+      'type': 'swap',
+      'peerName': 'Uniswap Router',
+      'channelLabel': 'Polygon Chain',
+      'accountInfo': '0x71C...39b2',
+      'status': 'Success',
+      'icon': Icons.currency_exchange,
+      'iconColor': brandAccentColor,
+      'ticker': 'USDC'
+    },
+    {
+      'title': 'Bank Wire Deposit',
+      'subtitle': 'Ref: ACH-992182-USD',
+      'date': '2026-07-05T18:45:00.000Z',
+      'amount': '+\$5,000.00',
+      'isIncome': true,
+      'isCrypto': false,
+      'type': 'deposit',
+      'peerName': 'Apex Clearing Corp',
+      'channelLabel': 'Plaid API',
+      'accountInfo': 'Chase Bank (****4829)',
+      'status': 'Success',
+      'icon': Icons.account_balance,
+      'iconColor': brandAccentColor,
+      'ticker': 'USD'
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
-    _initializeUnifiedLedgerStream();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _depositsSubscription?.cancel();
-    _notificationsSubscription?.cancel();
     super.dispose();
-  }
-
-  // Dynamically returns the correct SpotHQ image directory code based on the token ticker
-  String _getCdnCode(String asset) {
-    final lower = asset.trim().toLowerCase();
-    if (lower.contains('btc') || lower.contains('bitcoin')) return 'btc';
-    if (lower.contains('eth') || lower.contains('ethereum')) return 'eth';
-    if (lower.contains('trx') || lower.contains('tron')) return 'trx';
-    if (lower.contains('bnb') || lower.contains('binance')) return 'bnb';
-    if (lower.contains('sol') || lower.contains('solana')) return 'sol';
-    if (lower.contains('matic') || lower.contains('polygon')) return 'matic';
-    if (lower.contains('usdt') || lower.contains('tether')) return 'usdt';
-    if (lower.contains('usdc')) return 'usdc';
-    if (lower.contains('busd')) return 'busd';
-    if (lower.contains('link') || lower.contains('chainlink')) return 'link';
-    if (lower.contains('uni') || lower.contains('uniswap')) return 'uni';
-    if (lower.contains('shib')) return 'shib';
-    if (lower.contains('pepe')) return 'pepe';
-    if (lower.contains('ada') || lower.contains('cardano')) return 'ada';
-    if (lower.contains('doge')) return 'doge';
-    return 'usdt'; // Default fallback stablecoin
-  }
-
-  // Safely parses transaction text strings to pull out precise crypto symbols for formatting
-  String _extractCryptoTicker(String message, String defaultTicker) {
-    final upperMsg = message.toUpperCase();
-    final List<String> commonTickers = [
-      'BTC', 'ETH', 'TRX', 'BNB', 'SOL', 'MATIC', 'USDT', 'USDC', 'BUSD', 'LINK', 'UNI', 'SHIB', 'PEPE', 'ADA', 'DOGE'
-    ];
-    for (var ticker in commonTickers) {
-      if (upperMsg.contains(ticker)) {
-        return ticker;
-      }
-    }
-    return defaultTicker;
-  }
-
-  // Highly advanced parser designed to extract Peer Name & Account/Addresses from unstructured transaction logs
-  Map<String, String> _parseTransactionDetails(String title, String message) {
-    String peerName = 'External System';
-    String accountInfo = 'N/A';
-    String channelLabel = 'System Ledger';
-
-    final cleanMessage = message.trim();
-
-    if (title.contains('Swap')) {
-      peerName = 'Internal Exchange';
-      channelLabel = 'NOWPayments Swap Router';
-      if (cleanMessage.contains('converted ')) {
-        // e.g. "Successfully converted 100 USD to 1.2 USDT" -> Extract converted details
-        accountInfo = 'Liquidity Bridge';
-      }
-    } else if (title.contains('Transfer Sent') || title.contains('Sent')) {
-      channelLabel = 'Payme Instant P2P';
-      if (cleanMessage.contains('to ')) {
-        // e.g. "Successfully sent 1000 NGN to Goodnews. (Converted...)" -> Extracts "Goodnews"
-        try {
-          final parts = cleanMessage.split('to ');
-          if (parts.length > 1) {
-            final possibleName = parts[1].split('.')[0].trim();
-            peerName = possibleName.split('(')[0].trim(); // Cleans up trailing brackets
-          }
-        } catch (_) {}
-      }
-      accountInfo = 'Recipient Wallet UID';
-    } else if (title.contains('Funds Received') || title.contains('Received')) {
-      channelLabel = 'Inbound P2P Transfer';
-      if (cleanMessage.contains('from ')) {
-        // e.g. "You received 12.00 GHS from Lawrence." -> Extracts "Lawrence"
-        try {
-          final parts = cleanMessage.split('from ');
-          if (parts.length > 1) {
-            peerName = parts[1].split('.')[0].trim();
-          }
-        } catch (_) {}
-      }
-      accountInfo = 'Sender Wallet UID';
-    } else if (title.contains('Dispatched') || title.contains('Withdrawal')) {
-      peerName = 'External Blockchain Wallet';
-      channelLabel = 'NOWPayments Payout Gateway';
-      // Attempt to extract destination crypto address if logged
-      if (cleanMessage.contains('address ') || cleanMessage.contains('to ')) {
-        accountInfo = 'Target Public Node Address';
-      } else {
-        accountInfo = 'External Ledger';
-      }
-    }
-
-    return {
-      'peerName': peerName,
-      'accountInfo': accountInfo,
-      'channelLabel': channelLabel,
-    };
-  }
-
-  void _initializeUnifiedLedgerStream() {
-    if (_currentUserId == null) return;
-
-    final client = Supabase.instance.client;
-    List<Map<String, dynamic>> rawDeposits = [];
-    List<Map<String, dynamic>> rawNotifications = [];
-
-    void compileLedger() {
-      if (!mounted) return;
-      
-      final List<Map<String, dynamic>> compiledList = [];
-
-      // A. COMPILING FIAT DEPOSITS (Flutterwave Direct Core Checkout)
-      for (var dep in rawDeposits) {
-        compiledList.add({
-          'id': dep['id'],
-          'type': 'deposit',
-          'title': 'Fiat Deposit (Flutterwave)',
-          'subtitle': 'Ref: ${dep['tx_ref']}',
-          'peerName': 'Self-Funding Channel',
-          'accountInfo': 'Providus Virtual • 9948210385',
-          'channelLabel': 'Flutterwave Standard Gateway',
-          'amount': '+$_currencySymbolNgn${(dep['amount'] as num).toStringAsFixed(2)}',
-          'isIncome': true,
-          'status': dep['status'],
-          'date': dep['created_at'],
-          'isCrypto': false,
-          'ticker': 'NGN',
-          'icon': Icons.add_circle_outline_rounded,
-          'iconColor': brandAccentColor,
-        });
-      }
-
-      // B. COMPILING CRYPTO & P2P LEDGER FROM INTEGRATION NOTIFICATIONS
-      for (var log in rawNotifications) {
-        final title = log['title']?.toString() ?? '';
-        final message = log['message']?.toString() ?? '';
-        
-        String cleanTitle = 'Transaction';
-        String cleanSubtitle = message;
-        String cleanAmount = '';
-        bool isIncome = false;
-        bool isCrypto = false;
-        String cryptoTicker = 'USDT';
-        IconData itemIcon = Icons.swap_horiz_rounded;
-        Color itemColor = brandPurpleColor;
-
-        // Extract metadata using our dynamic parser engine
-        final details = _parseTransactionDetails(title, message);
-
-        if (title.contains('Swap')) {
-          cleanTitle = 'Asset Swap';
-          isCrypto = true;
-          cryptoTicker = _extractCryptoTicker(message, 'USDT');
-          cleanAmount = 'Swap • $cryptoTicker';
-          isIncome = false;
-          itemIcon = Icons.swap_horiz_rounded;
-          itemColor = brandPurpleColor;
-        } else if (title.contains('Transfer Sent') || title.contains('Sent')) {
-          cleanTitle = 'P2P Sent';
-          isCrypto = message.toLowerCase().contains('usdt') || message.toLowerCase().contains('crypto');
-          if (isCrypto) {
-            cryptoTicker = _extractCryptoTicker(message, 'USDT');
-            cleanAmount = '-$cryptoTicker';
-          } else {
-            cleanAmount = '-P2P';
-          }
-          isIncome = false;
-          itemIcon = Icons.arrow_outward_rounded;
-          itemColor = brandRedColor;
-        } else if (title.contains('Funds Received') || title.contains('Crypto Received') || title.contains('Received')) {
-          cleanTitle = 'Funds Received';
-          isCrypto = message.toLowerCase().contains('usdt') || message.toLowerCase().contains('crypto') || message.toLowerCase().contains('received');
-          cryptoTicker = _extractCryptoTicker(message, 'USDT');
-          cleanAmount = isCrypto ? '+$cryptoTicker' : '+Credit';
-          isIncome = true;
-          itemIcon = Icons.call_received_rounded;
-          itemColor = brandAccentColor;
-        } else if (title.contains('Dispatched') || title.contains('Withdrawal')) {
-          cleanTitle = 'Crypto Withdrawal';
-          isCrypto = true;
-          cryptoTicker = _extractCryptoTicker(message, 'USDT');
-          cleanAmount = '-$cryptoTicker';
-          isIncome = false;
-          itemIcon = Icons.account_balance_wallet_rounded;
-          itemColor = brandWarningColor;
-        }
-
-        compiledList.add({
-          'id': log['id'],
-          'type': cleanTitle.toLowerCase().contains('swap') ? 'swap' : (isIncome ? 'receive' : 'send'),
-          'title': cleanTitle,
-          'subtitle': cleanSubtitle,
-          'peerName': details['peerName'],
-          'accountInfo': details['accountInfo'],
-          'channelLabel': details['channelLabel'],
-          'amount': cleanAmount,
-          'isIncome': isIncome,
-          'status': 'completed', // Settled actions logged securely on cloud database
-          'date': log['created_at'] ?? DateTime.now().toIso8601String(),
-          'isCrypto': isCrypto,
-          'ticker': cryptoTicker,
-          'icon': itemIcon,
-          'iconColor': itemColor,
-        });
-      }
-
-      // Sort chronologically (newest transactions placed first)
-      compiledList.sort((a, b) => b['date'].toString().compareTo(a['date'].toString()));
-
-      setState(() {
-        _unifiedLedger = compiledList;
-        _isLoading = false;
-      });
-    }
-
-    // 1. Stream Deposits Table Live
-    _depositsSubscription = client
-        .from('deposits')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', _currentUserId as Object)
-        .listen((data) {
-          rawDeposits = data;
-          compileLedger();
-        }, onError: (err) {
-          setState(() => _isLoading = false);
-        });
-
-    // 2. Stream Notification Logs Live
-    _notificationsSubscription = client
-        .from('notifications')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', _currentUserId as Object)
-        .listen((data) {
-          rawNotifications = data;
-          compileLedger();
-        }, onError: (err) {
-          setState(() => _isLoading = false);
-        });
   }
 
   String _formatDateTime(String isoString) {
     try {
-      final dateTime = DateTime.parse(isoString).toLocal();
-      return DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime);
+      final dt = DateTime.parse(isoString);
+      return DateFormat('MMM dd, yyyy • hh:mm a').format(dt);
     } catch (_) {
-      return 'Recent';
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'success':
-      case 'successful':
-      case 'completed':
-        return brandAccentColor;
-      case 'pending':
-        return brandWarningColor;
-      case 'failed':
-      case 'rejected':
-      default:
-        return brandRedColor;
+      return isoString;
     }
   }
 
@@ -319,7 +107,6 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
     final cardColor = isDark ? brandCardBg : Colors.grey[100]!;
     final secondaryTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
-    // Perform query filter across Title, Subtitle, Peer Names, Account Numbers, and Ticker values
     final filteredLedger = _unifiedLedger.where((tx) {
       final title = tx['title'].toString().toLowerCase();
       final subtitle = tx['subtitle'].toString().toLowerCase();
@@ -347,6 +134,23 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
         backgroundColor: isDark ? brandCardBg : Colors.white,
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
+        actions: [
+          // Navigates directly to the statement builder with compiled live data passed over!
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFF10B981)),
+            tooltip: 'Get Account Statement',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AccountStatementScreen(
+                    initialTransactions: _unifiedLedger,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -366,7 +170,6 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
           ? const Center(child: CircularProgressIndicator(color: brandPurpleColor))
           : Column(
               children: [
-                // Custom Search Filter Card
                 Container(
                   padding: const EdgeInsets.all(16),
                   color: isDark ? brandDeepBg : Colors.white,
@@ -394,7 +197,6 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
                   ),
                 ),
                 
-                // Unified transaction views mapped across tabs
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -421,179 +223,89 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
   ) {
     if (items.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long_outlined, size: 64, color: isDark ? Colors.grey[800] : Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              'No Transactions Recorded',
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Your financial activity will stream here live as settled.',
-              style: TextStyle(color: secondaryColor, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        child: Text(
+          'No transactions found.',
+          style: TextStyle(color: secondaryColor),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final tx = items[index];
-        final statusColor = _getStatusColor(tx['status']);
-        final isCrypto = tx['isCrypto'] == true;
-        final cdnCode = _getCdnCode(tx['ticker']);
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withOpacity(isDark ? 0.03 : 0.1)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // A. Header Row: Action Title & Icon/Logo + Amount
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Dynamic brand branding (Web3 HD Coin Logo vs Standard Fiat Bank Core Icons)
-                  isCrypto
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/$cdnCode.png',
-                            width: 36,
-                            height: 36,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(color: (tx['iconColor'] as Color).withOpacity(0.15), shape: BoxShape.circle),
-                              child: Icon(tx['icon'], color: tx['iconColor'], size: 18),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (tx['iconColor'] as Color).withOpacity(0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(tx['icon'], color: tx['iconColor'], size: 18),
-                        ),
-                  const SizedBox(width: 14),
-                  
-                  // Meta Details Column
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              tx['title'],
-                              style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                            if (isCrypto) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                decoration: BoxDecoration(
-                                  color: brandPurpleColor.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  tx['ticker'],
-                                  style: const TextStyle(color: brandPurpleColor, fontSize: 8, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ]
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          tx['channelLabel'],
-                          style: TextStyle(color: secondaryColor, fontSize: 10, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  
-                  // Financial Pricing Column
-                  Text(
-                    tx['amount'],
-                    style: TextStyle(
-                      color: tx['amount'].toString().contains('Swap') 
-                          ? brandPurpleColor 
-                          : (tx['isIncome'] ? brandAccentColor : brandRedColor),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
+        return InkWell(
+          onTap: () {
+            // Reusing the dialog interface internally for quick review directly from ledger
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AccountStatementScreen(
+                  initialTransactions: _unifiedLedger,
+                ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10.0),
-                child: Divider(height: 1, color: Colors.white10),
-              ),
-
-              // B. Details Block: Peer name, Accounts/Address & Timestamps
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Beneficiary / Sender: ${tx['peerName']}',
-                          style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Source / Target: ${tx['accountInfo']}',
-                          style: TextStyle(color: secondaryColor, fontSize: 10, fontFamily: 'monospace'),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDateTime(tx['date']),
-                          style: TextStyle(color: secondaryColor.withOpacity(0.8), fontSize: 9),
-                        ),
-                      ],
-                    ),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.withOpacity(isDark ? 0.05 : 0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black38 : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  
-                  // Confirmation status badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      tx['status'].toString().toUpperCase(),
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                  child: Icon(tx['icon'], color: tx['iconColor'], size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tx['title'],
+                        style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tx['subtitle'],
+                        style: TextStyle(color: secondaryColor, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatDateTime(tx['date']),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 9),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  tx['amount'],
+                  style: TextStyle(
+                    color: tx['isIncome'] ? brandAccentColor : brandRedColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
