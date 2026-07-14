@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/widgets/admin_transaction_tile.dart
 
+// ignore_for_file: unnecessary_string_interpolations, deprecated_member_use
+
 import 'package:fintech/admin/domain/entities/admin_transaction.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';

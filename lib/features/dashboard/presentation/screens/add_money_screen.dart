@@ -44,8 +44,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     return ['completed', 'successful', 'success', '00'].contains(normalized);
   }
 
-  // CORRECTED: Listener only listens, does not perform redundant updates
-  Future<void> _awaitWebhookConfirmation(String uniqueTxRef, double amount) async {
+  Future<void> _awaitWebhookConfirmation(String uniqueTxRef) async {
     _cleanupSubscription();
     
     _depositSubscription = Supabase.instance.client
@@ -63,9 +62,12 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
               if (!mounted) return;
               
               setState(() => _isLoading = false);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deposit successful!'), backgroundColor: Colors.green));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Deposit successful!'), 
+                backgroundColor: Colors.green
+              ));
               context.go('/dashboard');
-            } 
+            }
           },
         )
         .subscribe();
@@ -83,7 +85,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       final double inputAmount = double.parse(_amountController.text.trim());
       final String uniqueTxRef = "TX-${DateTime.now().millisecondsSinceEpoch}";
 
-      // 1. Insert Initial Row
       await client.from('deposits').insert({
         'user_id': user.id,
         'amount': inputAmount,
@@ -91,21 +92,38 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         'status': 'pending',
       });
 
-      // 2. Start Listening BEFORE launching URL
-      await _awaitWebhookConfirmation(uniqueTxRef, inputAmount);
+      await _awaitWebhookConfirmation(uniqueTxRef);
 
-      // 3. Launch Payment Gateway
       if (kIsWeb) {
         final response = await client.functions.invoke('flw-webhook', body: {
           'action': 'initialize_payment',
           'tx_ref': uniqueTxRef,
           'amount': inputAmount.toString(),
         });
-        
         final checkoutUrl = response.data['checkout_url'];
         await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
       } else {
-        // Native mobile implementation...
+        // Native Mobile Implementation
+        final Flutterwave flutterwave = Flutterwave(
+          
+          publicKey: Environment.flutterwavePublicKey, // Ensure this exists in your env file
+          currency: "NGN",
+          redirectUrl: "https://your-redirect-url.com", // Replace with your actual redirect URL
+          txRef: uniqueTxRef,
+          amount: inputAmount.toString(),
+          customer: Customer(email: user.email ?? "user@example.com"),
+          paymentOptions: "card, banktransfer, ussd",
+          customization: Customization(title: "Add Money"),
+          isTestMode: true, // Set to false for production
+        );
+
+        final ChargeResponse response = await flutterwave.charge(context);
+        if (response.success == true) {
+          // Keep _isLoading true while waiting for webhook
+        } else {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: ${response.status}')));
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -115,7 +133,50 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (Your existing build method remains valid)
-    return const Scaffold(body: Center(child: Text("Add Money Screen")));
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Money', style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("ENTER DEPOSIT AMOUNT (NGN)"),
+                const SizedBox(height: 15),
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return "Enter amount";
+                    final amount = double.tryParse(value);
+                    if (amount == null || amount < 100) return "Minimum amount is ₦100";
+                    return null;
+                  },
+                  decoration: InputDecoration(
+                    prefixText: "₦ ",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _initiateDepositPipeline,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Proceed to Secure Checkout"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

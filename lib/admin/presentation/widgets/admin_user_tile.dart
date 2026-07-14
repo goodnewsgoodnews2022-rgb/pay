@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/widgets/admin_user_tile.dart
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:fintech/admin/domain/entities/admin_user.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';

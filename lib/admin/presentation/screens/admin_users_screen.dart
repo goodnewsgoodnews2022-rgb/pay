@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print, dead_null_aware_expression
+
 import 'package:fintech/admin/domain/entities/admin_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -206,7 +208,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   void _confirmSuspendToggle(BuildContext context, AdminUser user) {
-    final isCurrentlySuspended = user.isSuspended ?? false;
+    final isCurrentlySuspended = user.isSuspended;
     final action = isCurrentlySuspended ? 'Unsuspend' : 'Suspend';
     final message = isCurrentlySuspended
         ? 'Are you sure you want to unsuspend this user? They will regain full access.'

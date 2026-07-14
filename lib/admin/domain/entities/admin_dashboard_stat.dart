@@ -12,6 +12,6 @@ class AdminDashboardStats {
     required this.pendingKyc,
     required this.totalDeposits,
     required this.totalWithdrawals,
-    required this.totalTransactions,
+    required this.totalTransactions, required int activeUsers, required int suspendedUsers,
   });
 }
