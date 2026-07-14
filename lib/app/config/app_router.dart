@@ -84,6 +84,7 @@ class AppRouter {
   static const String adminTransactions = '/admin/transactions';
   static const String adminKyc = '/admin/kyc';
   static const String adminbroadcast = '/admin/broadcast';
+  static const String supportHelp = '/support-help';
   
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -135,6 +136,11 @@ class AppRouter {
              builder: (context, state) => const AdminBroadcastScreen(),),
           GoRoute(
             path: chatScreen,
+            builder: (context, state) => const ChatScreen(),
+            
+          ),
+          GoRoute(
+            path: supportHelp,
             builder: (context, state) => const ChatScreen(),
           ),
           GoRoute(
