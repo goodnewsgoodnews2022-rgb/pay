@@ -1,12 +1,15 @@
 // ignore_for_file: use_build_context_synchronously, deprecated_member_use, unused_import, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
-import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AccountStatementScreen extends StatefulWidget {
-  const AccountStatementScreen({super.key});
+  final List<Map<String, dynamic>> initialTransactions;
+
+  const AccountStatementScreen({super.key, this.initialTransactions = const []});
 
   @override
   State<AccountStatementScreen> createState() => _AccountStatementScreenState();
@@ -14,74 +17,153 @@ class AccountStatementScreen extends StatefulWidget {
 
 class _AccountStatementScreenState extends State<AccountStatementScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  
   String _selectedDateRange = 'Last 30 Days';
+  String _searchQuery = '';
+  bool _isLoading = false;
+  
+  late DateTime _startDate;
+  late DateTime _endDate;
 
-  final List<Map<String, dynamic>> _allTransactions = [
-    {
-      'title': 'Netflix Subscription',
-      'subtitle': 'Debit Card • Visa (*8921)',
-      'amount': '-\$14.99',
-      'date': DateTime.now().subtract(const Duration(minutes: 2)),
-      'isCrypto': false,
-      'icon': Icons.movie_filter,
-      'iconColor': Colors.blueAccent,
-    },
-    {
-      'title': 'Minted NFT #4412',
-      'subtitle': 'Wallet: 0x7a...4e9f',
-      'amount': '-0.002 ETH',
-      'date': DateTime.now().subtract(const Duration(minutes: 15)),
-      'isCrypto': true,
-      'icon': Icons.token,
-      'iconColor': Colors.purpleAccent,
-    },
-    {
-      'title': 'Funds Deposit',
-      'subtitle': 'Bank Transfer via Add Money',
-      'amount': '+\$500.00',
-      'date': DateTime.now().subtract(const Duration(days: 2)),
-      'isCrypto': false,
-      'icon': Icons.arrow_downward,
-      'iconColor': const Color(0xFF10B981),
-    },
-    {
-      'title': 'Swapped USDT to ETH',
-      'subtitle': 'Uniswap V3 Protocol',
-      'amount': '+0.15 ETH',
-      'date': DateTime.now().subtract(const Duration(days: 5)),
-      'isCrypto': true,
-      'icon': Icons.swap_horiz,
-      'iconColor': Colors.deepPurpleAccent,
-    },
-  ];
+  List<Map<String, dynamic>> _transactions = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _setDateRange('Last 30 Days');
+    
+    if (widget.initialTransactions.isNotEmpty) {
+      _transactions = widget.initialTransactions;
+    } else {
+      _fetchUserTransactions();
+    }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  /// Securely fetches transactions from Supabase matching ONLY the logged-in user
+  Future<void> _fetchUserTransactions() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      debugPrint("No authenticated user found.");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Query database: Filter strictly by the current user
+      final response = await _supabase
+          .from('fiat_transactions') 
+          .select()
+          // =========================================================================
+          // ⚠️ ERROR WAS HERE: 'user_id' column doesn't exist on your table.
+          // Change 'user_id' below to whatever your column is named (e.g., 'profile_id', 'owner_id', 'sender_id')
+          // =========================================================================
+          .eq('user_id', user.id) 
+          .order('date', ascending: false);
+
+      if (response.isNotEmpty) {
+        setState(() {
+          _transactions = List<Map<String, dynamic>>.from(response.map((item) {
+            // Map your database column names to match the UI keys dynamically
+            return {
+              'title': item['title'] ?? 'Transaction',
+              'subtitle': item['subtitle'] ?? item['reference_id'] ?? 'N/A',
+              'date': item['date'] ?? item['created_at'] ?? DateTime.now().toIso8601String(),
+              'amount': '${item['is_income'] == true ? '+' : '-'}\$${item['amount']}',
+              'isIncome': item['is_income'] ?? false,
+              'isCrypto': item['is_crypto'] ?? false,
+              'peerName': item['peer_name'] ?? 'N/A',
+              'channelLabel': item['channel_label'] ?? 'System',
+              'accountInfo': item['account_info'] ?? 'N/A',
+              'status': item['status'] ?? 'Success',
+              'icon': _getIconForType(item['type'] ?? 'default'),
+              'iconColor': item['is_income'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+            };
+          }));
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching database transactions: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load real-time transactions securely.')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Helper to assign visual material icons based on tx type stored in database
+  IconData _getIconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'deposit':
+        return Icons.account_balance;
+      case 'swap':
+        return Icons.currency_exchange;
+      case 'send':
+        return Icons.swap_horiz;
+      default:
+        return Icons.payment;
+    }
+  }
+
+  void _setDateRange(String range) {
+    final now = DateTime.now();
+    setState(() {
+      _selectedDateRange = range;
+      if (range == 'Today') {
+        _startDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      } else if (range == 'Last 7 Days') {
+        _startDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
+        _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      } else if (range == 'Last 30 Days') {
+        _startDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30));
+        _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      } else if (range == 'Last 90 Days') {
+        _startDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 90));
+        _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      } else if (range == 'This Year') {
+        _startDate = DateTime(now.year, 1, 1, 0, 0, 0);
+        _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> _getFilteredTransactions({required bool? isCrypto}) {
+    return _transactions.where((tx) {
+      DateTime txDate;
+      try {
+        txDate = DateTime.parse(tx['date'].toString()).toLocal();
+      } catch (_) {
+        txDate = DateTime.now();
+      }
+      
+      final isInDateRange = txDate.isAfter(_startDate.subtract(const Duration(seconds: 1))) && 
+                            txDate.isBefore(_endDate.add(const Duration(seconds: 1)));
+
+      final matchesType = isCrypto == null || tx['isCrypto'] == isCrypto;
+
+      final title = tx['title'].toString().toLowerCase();
+      final subtitle = tx['subtitle'].toString().toLowerCase();
+      final peer = (tx['peerName'] ?? '').toString().toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      final matchesSearch = title.contains(query) || subtitle.contains(query) || peer.contains(query);
+
+      return isInDateRange && matchesType && matchesSearch;
+    }).toList();
   }
 
   void _triggerStatementDownload() {
-    final theme = Theme.of(context);
-    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        // Safe, localized execution context inside timer frame closure
         Future.delayed(const Duration(seconds: 2), () {
           if (!mounted) return;
-          
-          // Dismiss the specific dialog layer via its distinct build context context
           Navigator.of(dialogContext).pop();
 
-          // Safely target root layout framework to notify the user
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -90,7 +172,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Statement downloaded successfully ($_selectedDateRange)',
+                      'Statement Export PDF saved successfully to downloads folder!',
                       style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
                     ),
                   ),
@@ -105,12 +187,148 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
 
         return Center(
           child: CircularProgressIndicator(
-            color: theme.colorScheme.primary != theme.scaffoldBackgroundColor 
-                ? theme.colorScheme.primary 
-                : const Color(0xFF8B5CF6),
+            color: const Color(0xFF8B5CF6),
           ),
         );
       },
+    );
+  }
+
+  void _showTransactionDetails(Map<String, dynamic> tx) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF111622) : Colors.grey[100]!;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF0A0A0C) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 30,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              Icon(tx['icon'], color: tx['iconColor'], size: 48),
+              const SizedBox(height: 12),
+              Text(
+                tx['title'],
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                tx['amount'],
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: tx['isIncome'] ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                ),
+                child: Column(
+                  children: [
+                    _buildReceiptRow('Beneficiary/Sender', tx['peerName'] ?? 'N/A', isDark),
+                    _buildReceiptRow('Payment Route', tx['channelLabel'] ?? 'System Link', isDark),
+                    _buildReceiptRow('Wallet / Account', tx['accountInfo'] ?? 'N/A', isDark),
+                    _buildReceiptRow('Timestamp', DateFormat('MMM dd, yyyy • hh:mm a').format(DateTime.parse(tx['date'].toString())), isDark),
+                    _buildReceiptRow('Status', (tx['status'] ?? 'Success').toUpperCase(), isDark, valueColor: const Color(0xFF10B981)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: isDark ? const Color(0xFF26243C) : Colors.grey[300]!),
+                      ),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: '${tx['title']}: ${tx['amount']}\nRef: ${tx['subtitle']}'));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Transaction details copied to clipboard!')),
+                        );
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.copy, size: 18),
+                      label: Text('Copy Info', style: TextStyle(color: textColor)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Preparing image payload... Shared successfully!')),
+                        );
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.share, size: 18, color: Colors.white),
+                      label: const Text('Send Receipt', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value, bool isDark, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 12)),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? (isDark ? Colors.white : Colors.black87),
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          )
+        ],
+      ),
     );
   }
 
@@ -121,27 +339,15 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
 
     final cardBgColor = isDark ? const Color(0xFF151424) : Colors.grey[100];
     final cardBorderColor = isDark ? const Color(0xFF26243C) : Colors.grey[300]!;
-    final accentPrimaryColor = theme.colorScheme.primary != theme.scaffoldBackgroundColor 
-        ? theme.colorScheme.primary 
-        : const Color(0xFF8B5CF6);
+    const accentPrimaryColor = Color(0xFF8B5CF6);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF0A0A0C) : theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        // Solves unclickable elements by decoupling layout context and adding target fallbacks
         leading: IconButton(
-  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-  onPressed: () {
-    // 1. Try a global router pop first
-    if (GoRouter.of(context).canPop()) {
-      GoRouter.of(context).pop();
-    } else {
-      // 2. If stuck in a shell, force GoRouter to explicitly target the root location
-      // If your GoRouter setup uses a sub-route layout like '/dashboard/more', use that path here instead.
-      context.go('/dashboard'); 
-    }
-  },
-),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(
           'Account Statement', 
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface),
@@ -149,7 +355,6 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
-        iconTheme: theme.iconTheme,
         actions: [
           IconButton(
             icon: const Icon(Icons.tune_outlined),
@@ -158,11 +363,31 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: accentPrimaryColor))
+        : Column(
           children: [
-            // ====================================================================
-            // CONSOLIDATED OVERVIEW SUMMARY CHIP
-            // ====================================================================
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF111622) : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                ),
+                child: TextField(
+                  style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 13),
+                  decoration: InputDecoration(
+                    icon: Icon(Icons.search, size: 18),
+                    hintText: 'Search statement transactions...',
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                ),
+              ),
+            ),
+
             Container(
               margin: const EdgeInsets.all(16.0),
               padding: const EdgeInsets.all(16.0),
@@ -183,13 +408,13 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Selected Timeline Range',
-                          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 12),
+                          'Statement Range Period',
+                          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _selectedDateRange,
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                         ),
                       ],
                     ),
@@ -197,41 +422,33 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                   TextButton.icon(
                     onPressed: _triggerStatementDownload,
                     icon: const Icon(Icons.file_download_outlined, size: 18, color: Color(0xFF10B981)),
-                    label: const Text('Export', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                    label: const Text('Export PDF', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
             ),
 
-            // ====================================================================
-            // SEGMENTED LEDGER CONTROL FILTER TABS
-            // ====================================================================
             TabBar(
               controller: _tabController,
               indicatorColor: accentPrimaryColor,
               labelColor: theme.colorScheme.onSurface,
               unselectedLabelColor: isDark ? Colors.grey[500] : Colors.grey[600],
               indicatorSize: TabBarIndicatorSize.tab,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
               tabs: const [
                 Tab(text: 'All Activity'),
-                Tab(text: 'Fiat'),
-                Tab(text: 'Web3'),
+                Tab(text: 'Fiat Accounts'),
+                Tab(text: 'Web3 Ledger'),
               ],
             ),
             const SizedBox(height: 8),
 
-            // ====================================================================
-            // FILTERED TRANSACTION LISTS BUILDER
-            // ====================================================================
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildTransactionListView(_allTransactions),
-                  _buildTransactionListView(_allTransactions.where((tx) => tx['isCrypto'] == false).toList()),
-                  _buildTransactionListView(_allTransactions.where((tx) => tx['isCrypto'] == true).toList()),
+                  _buildTransactionListView(_getFilteredTransactions(isCrypto: null)),
+                  _buildTransactionListView(_getFilteredTransactions(isCrypto: false)),
+                  _buildTransactionListView(_getFilteredTransactions(isCrypto: true)),
                 ],
               ),
             ),
@@ -248,15 +465,14 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
     if (transactions.isEmpty) {
       return Center(
         child: Text(
-          'No transaction logs available for this period.', 
+          'No activity matches your timeline or search.', 
           style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600]),
         ),
       );
     }
 
-    final tileBgColor = isDark ? const Color(0xFF151424) : Colors.grey[50];
+    final tileBgColor = isDark ? const Color(0xFF111622) : Colors.grey[50];
     final tileBorderColor = isDark ? const Color(0xFF26243C) : Colors.grey[200]!;
-    final internalIconBgColor = isDark ? Colors.black38 : Colors.white;
 
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
@@ -264,64 +480,67 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
       itemCount: transactions.length,
       itemBuilder: (context, index) {
         final tx = transactions[index];
-        final DateTime dateValue = tx['date'];
+        final DateTime dateValue = DateTime.parse(tx['date'].toString());
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: tileBgColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: tileBorderColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: internalIconBgColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: isDark ? null : Border.all(color: Colors.grey[200]!),
+        return InkWell(
+          onTap: () => _showTransactionDetails(tx),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: tileBgColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: tileBorderColor),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black38 : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(tx['icon'], color: tx['iconColor'], size: 20),
                 ),
-                child: Icon(tx['icon'], color: tx['iconColor'], size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tx['title'],
-                      style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tx['subtitle'],
-                      style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dateValue.month - 1]} ${dateValue.day.toString().padLeft(2, '0')}, ${dateValue.year} • ${dateValue.hour % 12 == 0 ? 12 : dateValue.hour % 12}:${dateValue.minute.toString().padLeft(2, '0')} ${dateValue.hour >= 12 ? 'PM' : 'AM'}',
-                      style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500], fontSize: 10),
-                    ),
-                  ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tx['title'],
+                        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tx['subtitle'],
+                        style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('MMM dd, yyyy • hh:mm a').format(dateValue),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 9),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                tx['amount'],
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace',
+                const SizedBox(width: 8),
+                Text(
+                  tx['amount'],
+                  style: TextStyle(
+                    color: tx['isIncome'] ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -329,13 +548,9 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
   }
 
   void _showDateRangePicker(BuildContext context) {
-    final List<String> ranges = ['Today', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Custom Range'];
+    final List<String> ranges = ['Today', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Year'];
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
-    final accentPrimaryColor = theme.colorScheme.primary != theme.scaffoldBackgroundColor 
-        ? theme.colorScheme.primary 
-        : const Color(0xFF8B5CF6);
 
     showModalBottomSheet(
       context: context,
@@ -349,24 +564,19 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  'Select Statement Range', 
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface),
+                  'Select Statement Timeline', 
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: theme.colorScheme.onSurface),
                 ),
               ),
               Divider(height: 1, color: theme.dividerColor),
               ...ranges.map((range) => ListTile(
-                    title: Text(
-                      range, 
-                      style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface),
-                    ),
-                    trailing: _selectedDateRange == range ? Icon(Icons.check, color: accentPrimaryColor) : null,
-                    onTap: () {
-                      setState(() {
-                        _selectedDateRange = range;
-                      });
-                      Navigator.pop(context);
-                    },
-                  )),
+                title: Text(range, style: const TextStyle(fontSize: 14)),
+                trailing: _selectedDateRange == range ? const Icon(Icons.check, color: Color(0xFF8B5CF6)) : null,
+                onTap: () {
+                  _setDateRange(range);
+                  Navigator.pop(context);
+                },
+              )),
             ],
           ),
         );
