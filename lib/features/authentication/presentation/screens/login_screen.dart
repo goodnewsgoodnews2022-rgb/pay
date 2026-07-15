@@ -7,12 +7,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../widgets/green_button.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -80,6 +80,36 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showSuspendedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgSurface,
+        title: const Text(
+          'Account Suspended',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: const Text(
+          'Your account has been suspended. Please contact support for more information.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.go('/login');
+            },
+            child: const Text(
+              'OK',
+              style: TextStyle(color: AppColors.dev2Green),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -111,6 +141,25 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgCanvas,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.support_agent,
+            color: AppColors.dev2Green,
+          ),
+          tooltip: 'Chat with support',
+          onPressed: () {
+            // ✅ Navigate to chat screen – push so user can pop back
+            context.push('/support-help');
+          },
+        ),
+        title: const Text(
+          '',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+      ),
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) async {
           if (state is AuthAuthenticated) {
@@ -126,9 +175,14 @@ class _LoginScreenState extends State<LoginScreen> {
             context.go('/dashboard');
           }
           if (state is AuthError) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            final errorMessage = state.message;
+            if (errorMessage.toLowerCase().contains('suspended')) {
+              _showSuspendedDialog(context);
+            } else {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(errorMessage)));
+            }
           }
         },
         child: SafeArea(

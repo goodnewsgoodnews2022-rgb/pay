@@ -2,6 +2,26 @@
 
 // ignore_for_file: unused_import, duplicate_import
 
+import 'package:fintech/admin/presentation/screens/admin_broadcast_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_kyc_review_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_transactions_screen.dart';
+import 'package:fintech/admin/presentation/screens/admin_users_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/biometric_setup_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/kyc_intro_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/kyc_verification_screen.dart';
+import 'package:fintech/features/KYC/presentation/screens/pin_setup_screen.dart';
+import 'package:fintech/features/authentication/presentation/screens/forget_password_screen.dart';
+import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/app_preferences_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/ledger_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
+import 'package:fintech/features/profile/presentation/default_wallet_screen.dart';
+import 'package:fintech/features/settings/auto_save_beneficiary.dart';
+import 'package:fintech/features/settings/transaction_limit.dart';
+import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -44,12 +64,24 @@ import 'routes/wallet_routes.dart';
 class AppRouter {
   // Named Route Location Identifiers for Clean Architecture Reference
   static const String splash = '/';
-  static const String signup = AuthRoutes.signup;
-  static const String login = AuthRoutes.login;
-  static const String dashboard = DashboardRoutes.dashboard;
-  static const String settings = DashboardRoutes.settings;
-  static const String cryptoWallet = WalletRoutes.wallet;
-  static const String profile = '/profile';
+  static const String signup = '/signup';
+  static const String login = '/login';
+  static const String dashboard = '/dashboard';
+  static const String cryptoWallet = '/wallet';
+  static const String appPreferences = '/app-preferences';
+  static const String language = '/language';
+  static const String kycIntro = '/kyc-intro';
+  static const String pinSetup = '/pin-setup';
+  static const String kycVerification = '/kyc-verify';
+  static const String biometricSetup = '/biometric-setup';
+  static const String forgotPassword = '/forgot-password';
+  static const String chatScreen = '/Chat_UI';
+  static const String adminDashboard = '/admin-dashboard';
+  static const String adminuser = '/admin/users';
+  static const String adminTransactions = '/admin/transactions';
+  static const String adminKyc = '/admin/kyc';
+  static const String adminbroadcast = '/admin/broadcast';
+  
 
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -105,7 +137,96 @@ class AppRouter {
             builder: (context, state) => const SplashScreen(),
           ),
           GoRoute(
-            path: profile,
+            path: '/pin-setup',
+            builder: (context, state) => const PinSetupScreen(), 
+          ),
+          GoRoute(
+            path: '/admin-dashboard',
+            builder: (context, state) => const AdminDashboardScreen(),),
+            GoRoute(path: '/admin/users',
+             builder: (context, state) => const AdminUsersScreen(),),
+            GoRoute(path: '/admin/transactions',
+             builder: (context, state) => const AdminTransactionsScreen(),),
+            GoRoute(path: '/admin/kyc',
+             builder: (context, state) =>  const AdminKycReviewScreen(),),
+            GoRoute(path: '/admin-broadcast',
+             builder: (context, state) => const AdminBroadcastScreen(),),
+          GoRoute(
+            path: chatScreen,
+            builder: (context, state) => const ChatScreen(),
+          ),
+          GoRoute(
+            path: signup,
+            builder: (context, state) => const SignupScreen(),
+          ),
+          GoRoute(
+            path: forgotPassword,
+            builder: (context, state) => const ForgotPasswordScreen(),
+          ),
+          GoRoute(
+            path: login,
+            builder: (context, state) => const LoginScreen(),
+          ),
+          GoRoute(
+            path: biometricSetup,
+            builder: (context, state) => const BiometricSetupScreen(),
+          ),
+          GoRoute(
+            path: kycIntro,
+            builder: (context, state) => const KycIntroScreen(),
+          ),
+          GoRoute(
+            path: kycVerification,
+            builder: (context, state) => const KycVerificationScreen(),
+          ),
+
+          // 🏛️ CORE SHELL: Binds Dashboard and App Bottom Nav tabs safely
+          GoRoute(
+            path: dashboard,
+            builder: (context, state) => const AppNavigationShell(),
+          ),
+          GoRoute(
+            path: '/reports-statements',
+            builder: (context, state) => const AnalysisScreen(), 
+          ),
+          GoRoute(
+            path: '/ledger', 
+            builder: (context, state) => const LedgerScreen(), 
+          ),
+          GoRoute(
+            path: '/more',
+            builder: (context, state) => MoreScreen(
+              onNavigateToSubScreen: (route) => context.go(route as String),
+            ),
+          ),
+
+          // ⚙️ SUBSCREENS & FINANCIAL FEATURES PATHS
+          GoRoute(
+            path: cryptoWallet,
+            builder: (context, state) => const CryptoWalletScreen(),
+          ),
+          GoRoute(
+            path: appPreferences,
+            builder: (context, state) => const AppPreferencesScreen(),
+          ),
+          GoRoute(
+            path: '/settings/DefaultWalletScreen',
+            builder: (context, state) => const DefaultWalletScreen(),
+          ),
+          GoRoute(
+            path: '/settings/BeneficiaryAutomationService',
+            builder: (context, state) => const BeneficiaryAutomationService(),
+          ),
+          GoRoute(
+            path: '/settings/TransactionLimitGuard',
+            builder: (context, state) => const TransactionLimitGuard(), // Cleaned up duplicate placeholder widget implementation
+          ),
+          GoRoute(
+            path: language,
+            builder: (context, state) => const LanguageScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
             builder: (context, state) => const ProfileScreen(),
           ),
           ...AuthRoutes.routes,

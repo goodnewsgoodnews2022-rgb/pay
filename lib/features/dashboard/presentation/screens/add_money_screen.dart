@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, unused_element, unused_import, use_build_context_synchronously, curly_braces_in_flow_control_structures
+// ignore_for_file: unused_local_variable, unused_field, unused_element, unused_import, use_build_context_synchronously, curly_braces_in_flow_control_structures
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -84,6 +84,8 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
       final double inputAmount = double.parse(_amountController.text.trim());
       final String uniqueTxRef = "TX-${DateTime.now().millisecondsSinceEpoch}";
+      final String userEmail = user.email ?? 'guest@payfintech.com';
+      final String userName = user.userMetadata?['full_name'] ?? 'Guest User';
 
       await client.from('deposits').insert({
         'user_id': user.id,
@@ -97,30 +99,31 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       if (kIsWeb) {
         final response = await client.functions.invoke('flw-webhook', body: {
           'action': 'initialize_payment',
-          'tx_ref': uniqueTxRef,
-          'amount': inputAmount.toString(),
+          'user_id': user.id,
+          'amount': inputAmount,
         });
-        final checkoutUrl = response.data['checkout_url'];
-        await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+
+        final data = response.data;
+        if (data != null && data['data'] != null && data['data']['link'] != null) {
+          await launchUrl(Uri.parse(data['data']['link']), mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception("Invalid response from payment gateway");
+        }
       } else {
-        // Native Mobile Implementation
         final Flutterwave flutterwave = Flutterwave(
-          
-          publicKey: Environment.flutterwavePublicKey, // Ensure this exists in your env file
+          publicKey: Environment.flutterwavePublicKey,
           currency: "NGN",
-          redirectUrl: "https://your-redirect-url.com", // Replace with your actual redirect URL
+          redirectUrl: "https://your-redirect-url.com",
           txRef: uniqueTxRef,
           amount: inputAmount.toString(),
-          customer: Customer(email: user.email ?? "user@example.com"),
+          customer: Customer(email: userEmail),
           paymentOptions: "card, banktransfer, ussd",
           customization: Customization(title: "Add Money"),
-          isTestMode: true, // Set to false for production
+          isTestMode: true,
         );
 
         final ChargeResponse response = await flutterwave.charge(context);
-        if (response.success == true) {
-          // Keep _isLoading true while waiting for webhook
-        } else {
+        if (response.success != true) {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: ${response.status}')));
         }

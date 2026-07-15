@@ -117,7 +117,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      final user = await signInWithGoogle(); // uses the injected usecase
+      final user = await signInWithGoogle();
       emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));

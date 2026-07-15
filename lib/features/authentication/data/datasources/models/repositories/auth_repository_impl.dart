@@ -1,4 +1,4 @@
-// ignore_for_file: override_on_non_overriding_member, avoid_print
+// ignore_for_file: unnecessary_null_comparison, override_on_non_overriding_member, avoid_print
 
 import 'dart:async';
 
@@ -211,10 +211,20 @@ class AuthRepositoryImpl implements AuthRepository {
           final session = data.session;
           if (session != null) {
             final user = session.user;
-            final appUser = await _getOrCreateUserFromSession(user);
-            if (!completer.isCompleted) {
-              completer.complete(appUser);
-              subscription?.cancel();
+            if (user != null) {
+              try {
+                final appUser = await _getOrCreateUserFromSession(user);
+                if (!completer.isCompleted) {
+                  completer.complete(appUser);
+                  subscription?.cancel();
+                }
+              } catch (e) {
+                // Handle error (e.g., suspension)
+                if (!completer.isCompleted) {
+                  completer.completeError(e);
+                  subscription?.cancel();
+                }
+              }
             }
           }
         }
@@ -244,63 +254,65 @@ class AuthRepositoryImpl implements AuthRepository {
 
   // ✅ Helper – also inside the class
   Future<AppUser> _getOrCreateUserFromSession(User user) async {
-    // Try fetch profile
-    final profile = await _supabase
+  // Try fetch profile
+  final profile = await _supabase
+      .from('profiles')
+      .select()
+      .eq('id', user.id)
+      .maybeSingle();
+
+  // ✅ Check suspension
+  if (profile != null && profile['is_suspended'] == true) {
+    // Sign out immediately to clear session
+    await _supabase.auth.signOut();
+    throw AuthException('Your account has been suspended.');
+  }
+
+  if (profile == null) {
+    // Create minimal profile
+    await _supabase.from('profiles').insert({
+      'id': user.id,
+      'full_name': user.userMetadata?['full_name'] ?? 'Fintech User',
+      'kyc_status': 'PENDING',
+      'is_admin': false,
+      'biometric_enabled': false,
+      'is_suspended': false,
+    });
+
+    final created = await _supabase
         .from('profiles')
         .select()
         .eq('id', user.id)
-        .maybeSingle();
+        .single();
 
-    if (profile == null) {
-      // Create minimal profile
-      await _supabase.from('profiles').insert({
-        'id': user.id,
-        'full_name': user.userMetadata?['full_name'] ?? 'Fintech User',
-        'kyc_status': 'PENDING',
-        'is_admin': false,
-        'biometric_enabled': false,
-        'is_suspended': false,
-      });
-
-      final created = await _supabase
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .single();
-
-      return AppUserModel.fromSupabaseUser(
-        user,
-        fullName: created['full_name'],
-        mobileNumber: created['mobile_number'],
-        gender: created['gender'],
-        dateOfBirth: created['date_of_birth'],
-        address: created['address'],
-        avatarUrl: created['avatar_url'],
-        accountNumber: created['account_number'],
-        kycStatus: created['kyc_status'] ?? 'PENDING',
-        biometricEnabled: created['biometric_enabled'] ?? false,
-        isAdmin: created['is_admin'] ?? false,
-        isSuspended: created['is_suspended'] ?? false,
-      );
-    }
-
-    // ✅ Profile exists – check suspension (though new users won't be suspended)
-    // If you ever want to block suspended users from Google sign-in, you can add a check here.
     return AppUserModel.fromSupabaseUser(
       user,
-      fullName:
-          profile['full_name'] ??
-          (user.userMetadata?['full_name'] ?? 'Fintech User'),
-      mobileNumber: profile['mobile_number'],
-      gender: profile['gender'],
-      dateOfBirth: profile['date_of_birth'],
-      address: profile['address'],
-      avatarUrl: profile['avatar_url'],
-      accountNumber: profile['account_number'],
-      kycStatus: profile['kyc_status'] ?? 'PENDING',
-      biometricEnabled: profile['biometric_enabled'] ?? false,
-      isAdmin: profile['is_admin'] ?? false,
-      isSuspended: profile['is_suspended'] ?? false,
+      fullName: created['full_name'],
+      mobileNumber: created['mobile_number'],
+      gender: created['gender'],
+      dateOfBirth: created['date_of_birth'],
+      address: created['address'],
+      avatarUrl: created['avatar_url'],
+      accountNumber: created['account_number'],
+      kycStatus: created['kyc_status'] ?? 'PENDING',
+      biometricEnabled: created['biometric_enabled'] ?? false,
+      isAdmin: created['is_admin'] ?? false,
+      isSuspended: created['is_suspended'] ?? false,
     );
   }
-}
+
+  return AppUserModel.fromSupabaseUser(
+    user,
+    fullName: profile['full_name'] ?? (user.userMetadata?['full_name'] ?? 'Fintech User'),
+    mobileNumber: profile['mobile_number'],
+    gender: profile['gender'],
+    dateOfBirth: profile['date_of_birth'],
+    address: profile['address'],
+    avatarUrl: profile['avatar_url'],
+    accountNumber: profile['account_number'],
+    kycStatus: profile['kyc_status'] ?? 'PENDING',
+    biometricEnabled: profile['biometric_enabled'] ?? false,
+    isAdmin: profile['is_admin'] ?? false,
+    isSuspended: profile['is_suspended'] ?? false,
+  );
+}}

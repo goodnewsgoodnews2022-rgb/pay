@@ -34,7 +34,7 @@ class Environment {
 
   static const String mainnetRpcUrl = String.fromEnvironment(
     'MAINNET_RPC_URL',
-    defaultValue: 'https://eth-mainnet.g.alchemy.com/v2/placeholder',
+    defaultValue: 'https://eth-mainnet.g.alchemy.com/v2/FLWPUBK_TEST-c657e96bb010c74e88ff4beb11d61677-X',
   );
 
   /// Helper to assert configurations are valid during development stages.
