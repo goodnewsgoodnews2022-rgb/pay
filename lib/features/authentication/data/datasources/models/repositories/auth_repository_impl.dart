@@ -200,7 +200,6 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  @override
   Future<AppUser> signInWithGoogle() async {
     try {
       final completer = Completer<AppUser>();

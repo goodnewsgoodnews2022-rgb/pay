@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, dead_null_aware_expression
+// ignore_for_file: avoid_print
 
 import 'package:fintech/admin/domain/entities/admin_user.dart';
 import 'package:flutter/material.dart';

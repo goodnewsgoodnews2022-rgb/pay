@@ -40,10 +40,10 @@ class _FakeAdminRepository implements AdminRepository {
       AdminUser(
         id: userId,
         email: '',
-        createdAt: DateTime.now(),
         kycStatus: '',
         isAdmin: false,
         isSuspended: false,
+        createdAt: DateTime.now(),
         totalDeposits: 0,
         totalWithdrawals: 0,
       );

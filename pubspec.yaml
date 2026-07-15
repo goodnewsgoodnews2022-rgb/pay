@@ -20,8 +20,9 @@ dependencies:
   web3dart: ^3.0.2
   http: ^1.6.0
   flutter_dotenv: ^5.0.2
-
   image_picker: ^1.1.2
+  pdf: ^3.10.0
+  printing: ^5.11.0
 
   # State Management & Architecture (Shared Team Modules)
   bloc: ^9.2.1
