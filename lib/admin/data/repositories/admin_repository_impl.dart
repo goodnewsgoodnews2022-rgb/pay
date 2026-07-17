@@ -127,31 +127,29 @@ class AdminRepositoryImpl implements AdminRepository {
   }
 
   @override
-  Future<void> sendBroadcastNotification(String title, String body) async {
-    try {
-      await _supabase.from('notifications').insert({
-        'title': title,
-        'body': body,
-        'type': 'system',
-        'is_read': false,
-      });
-    } catch (e) {
-      print('❌ sendBroadcastNotification error: $e');
-      rethrow;
-    }
+  Future<void> sendBroadcastNotification(
+    String title,
+    String message,
+  ) async {
+    await _supabase.from('notifications').insert({
+      'title': title,
+      'message': message,
+      'type': 'system',
+      'is_read': false, // ✅ ensure this is set
+    });
   }
 
   @override
   Future<void> sendUserNotification(
     String userId,
     String title,
-    String body,
+    String message,
   ) async {
     try {
       await _supabase.from('notifications').insert({
         'user_id': userId,
         'title': title,
-        'body': body,
+        'messsage' : message,
         'type': 'system',
         'is_read': false,
       });

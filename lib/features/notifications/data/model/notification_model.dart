@@ -4,24 +4,30 @@ class NotificationModel extends NotificationEntity {
   const NotificationModel({
     required super.id,
     required super.title,
-    required super.body,
+    required super.message,
     required super.type,
     required super.isRead,
     super.data,
     required super.createdAt,
+    super.isBroadcast = false,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final content = json['body'] ?? json['message'] ?? '';
     return NotificationModel(
-      id: json['id'],
-      title: json['title'],
-      body: json['body'],
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      message: content,
       type: json['type'] ?? 'system',
       isRead: json['is_read'] ?? false,
       data: json['data'] != null
           ? Map<String, dynamic>.from(json['data'])
           : null,
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      isBroadcast:
+          json['user_id'] == null, // ✅ broadcast if user_id is null
     );
   }
 
@@ -29,11 +35,12 @@ class NotificationModel extends NotificationEntity {
     return {
       'id': id,
       'title': title,
-      'body': body,
+      'body': message,
       'type': type,
       'is_read': isRead,
       'data': data,
       'created_at': createdAt.toIso8601String(),
+      // note: isBroadcast is not stored in DB; it's derived from user_id
     };
   }
 }

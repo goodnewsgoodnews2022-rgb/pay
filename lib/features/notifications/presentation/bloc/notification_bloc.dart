@@ -1,10 +1,14 @@
+// lib/features/notifications/presentation/bloc/notification_bloc.dart
+
 import 'package:fintech/features/notifications/data/model/notification_model.dart';
 import 'package:fintech/features/notifications/domain/usecase/fetch_notification.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fintech/features/notifications/domain/usecase/get_unread_count.dart';
-import 'package:fintech/features/notifications/domain/usecase/mark_all_as_read.dart';   
+import 'package:fintech/features/notifications/domain/usecase/mark_all_as_read.dart';
 import 'package:fintech/features/notifications/domain/usecase/mark_as_read.dart';
 import 'package:fintech/features/notifications/domain/usecase/subscribe_to_notification.dart';
+import 'package:fintech/features/notifications/domain/usecase/delete_notification.dart' as delete_notification_usecase;
+import 'package:fintech/features/notifications/domain/usecase/delete_all_notifications.dart' as delete_all_usecase;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'notification_event.dart';
 import 'notification_state.dart';
 
@@ -14,6 +18,8 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final MarkAllAsRead markAllAsRead;
   final GetUnreadCount getUnreadCount;
   final SubscribeToNotifications subscribeToNotifications;
+  final delete_notification_usecase.DeleteNotification deleteNotification;
+  final delete_all_usecase.DeleteAllNotifications deleteAllNotifications;
 
   NotificationBloc({
     required this.fetchNotifications,
@@ -21,11 +27,15 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     required this.markAllAsRead,
     required this.getUnreadCount,
     required this.subscribeToNotifications,
+    required this.deleteNotification,
+    required this.deleteAllNotifications,
   }) : super(NotificationInitial()) {
     on<LoadNotifications>(_onLoadNotifications);
     on<MarkNotificationAsRead>(_onMarkAsRead);
     on<MarkAllNotificationsAsRead>(_onMarkAllAsRead);
     on<NewNotificationReceived>(_onNewNotificationReceived);
+    on<DeleteNotification>(_onDeleteNotification);
+    on<DeleteAllNotifications>(_onDeleteAllNotifications);
   }
 
   Future<void> _onLoadNotifications(
@@ -53,7 +63,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   ) async {
     try {
       await markAsRead(event.notificationId);
-      // Reload after marking as read
       add(LoadNotifications());
     } catch (e) {
       emit(NotificationError(e.toString()));
@@ -78,7 +87,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   ) {
     final currentState = state;
     if (currentState is NotificationLoaded) {
-      // Prepend new notification and update unread count
       final newNotification = NotificationModel.fromJson(
         event.notificationData,
       );
@@ -90,8 +98,33 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         ),
       );
     } else {
-      // If not on notifications screen, just reload when opened
       add(LoadNotifications());
+    }
+  }
+
+  // ✅ Fixed: call deleteNotification with the notification ID
+  Future<void> _onDeleteNotification(
+    DeleteNotification event,
+    Emitter<NotificationState> emit,
+  ) async {
+    try {
+      await deleteNotification(event.notificationId);
+      add(LoadNotifications());
+    } catch (e) {
+      emit(NotificationError(e.toString()));
+    }
+  }
+
+  // ✅ Fixed: call deleteAllNotifications with no parameters
+  Future<void> _onDeleteAllNotifications(
+    DeleteAllNotifications event,
+    Emitter<NotificationState> emit,
+  ) async {
+    try {
+      await deleteAllNotifications();
+      add(LoadNotifications());
+    } catch (e) {
+      emit(NotificationError(e.toString()));
     }
   }
 }

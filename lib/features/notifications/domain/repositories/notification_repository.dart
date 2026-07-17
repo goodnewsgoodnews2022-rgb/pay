@@ -5,6 +5,8 @@ abstract class NotificationRepository {
   Future<List<NotificationEntity>> fetchNotifications({int limit = 50});
   Future<void> markAsRead(String notificationId);
   Future<void> markAllAsRead();
+  Future<void> deleteNotification(String notificationId); // ✅ new
+  Future<void> deleteAllNotifications();
   Future<int> getUnreadCount();
   RealtimeChannel subscribeToNewNotifications(
     Function(Map<String, dynamic>) onInsert,

@@ -35,8 +35,9 @@ import 'package:fintech/features/notifications/domain/usecase/get_unread_count.d
 import 'package:fintech/features/notifications/domain/usecase/mark_all_as_read.dart';
 import 'package:fintech/features/notifications/domain/usecase/mark_as_read.dart';
 import 'package:fintech/features/notifications/domain/usecase/subscribe_to_notification.dart';
+import 'package:fintech/features/notifications/domain/usecase/delete_notification.dart';
+import 'package:fintech/features/notifications/domain/usecase/delete_all_notifications.dart';
 import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
-
 import 'package:fintech/features/settings/domain/usecases/update_theme.dart';
 import 'package:fintech/features/settings/domain/usecases/toggle_biometrics.dart';
 import 'package:get_it/get_it.dart';
@@ -217,6 +218,22 @@ Future<void> setupDependencies() async {
     );
   }
 
+  // ✅ Register DeleteNotification and DeleteAllNotifications (fixed)
+  if (!getIt.isRegistered<DeleteNotification>()) {
+    getIt.registerLazySingleton(
+      () =>
+          DeleteNotification(getIt<NotificationRepository>()), // ✅ no cast
+    );
+  }
+  if (!getIt.isRegistered<DeleteAllNotifications>()) {
+    getIt.registerLazySingleton(
+      () => DeleteAllNotifications(
+        getIt<NotificationRepository>(),
+      ), // ✅ fixed
+    );
+  }
+
+  // ✅ Register NotificationBloc with all dependencies
   if (!getIt.isRegistered<NotificationBloc>()) {
     getIt.registerFactory(
       () => NotificationBloc(
@@ -225,6 +242,8 @@ Future<void> setupDependencies() async {
         markAllAsRead: getIt<MarkAllAsRead>(),
         getUnreadCount: getIt<GetUnreadCount>(),
         subscribeToNotifications: getIt<SubscribeToNotifications>(),
+        deleteNotification: getIt<DeleteNotification>(),
+        deleteAllNotifications: getIt<DeleteAllNotifications>(),
       ),
     );
   }

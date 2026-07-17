@@ -13,3 +13,10 @@ class NewNotificationReceived extends NotificationEvent {
   final Map<String, dynamic> notificationData;
   NewNotificationReceived(this.notificationData);
 }
+
+class DeleteNotification extends NotificationEvent {
+  final String notificationId;
+  DeleteNotification(this.notificationId);
+}
+
+class DeleteAllNotifications extends NotificationEvent {}

@@ -11,5 +11,6 @@
       "cron"
     ],
     "editor.defaultFormatter": "denoland.vscode-deno"
-  }
+  },
+  "cmake.ignoreCMakeListsMissing": true
 }
