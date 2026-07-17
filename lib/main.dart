@@ -1,7 +1,14 @@
 // lib/main.dart
+// ignore_for_file: deprecated_member_use
 
-// ignore_for_file: deprecated_member_use, avoid_print
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:google_fonts/google_fonts.dart'; // ✅ Added
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+// ... all your existing imports
 import 'package:fintech/app/config/app_router.dart';
 import 'package:fintech/app/config/environment.dart';
 import 'package:fintech/core/theme/app_theme.dart';
@@ -11,66 +18,30 @@ import 'package:fintech/features/authentication/presentation/bloc/auth_event.dar
 import 'package:fintech/features/authentication/presentation/bloc/auth_state.dart';
 import 'package:fintech/features/authentication/presentation/bloc/bloc_dependency.dart';
 import 'package:fintech/features/notifications/presentation/bloc/notification_bloc.dart';
-
-// ✅ Add AdminBloc import (matches your project structure: lib/admin/)
 import 'package:fintech/admin/presentation/bloc/admin_bloc.dart';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
-
-// Global navigator key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-// Riverpod Theme Provider
-final themeStateProvider = StateProvider<ThemeMode>(
-  (ref) => ThemeMode.dark,
-);
+final themeStateProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-
   widgetsBinding.deferFirstFrame();
 
-  // 1. Core Framework Initializations using Environment Manager constants
   try {
-    debugPrint("Validating Environment & Initializing Supabase...");
-
-    // Validate our String.fromEnvironment variables
     Environment.validate();
-
     await Supabase.initialize(
       url: Environment.supabaseUrl,
       anonKey: Environment.supabaseAnonKey,
     );
-    debugPrint("✅ Supabase initialized successfully!");
   } catch (e) {
-    debugPrint("❌ Core Error: Supabase initialization crashed.");
-    debugPrint(e.toString());
+    debugPrint("❌ Supabase Init Error: $e");
   }
 
-  // 2. Dependency Injection Registrations
   try {
-    debugPrint("Initializing GetIt dependencies...");
     await setupDependencies();
     await getIt.allReady();
-
-    debugPrint("AuthBloc registered: ${getIt.isRegistered<AuthBloc>()}");
-    debugPrint(
-      "NotificationBloc registered: ${getIt.isRegistered<NotificationBloc>()}",
-    );
-    debugPrint("KycBloc registered: ${getIt.isRegistered<KycBloc>()}");
-    debugPrint(
-      "AdminBloc registered: ${getIt.isRegistered<AdminBloc>()}",
-    ); // ✅ Added
-  } catch (e, stackTrace) {
-    debugPrint(
-      "❌ Core Error: GetIt Dependency Injection Registration crashed.",
-    );
-    debugPrint(e.toString());
-    debugPrint(stackTrace.toString());
+  } catch (e) {
+    debugPrint("❌ Dependency Injection Error: $e");
   } finally {
     widgetsBinding.allowFirstFrame();
   }
@@ -87,32 +58,31 @@ class MyApp extends ConsumerWidget {
 
     return MultiBlocProvider(
       providers: [
-        BlocProvider<AuthBloc>(
-          create: (_) => getIt<AuthBloc>()..add(AuthCheckStatus()),
-        ),
-        BlocProvider<NotificationBloc>(
-          create: (_) => getIt<NotificationBloc>(),
-        ),
+        BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()..add(AuthCheckStatus())),
+        BlocProvider<NotificationBloc>(create: (_) => getIt<NotificationBloc>()),
         BlocProvider<KycBloc>(create: (_) => getIt<KycBloc>()),
-        // ✅ Add AdminBloc
         BlocProvider<AdminBloc>(create: (_) => getIt<AdminBloc>()),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          debugPrint("Auth State: $state");
-
           if (state is AuthUnauthenticated) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              AppRouter.router.go('/login');
-            });
+            AppRouter.router.go('/login');
           }
         },
         child: MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: "Pay Fintech",
           routerConfig: AppRouter.router,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          
+          // ✅ PROFESSIONAL FIX: Apply Google Fonts to the text theme
+          // This forces the app to use a font that supports the ₦ symbol
+          theme: AppTheme.lightTheme?.copyWith(
+            textTheme: GoogleFonts.notoSansTextTheme(AppTheme.lightTheme?.textTheme),
+          ),
+          darkTheme: AppTheme.darkTheme.copyWith(
+            textTheme: GoogleFonts.notoSansTextTheme(AppTheme.darkTheme.textTheme),
+          ),
+          
           themeMode: currentThemeMode,
         ),
       ),

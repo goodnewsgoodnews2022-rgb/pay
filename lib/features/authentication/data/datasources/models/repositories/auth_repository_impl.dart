@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: unnecessary_null_comparison, override_on_non_overriding_member, avoid_print
 
 import 'dart:async';
 
@@ -200,7 +200,6 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  @override
   Future<AppUser> signInWithGoogle() async {
     try {
       final completer = Completer<AppUser>();

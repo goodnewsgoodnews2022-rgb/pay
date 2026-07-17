@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'account_statement_screen.dart';
 
 // Brand Identity Color Palette
@@ -20,66 +21,62 @@ class LedgerScreen extends StatefulWidget {
 
 class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final bool _isLoading = false;
+  bool _isLoading = true;
   String _searchQuery = '';
-
-  // Dummy Unified Ledger Array representing custom unified category maps compiled from Supabase Stream channels.
-  // Replace this placeholder payload with your active Supabase stream events integration.
-  final List<Map<String, dynamic>> _unifiedLedger = [
-    {
-      'title': 'P2P Transfer Sent',
-      'subtitle': 'TX-HASH: 0x8a1b...2c4d',
-      'date': '2026-07-10T14:32:00.000Z',
-      'amount': '-\$250.00',
-      'isIncome': false,
-      'isCrypto': true,
-      'type': 'send',
-      'peerName': 'Alex Rivera',
-      'channelLabel': 'Ethereum Mainnet',
-      'accountInfo': '0x71C...39b2',
-      'status': 'Success',
-      'icon': Icons.swap_horiz,
-      'iconColor': brandRedColor,
-      'ticker': 'USDT'
-    },
-    {
-      'title': 'USDC Swap Executed',
-      'subtitle': 'USDT to USDC Swap Engine',
-      'date': '2026-07-08T09:15:00.000Z',
-      'amount': '+\$1,200.00',
-      'isIncome': true,
-      'isCrypto': true,
-      'type': 'swap',
-      'peerName': 'Uniswap Router',
-      'channelLabel': 'Polygon Chain',
-      'accountInfo': '0x71C...39b2',
-      'status': 'Success',
-      'icon': Icons.currency_exchange,
-      'iconColor': brandAccentColor,
-      'ticker': 'USDC'
-    },
-    {
-      'title': 'Bank Wire Deposit',
-      'subtitle': 'Ref: ACH-992182-USD',
-      'date': '2026-07-05T18:45:00.000Z',
-      'amount': '+\$5,000.00',
-      'isIncome': true,
-      'isCrypto': false,
-      'type': 'deposit',
-      'peerName': 'Apex Clearing Corp',
-      'channelLabel': 'Plaid API',
-      'accountInfo': 'Chase Bank (****4829)',
-      'status': 'Success',
-      'icon': Icons.account_balance,
-      'iconColor': brandAccentColor,
-      'ticker': 'USD'
-    },
-  ];
+  List<Map<String, dynamic>> _unifiedLedger = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _fetchTransactions();
+  }
+
+  Future<void> _fetchTransactions() async {
+    try {
+      // Corrected to 'fiat_transactions' based on your console error
+      final data = await Supabase.instance.client
+          .from('fiat_transactions')
+          .select()
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _unifiedLedger = (data as List<dynamic>).map((tx) {
+          // Assuming 'amount' is a number in your DB
+          final val = double.tryParse(tx['amount'].toString()) ?? 0.0;
+          final isIncome = val >= 0;
+          
+          return {
+            'title': tx['type']?.toString().toUpperCase() ?? 'TRANSACTION',
+            'subtitle': tx['reference'] ?? 'No ref',
+            'date': tx['created_at'] ?? DateTime.now().toIso8601String(),
+            'amount': (isIncome ? '+' : '') + val.toStringAsFixed(2),
+            'isIncome': isIncome,
+            'type': tx['type'] ?? 'other', 
+            'icon': _getIconForType(tx['type']),
+            'iconColor': isIncome ? brandAccentColor : brandRedColor,
+            'ticker': tx['ticker'] ?? 'USD',
+            'peerName': tx['peer_name'] ?? 'N/A',
+            'channelLabel': tx['channel'] ?? 'N/A',
+            'accountInfo': tx['account_info'] ?? 'N/A',
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Error fetching ledger: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  IconData _getIconForType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'deposit': return Icons.account_balance;
+      case 'swap': return Icons.currency_exchange;
+      case 'send': return Icons.call_made;
+      case 'receive': return Icons.call_received;
+      default: return Icons.swap_horiz;
+    }
   }
 
   @override
@@ -101,54 +98,28 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     final backgroundColor = isDark ? brandDeepBg : theme.scaffoldBackgroundColor;
     final textColor = isDark ? Colors.white : Colors.black87;
     final cardColor = isDark ? brandCardBg : Colors.grey[100]!;
     final secondaryTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
     final filteredLedger = _unifiedLedger.where((tx) {
-      final title = tx['title'].toString().toLowerCase();
-      final subtitle = tx['subtitle'].toString().toLowerCase();
-      final peer = tx['peerName'].toString().toLowerCase();
-      final acc = tx['accountInfo'].toString().toLowerCase();
-      final chn = tx['channelLabel'].toString().toLowerCase();
-      final tck = tx['ticker'].toString().toLowerCase();
       final searchLower = _searchQuery.toLowerCase();
-
-      return title.contains(searchLower) || 
-             subtitle.contains(searchLower) ||
-             peer.contains(searchLower) ||
-             acc.contains(searchLower) ||
-             chn.contains(searchLower) ||
-             tck.contains(searchLower);
+      return tx['title'].toString().toLowerCase().contains(searchLower) || 
+             tx['subtitle'].toString().toLowerCase().contains(searchLower);
     }).toList();
 
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: Text(
-          'Unified Transaction Ledger',
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        title: Text('Unified Transaction Ledger', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
         backgroundColor: isDark ? brandCardBg : Colors.white,
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
         actions: [
-          // Navigates directly to the statement builder with compiled live data passed over!
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFF10B981)),
-            tooltip: 'Get Account Statement',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AccountStatementScreen(
-                    initialTransactions: _unifiedLedger,
-                  ),
-                ),
-              );
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountStatementScreen())),
           ),
         ],
         bottom: TabBar(
@@ -157,46 +128,27 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
           labelColor: isDark ? brandPurpleColor : const Color(0xFF8B5CF6),
           unselectedLabelColor: secondaryTextColor,
           indicatorColor: isDark ? brandPurpleColor : const Color(0xFF8B5CF6),
-          tabs: const [
-            Tab(text: 'All Activity'),
-            Tab(text: 'Deposits'),
-            Tab(text: 'Swaps'),
-            Tab(text: 'P2P Sent'),
-            Tab(text: 'P2P Received'),
-          ],
+          tabs: const [Tab(text: 'All Activity'), Tab(text: 'Deposits'), Tab(text: 'Swaps'), Tab(text: 'P2P Sent'), Tab(text: 'P2P Received')],
         ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: brandPurpleColor))
           : Column(
               children: [
-                Container(
+                Padding(
                   padding: const EdgeInsets.all(16),
-                  color: isDark ? brandDeepBg : Colors.white,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: isDark ? brandCardBg : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.withOpacity(isDark ? 0.05 : 0.2)),
+                  child: TextField(
+                    style: TextStyle(color: textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: isDark ? brandCardBg : Colors.grey[50],
+                      hintText: 'Search peer name, coin, account or reference...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
-                    child: TextField(
-                      style: TextStyle(color: textColor, fontSize: 14),
-                      decoration: InputDecoration(
-                        icon: Icon(Icons.search, color: isDark ? Colors.grey : Colors.grey[600], size: 20),
-                        hintText: 'Search peer name, coin, account or reference...',
-                        hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400], fontSize: 13),
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val;
-                        });
-                      },
-                    ),
+                    onChanged: (val) => setState(() => _searchQuery = val),
                   ),
                 ),
-                
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -214,98 +166,33 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildLedgerList(
-    List<Map<String, dynamic>> items,
-    Color cardColor,
-    Color textColor,
-    Color secondaryColor,
-    bool isDark,
-  ) {
-    if (items.isEmpty) {
-      return Center(
-        child: Text(
-          'No transactions found.',
-          style: TextStyle(color: secondaryColor),
-        ),
-      );
-    }
-
+  Widget _buildLedgerList(List<Map<String, dynamic>> items, Color cardColor, Color textColor, Color secondaryColor, bool isDark) {
+    if (items.isEmpty) return Center(child: Text('No transactions found.', style: TextStyle(color: secondaryColor)));
     return ListView.builder(
-      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final tx = items[index];
-
-        return InkWell(
-          onTap: () {
-            // Reusing the dialog interface internally for quick review directly from ledger
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AccountStatementScreen(
-                  initialTransactions: _unifiedLedger,
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(14)),
+          child: Row(
+            children: [
+              Icon(tx['icon'], color: tx['iconColor'], size: 20),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tx['title'], style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(tx['subtitle'], style: TextStyle(color: secondaryColor, fontSize: 11)),
+                    Text(_formatDateTime(tx['date']), style: TextStyle(color: Colors.grey[500], fontSize: 9)),
+                  ],
                 ),
               ),
-            );
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.withOpacity(isDark ? 0.05 : 0.1)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.black38 : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(tx['icon'], color: tx['iconColor'], size: 20),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tx['title'],
-                        style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tx['subtitle'],
-                        style: TextStyle(color: secondaryColor, fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatDateTime(tx['date']),
-                        style: TextStyle(color: Colors.grey[500], fontSize: 9),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  tx['amount'],
-                  style: TextStyle(
-                    color: tx['isIncome'] ? brandAccentColor : brandRedColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
-            ),
+              Text(tx['amount'], style: TextStyle(color: tx['isIncome'] ? brandAccentColor : brandRedColor, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+            ],
           ),
         );
       },

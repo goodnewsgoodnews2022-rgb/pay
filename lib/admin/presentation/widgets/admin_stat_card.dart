@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/widgets/admin_stats_card.dart
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 

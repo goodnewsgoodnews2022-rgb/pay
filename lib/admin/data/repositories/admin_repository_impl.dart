@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:fintech/admin/domain/entities/admin_dashboard_stat.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/admin_user.dart';
@@ -21,6 +23,8 @@ class AdminRepositoryImpl implements AdminRepository {
         totalWithdrawals:
             (response['total_withdrawals'] as num?)?.toDouble() ?? 0,
         totalTransactions: response['total_transactions'] ?? 0,
+        activeUsers: response['active_users'] ?? 0,
+        suspendedUsers: response['suspended_users'] ?? 0,
       );
     } catch (e) {
       print('❌ getDashboardStats error: $e');

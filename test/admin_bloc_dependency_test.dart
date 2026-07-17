@@ -19,10 +19,14 @@ class _FakeAdminRepository implements AdminRepository {
 
   @override
   Future<AdminDashboardStats> getDashboardStats() async =>
-      AdminDashboardStats(
+      const AdminDashboardStats(
         totalUsers: 0,
         activeUsers: 0,
         suspendedUsers: 0,
+        pendingKyc: 0,
+        totalDeposits: 0,
+        totalWithdrawals: 0,
+        totalTransactions: 0,
       );
 
   @override
@@ -33,7 +37,16 @@ class _FakeAdminRepository implements AdminRepository {
 
   @override
   Future<AdminUser> getUserDetails(String userId) async =>
-      AdminUser(id: userId, email: '', createdAt: DateTime.now());
+      AdminUser(
+        id: userId,
+        email: '',
+        kycStatus: '',
+        isAdmin: false,
+        isSuspended: false,
+        createdAt: DateTime.now(),
+        totalDeposits: 0,
+        totalWithdrawals: 0,
+      );
 
   @override
   Future<List<AdminTransaction>> getTransactions({

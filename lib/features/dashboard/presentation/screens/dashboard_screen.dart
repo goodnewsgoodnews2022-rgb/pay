@@ -5,6 +5,7 @@ import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; 
 
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_swap_screen.dart';
@@ -243,7 +244,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ],
                                     ),
                                     GestureDetector(
-                                      onTap: () => widget.onNavigateToSubScreen(const AddMoneyScreen()),
+                                     onTap: () => widget.onNavigateToSubScreen(const AddMoneyScreen()),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                         decoration: BoxDecoration(
@@ -256,12 +257,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             Icon(Icons.add, color: Colors.white, size: 16),
                                             SizedBox(width: 4),
                                             Text('Add Money', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                            
                                           ],
                                         ),
+                                        
                                       ),
                                     ),
                                   ],
                                 ),
+                                // (Add Money button is the GestureDetector above)
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
