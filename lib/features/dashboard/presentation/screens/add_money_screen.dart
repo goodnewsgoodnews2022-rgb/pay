@@ -1,21 +1,13 @@
-// ignore_for_file: unused_local_variable, unused_element, unused_import, duplicate_import, use_build_context_synchronously, curly_braces_in_flow_control_structures
-import 'dart:async';
+// ignore_for_file: unnecessary_nullable_for_final_variable_declarations, use_build_context_synchronously
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:fintech/app/config/environment.dart';
-import 'package:flutterwave_standard/core/flutterwave.dart';
-import 'package:flutterwave_standard/models/requests/customer.dart';
-import 'package:flutterwave_standard/models/requests/customizations.dart';
-import 'package:flutterwave_standard/models/responses/charge_response.dart';
+import 'package:flutterwave_standard/flutterwave.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'dart:convert';
-import 'package:flutterwave_standard/models/requests/customizations.dart';
+import 'package:fintech/app/config/environment.dart';
 
 class AddMoneyScreen extends StatefulWidget {
-  const AddMoneyScreen({super.key});
+  final String userIdentifier;
+  const AddMoneyScreen({super.key, required this.userIdentifier});
 
   @override
   State<AddMoneyScreen> createState() => _AddMoneyScreenState();
@@ -23,281 +15,341 @@ class AddMoneyScreen extends StatefulWidget {
 
 class _AddMoneyScreenState extends State<AddMoneyScreen> {
   final TextEditingController _amountController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isProcessing = false;
+  final List<double> _quickAmounts = [1000, 2500, 5000, 10000, 25000, 50000];
 
-  bool _isLoading = false;
-  RealtimeChannel? _depositSubscription;
+  void _handlePayment() async {
+    final amountText = _amountController.text.trim();
+    if (amountText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a valid amount"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final double? amount = double.tryParse(amountText);
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter an amount greater than 0"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    String? transactionId;
+    bool isPaymentSuccessful = false;
+
+    // --- SECTION 1: DATABASE & PAYMENT API CALLS ---
+    try {
+      // 1. Create Pending Transaction in Supabase
+      final response = await Supabase.instance.client
+          .from('transactions')
+          .insert({
+            'user_identifier': widget.userIdentifier,
+            'amount': amount,
+            'type': 'deposit',
+            'status': 'pending',
+          })
+          .select()
+          .single();
+
+      transactionId = response['id'] as String;
+
+      // 2. Initialize Flutterwave
+      final Customer customer = Customer(
+        name: "Test User",
+        phoneNumber: "08012345678",
+        email: "user@example.com",
+      );
+
+      final Flutterwave flutterwave = Flutterwave(
+        publicKey: Environment.flutterwavePublicKey,
+        currency: "NGN",
+        redirectUrl: Environment.flutterwaveRedirectUrl,
+        txRef: transactionId,
+        amount: amount.toStringAsFixed(2),
+        customer: customer,
+        paymentOptions: "card, banktransfer, ussd",
+        isTestMode: true,
+        customization: Customization(
+          title: "Fund Wallet",
+          description: "Fund wallet balance with NGN $amountText",
+        ),
+      );
+
+      // 3. Trigger charge
+      final ChargeResponse? chargeResponse = await flutterwave.charge(context);
+
+      // 4. Handle Response - Backend Data Only
+      if (chargeResponse != null &&
+          (chargeResponse.success == true ||
+              chargeResponse.status == "successful")) {
+        
+        // 🚨 Lock in the success state so the catch block cannot revert it
+        isPaymentSuccessful = true;
+
+        // Update Transaction Status to Success
+        await Supabase.instance.client
+            .from('transactions')
+            .update({'status': 'success'})
+            .eq('id', transactionId);
+
+        // Update Wallet Balance
+        try {
+          await Supabase.instance.client.rpc(
+            'update_wallet_balance',
+            params: {'user_id': widget.userIdentifier, 'amount_to_add': amount},
+          );
+        } catch (rpcError) {
+          // Fallback direct upsert if RPC fails
+          final balanceRes = await Supabase.instance.client
+              .from('wallet_balances')
+              .select('naira_balance')
+              .eq('user_identifier', widget.userIdentifier)
+              .maybeSingle();
+
+          final double currentBalance = (balanceRes?['naira_balance'] ?? 0.0).toDouble();
+          final double newBalance = currentBalance + amount;
+
+          await Supabase.instance.client.from('wallet_balances').upsert({
+            'user_identifier': widget.userIdentifier,
+            'naira_balance': newBalance,
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        }
+      } else {
+        // User actively cancelled or payment failed
+        await Supabase.instance.client
+            .from('transactions')
+            .update({'status': 'canceled'})
+            .eq('id', transactionId);
+      }
+    } catch (e) {
+      // 🚨 CRITICAL FIX: Only revert to 'canceled' if the payment wasn't ALREADY marked successful
+      if (transactionId != null && !isPaymentSuccessful) {
+        try {
+          await Supabase.instance.client
+              .from('transactions')
+              .update({'status': 'canceled'})
+              .eq('id', transactionId);
+        } catch (_) {}
+      }
+    }
+
+    // --- SECTION 2: UI ROUTING OUTSIDE THE TRY/CATCH ---
+    // If a routing error happens here, it will no longer trigger the database catch block.
+    
+    if (!mounted) return;
+
+    setState(() => _isProcessing = false);
+
+    if (isPaymentSuccessful) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("₦${amount.toStringAsFixed(2)} added successfully!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true); // Return true to trigger refresh
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Payment was cancelled or failed."),
+          backgroundColor: Colors.amber,
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
     _amountController.dispose();
-    _cleanupSubscription();
     super.dispose();
-  }
-
-  void _cleanupSubscription() {
-    if (_depositSubscription != null) {
-      Supabase.instance.client.removeChannel(_depositSubscription!);
-      _depositSubscription = null;
-    }
-  }
-
-  bool _isSuccessfulFlutterwaveStatus(String? status) {
-    final normalized = (status ?? '').toLowerCase().trim();
-    // Your DB enum allows: pending, completed, failed, successful, success
-    // Accept all successful-ish values.
-    return [
-      'completed',
-      'successful',
-      'success',
-    ].contains(normalized);
-  }
-
-  Future<void> _awaitWebhookConfirmation(String uniqueTxRef) async {
-    _cleanupSubscription();
-
-    final completer = Completer<void>();
-
-    _depositSubscription = Supabase.instance.client
-        .channel('public:deposits:tx_ref=eq.$uniqueTxRef')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'deposits',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'tx_ref',
-            value: uniqueTxRef,
-          ),
-          callback: (payload) {
-            final newRecord = payload.newRecord;
-            final String currentStatus =
-                (newRecord['status'] ?? 'pending').toString();
-
-            if (_isSuccessfulFlutterwaveStatus(currentStatus)) {
-              _cleanupSubscription();
-              if (!mounted) return;
-
-              if (!completer.isCompleted) completer.complete();
-            }
-          },
-        )
-        .subscribe();
-
-    // Safety timeout (so you can see errors in UI)
-    await completer.future.timeout(const Duration(seconds: 90));
-  }
-
-  Future<void> _initiateDepositPipeline() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      if (user == null) throw Exception("User session expired");
-
-      final double inputAmount = double.parse(_amountController.text.trim());
-      final String uniqueTxRef = "TX-${DateTime.now().millisecondsSinceEpoch}";
-      final String userEmail = user.email ?? 'guest@payfintech.com';
-      final String userName = (user.userMetadata?['full_name'] ?? 'Guest User').toString();
-
-      // Insert deposit row first (webhook will update it later)
-      await client.from('deposits').insert({
-        'user_id': user.id,
-        'amount': inputAmount,
-        'tx_ref': uniqueTxRef,
-        'status': 'pending',
-      });
-
-      // Start waiting AFTER inserting
-      await _awaitWebhookConfirmation(uniqueTxRef);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Deposit successful!',),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      context.go('/dashboard');
-
-      // On success we stop loading
-      setState(() => _isLoading = false);
-      return;
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
-
-  Future<void> _initializeWebPayment({
-    required String txRef,
-    required double amount,
-    required String userId,
-    required String customerEmail,
-    required String customerName,
-  }) async {
-    // Calls Edge Function which creates a Flutterwave payment and returns redirect link
-    final client = Supabase.instance.client;
-
-    // ⚠️ Set this to your real redirect URL in Environment/config
-    const String redirectUrl = Environment.flutterwaveRedirectUrl;
-
-    final response = await client.functions.invoke('flw-webhook', body: {
-      'action': 'initialize_payment',
-      'tx_ref': txRef,
-      'amount': amount,
-      'currency': 'NGN',
-      'redirect_url': redirectUrl,
-      'meta': {
-        'user_id': userId,
-      },
-      'customer': {
-        'email': customerEmail,
-        'name': customerName,
-      },
-      'customizations': {
-        'title': 'Wallet Funding',
-      },
-    });
-
-    final data = response.data;
-
-    // Expected structure from your function: { data: { link: "..." } }
-    final link = data?['data']?['link'];
-    if (link == null) throw Exception("Invalid response: missing redirect link");
-
-    await launchUrl(Uri.parse(link.toString()), mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0F0F14),
       appBar: AppBar(
-        title: const Text('Add Money', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Fund Wallet",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: SafeArea(
+      body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("ENTER DEPOSIT AMOUNT (NGN)"),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return "Enter amount";
-                    final amount = double.tryParse(value);
-                    if (amount == null || amount < 100) return "Minimum amount is ₦100";
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    prefixText: "₦ ",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                  ),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header description
+              const Text(
+                "Enter the amount you would like to add to your wallet.",
+                style: TextStyle(color: Colors.grey, fontSize: 15),
+              ),
+              const SizedBox(height: 32),
+
+              // Amount Input Card
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1B1B22),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF2C2C35), width: 1),
                 ),
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : () async {
-                      if (!_formKey.currentState!.validate()) return;
-
-                      // Web flow: you must initialize payment to get the redirect link.
-                      // Mobile flow: Flutterwave SDK will create the payment and redirect/handle checkout.
-                      // Your current UI calls only _initiateDepositPipeline().
-                      // We'll keep the same deposit insert + waiting, but for web we also must initialize.
-
-                      // To keep it simple: call pipeline first (it inserts + waits).
-                      // But you also need a payment initiation before webhook can arrive.
-                      //
-                      // So we do: for web, initialize first, then wait.
-                      // For mobile, use Flutterwave charge and let webhook update deposit.
-                      final client = Supabase.instance.client;
-                      final user = client.auth.currentUser;
-                      if (user == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Session expired")));
-                        return;
-                      }
-
-                      final inputAmount = double.parse(_amountController.text.trim());
-                      final uniqueTxRef = "TX-${DateTime.now().millisecondsSinceEpoch}";
-
-                      // Insert deposit row
-                      setState(() => _isLoading = true);
-                      await client.from('deposits').insert({
-                        'user_id': user.id,
-                        'amount': inputAmount,
-                        'tx_ref': uniqueTxRef,
-                        'status': 'pending',
-                      });
-
-                      // Listen for update
-                      final waitTask = _awaitWebhookConfirmation(uniqueTxRef);
-
-                      if (kIsWeb) {
-                        await _initializeWebPayment(
-                          txRef: uniqueTxRef,
-                          amount: inputAmount,
-                          userId: user.id,
-                          customerEmail: user.email ?? 'guest@payfintech.com',
-                          customerName: (user.userMetadata?['full_name'] ?? 'Guest User').toString(),
-                        );
-                      } else {
-                        final Flutterwave flutterwave = Flutterwave(
-                          publicKey: Environment.flutterwavePublicKey,
-                          currency: "NGN",
-                          redirectUrl: Environment.flutterwaveRedirectUrl,
-                          txRef: uniqueTxRef,
-                          amount: inputAmount.toString(),
-                          customer: Customer(email: user.email ?? 'guest@payfintech.com'),
-                          paymentOptions: "card, banktransfer, ussd",
-                          customization: Customization(title: "Wallet Funding"),
-                          // ⚠️ remove test mode in production
-                          isTestMode: false,
-                        );
-
-                        final ChargeResponse response = await flutterwave.charge(context);
-                        if (response.success != true) {
-                          _cleanupSubscription();
-                          setState(() => _isLoading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Payment failed: ${response.status}')),
-                          );
-                          return;
-                        }
-                      }
-
-                      // Wait webhook update
-                      await waitTask;
-
-                      if (!mounted) return;
-
-                      setState(() => _isLoading = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Deposit successful!'), backgroundColor: Colors.green),
-                      );
-                      context.go('/dashboard');
-                    },
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Proceed to Secure Checkout"),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "AMOUNT",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      enabled: !_isProcessing,
+                      decoration: const InputDecoration(
+                        prefixText: "₦ ",
+                        prefixStyle: TextStyle(
+                          color: Colors.purpleAccent,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        hintText: "0.00",
+                        hintStyle: TextStyle(color: Colors.grey, fontSize: 32),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+
+              // Quick amount selector
+              const Text(
+                "Quick Select",
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 2.2,
+                ),
+                itemCount: _quickAmounts.length,
+                itemBuilder: (context, index) {
+                  final amount = _quickAmounts[index];
+                  return InkWell(
+                    onTap: _isProcessing
+                        ? null
+                        : () {
+                            setState(() {
+                              _amountController.text = amount.toStringAsFixed(0);
+                            });
+                          },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B1B22),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF2B2B35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        "₦${amount.toStringAsFixed(0)}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 48),
+
+              // Action button
+              ElevatedButton(
+                onPressed: _isProcessing ? null : _handlePayment,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purpleAccent.shade400,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.purpleAccent.shade100
+                      .withValues(alpha: 0.3),
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 4,
+                  shadowColor: Colors.purpleAccent.withValues(alpha: 0.3),
+                ),
+                child: _isProcessing
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.lock_outline, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            "Pay Securely with Flutterwave",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ],
           ),
         ),
       ),

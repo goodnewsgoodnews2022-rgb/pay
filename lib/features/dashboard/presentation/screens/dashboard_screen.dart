@@ -244,7 +244,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ],
                                     ),
                                     GestureDetector(
-                                     onTap: () => widget.onNavigateToSubScreen(const AddMoneyScreen()),
+                                      onTap: () => widget.onNavigateToSubScreen(
+                                        AddMoneyScreen(userIdentifier: currentUser?.id ?? _currentUserId ?? ''),
+                                      ),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                         decoration: BoxDecoration(

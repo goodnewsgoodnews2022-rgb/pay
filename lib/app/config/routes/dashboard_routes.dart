@@ -38,7 +38,9 @@ class DashboardRoutes {
             // ====================================================================
             GoRoute(
               path: addMoney, // Maps cleanly to context.push('/dashboard/add-money')
-              builder: (context, state) => const AddMoneyScreen(),
+              builder: (context, state) => AddMoneyScreen(
+                userIdentifier: state.extra is String ? state.extra as String : '',
+              ),
               routes: [
                 GoRoute(
                   path: 'bank-transfer-details',

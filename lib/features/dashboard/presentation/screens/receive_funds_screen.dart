@@ -526,9 +526,24 @@ class _ReceiveFundsScreenState extends State<ReceiveFundsScreen>
               elevation: isDark ? 0 : 2,
             ),
             onPressed: () {
+              final userId = Supabase.instance.client.auth.currentUser?.id;
+              if (userId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Unable to identify signed in user.'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+                return;
+              }
+
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AddMoneyScreen()),
+                MaterialPageRoute(
+                  builder: (context) => AddMoneyScreen(
+                    userIdentifier: userId,
+                  ),
+                ),
               );
             },
             child: const Row(
