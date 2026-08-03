@@ -47,12 +47,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // ignore: unused_field
   bool _isLoadingWallet = true;
 
+  // Add a state variable to hold the live fetched fiat balance directly
+  double _fallbackFiatUsdBalance = 0.0;
+
   @override
   void initState() {
     super.initState();
     _currentUserId = Supabase.instance.client.auth.currentUser?.id;
     _initializeStreams();
     _fetchInitialWalletData();
+    _fetchDirectFiatBalance(); // <-- Add this to fetch direct from wallet_balances
   }
 
   @override
@@ -71,7 +75,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _fetchInitialWalletData() async {
-    if (_currentUserId == null || _currentUserId!.isEmpty) return;
+    if (_currentUserId == null || _currentUserId!.isNotEmpty == false) return;
     try {
       final response = await Supabase.instance.client
           .from('wallets')
@@ -92,6 +96,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } catch (e) {
       debugPrint("❌ Initial Wallet Fetch Error: $e");
       if (mounted) setState(() => _isLoadingWallet = false);
+    }
+  }
+
+  // Direct fetch to guarantee sync with Currency Holdings table structure
+  Future<void> _fetchDirectFiatBalance() async {
+    if (_currentUserId == null || _currentUserId!.isEmpty) return;
+    try {
+      final respAll = await Supabase.instance.client
+          .from('wallet_balances')
+          .select()
+          .eq('user_identifier', _currentUserId!)
+          .maybeSingle();
+
+      if (respAll != null && mounted) {
+        setState(() {
+          _fallbackFiatUsdBalance = (respAll['usd_balance'] ?? (
+            (respAll['naira_balance'] ?? 0.0) / 1500.0
+          )).toDouble();
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Direct Fiat Balance Fetch Error: $e");
     }
   }
 
@@ -153,7 +179,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             String resolvedName = fallbackName;
             String? resolvedAvatarUrl = fallbackAvatarUrl;
-            double profileNairaBalanceFallback = 0.00; 
+            double profileUsdBalanceFallback = 0.00; 
 
             if (profileSnapshot.hasData && profileSnapshot.data!.isNotEmpty && !profileSnapshot.hasError) {
               final row = profileSnapshot.data!.first;
@@ -164,24 +190,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 resolvedName = _getFirstName(dbName);
               }
 
-              profileNairaBalanceFallback = (row['naira_balance'] ?? 0.0).toDouble(); 
+              profileUsdBalanceFallback = (row['usd_balance'] ?? 0.0).toDouble(); 
             }
 
-            // Use immediate robust fallback values initialized from Future query to completely bypass WebSocket timeout blanks
+            // Fallback crypto balance initialization
             double liveCryptoBalance = _fallbackCryptoBalance; 
             double liveCryptoFiatValue = _fallbackCryptoFiatValue; 
             String liveCryptoAddress = _fallbackCryptoAddress;
 
-            // 💸 SAFE RIVERPOD STREAM VALUE EXTRACTION PARSER ENGINE
-            final double actualLiveNaira = walletAsyncValue.when(
-              data: (walletMap) => (walletMap?['ngn_balance'] ?? profileNairaBalanceFallback).toDouble(),
-              loading: () => profileNairaBalanceFallback,
-              error: (_, __) => profileNairaBalanceFallback,
+            // 💸 REALTIME US DOLLAR BALANCE EXTRACTION ENGINE
+            final double actualLiveUsd = walletAsyncValue.when(
+              data: (walletMap) {
+                final val = walletMap?['usd_balance'];
+                if (val != null) return (val).toDouble();
+                return _fallbackFiatUsdBalance > 0 ? _fallbackFiatUsdBalance : profileUsdBalanceFallback;
+              },
+              loading: () => _fallbackFiatUsdBalance > 0 ? _fallbackFiatUsdBalance : profileUsdBalanceFallback,
+              error: (_, __) => _fallbackFiatUsdBalance > 0 ? _fallbackFiatUsdBalance : profileUsdBalanceFallback,
             );
 
-            // Compute dynamic net worth aggregation formulas instantly using exchange rate matrix
-            double convertedNairaToUSD = actualLiveNaira / 1500.0;
-            final double totalNetWorth = convertedNairaToUSD + liveCryptoFiatValue;
+            // Compute net worth using live USD balance from Currency Holdings
+            final double totalNetWorth = actualLiveUsd + liveCryptoFiatValue;
 
             return Scaffold(
               backgroundColor: scaffoldBg,
@@ -290,15 +319,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             Icon(Icons.add, color: Colors.white, size: 16),
                                             SizedBox(width: 4),
                                             Text('Add Money', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                            
                                           ],
                                         ),
-                                        
                                       ),
                                     ),
                                   ],
                                 ),
-                                // (Add Money button is the GestureDetector above)
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
@@ -329,7 +355,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Row(
                             children: [
-                              // CARD 1: FIAT WALLET (Deep Blue Gradient)
+                              // CARD 1: FIAT WALLET (Fetches directly from USD Currency Holdings)
                               _buildDashboardCard(
                                 width: 310,
                                 gradient: const LinearGradient(
@@ -338,14 +364,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
                                 ),
                                 title: "FIAT WALLET",
-                                balance: _isBalanceHidden ? '••••••' : '\$${convertedNairaToUSD.toStringAsFixed(2)}',
-                                subBalance: null, 
-                                footerText: "USD wallet",
+                                balance: _isBalanceHidden ? '••••••' : '\$${actualLiveUsd.toStringAsFixed(2)}',
+                                footerText: "USD Holding",
                                 footerTrailing: "VISA",
                               ),
                               const SizedBox(width: 14),
                               
-                              // CARD 2: WEB3 SMART WALLET (Vibrant Deep Purple Gradient)
+                              // CARD 2: WEB3 SMART WALLET
                               _buildDashboardCard(
                                 width: 310,
                                 gradient: const LinearGradient(
@@ -481,7 +506,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               Text(
                 footerTrailing,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,

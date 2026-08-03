@@ -15,6 +15,7 @@ import 'package:fintech/features/authentication/presentation/screens/forget_pass
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/app_preferences_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/currency_holding_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/ledger_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
@@ -209,6 +210,10 @@ class AppRouter {
             path: appPreferences,
             builder: (context, state) => const AppPreferencesScreen(),
           ),
+          GoRoute(
+  path: '/currency-holding',
+  builder: (context, state) => const CurrencyHoldingScreen(),
+),
           GoRoute(
             path: '/settings/DefaultWalletScreen',
             builder: (context, state) => const DefaultWalletScreen(),
