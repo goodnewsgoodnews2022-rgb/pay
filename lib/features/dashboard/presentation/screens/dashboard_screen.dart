@@ -40,11 +40,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Stream<List<Map<String, dynamic>>>? _profileStream;
   String? _currentUserId;
 
+  // 🛡️ Robust Future-backed state variables to instantly load and prevent 0.00 timeout bugs
+  double _fallbackCryptoBalance = 0.0;
+  double _fallbackCryptoFiatValue = 0.0;
+  String _fallbackCryptoAddress = "0xWeb3...Wallet";
+  // ignore: unused_field
+  bool _isLoadingWallet = true;
+
   @override
   void initState() {
     super.initState();
     _currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    _initializeProfileStream();
+    _initializeStreams();
+    _fetchInitialWalletData();
   }
 
   @override
@@ -53,12 +61,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     super.dispose();
   }
 
-  void _initializeProfileStream() {
+  void _initializeStreams() {
     if (_currentUserId != null && _currentUserId!.isNotEmpty) {
       _profileStream = Supabase.instance.client
           .from('profiles')
           .stream(primaryKey: ['id'])
           .eq('id', _currentUserId!);
+    }
+  }
+
+  Future<void> _fetchInitialWalletData() async {
+    if (_currentUserId == null || _currentUserId!.isEmpty) return;
+    try {
+      final response = await Supabase.instance.client
+          .from('wallets')
+          .select()
+          .eq('user_id', _currentUserId!)
+          .maybeSingle();
+
+      if (response != null && mounted) {
+        setState(() {
+          _fallbackCryptoBalance = (response['crypto_balance'] ?? 0.0).toDouble();
+          _fallbackCryptoFiatValue = _fallbackCryptoBalance;
+          _fallbackCryptoAddress = response['account_or_public_key'] ?? "0xWeb3...Wallet";
+          _isLoadingWallet = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingWallet = false);
+      }
+    } catch (e) {
+      debugPrint("❌ Initial Wallet Fetch Error: $e");
+      if (mounted) setState(() => _isLoadingWallet = false);
     }
   }
 
@@ -115,19 +148,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: _profileStream,
-          builder: (context, snapshot) {
+          builder: (context, profileSnapshot) {
             if (!mounted) return const SizedBox.shrink();
 
             String resolvedName = fallbackName;
             String? resolvedAvatarUrl = fallbackAvatarUrl;
-
             double profileNairaBalanceFallback = 0.00; 
-            double liveCryptoBalance = 0.00; 
-            double liveCryptoFiatValue = 0.00; 
-            String liveCryptoAddress = "0xWeb3...Wallet";
 
-            if (snapshot.hasData && snapshot.data!.isNotEmpty && !snapshot.hasError) {
-              final row = snapshot.data!.first;
+            if (profileSnapshot.hasData && profileSnapshot.data!.isNotEmpty && !profileSnapshot.hasError) {
+              final row = profileSnapshot.data!.first;
               
               resolvedAvatarUrl = row['avatar_url'] ?? row['profile_picture'] ?? resolvedAvatarUrl;
               final String? dbName = row['full_name'];
@@ -136,10 +165,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               }
 
               profileNairaBalanceFallback = (row['naira_balance'] ?? 0.0).toDouble(); 
-              liveCryptoBalance = (row['crypto_balance'] ?? 0.0).toDouble(); 
-              liveCryptoFiatValue = (row['crypto_fiat_value'] ?? 0.0).toDouble(); 
-              liveCryptoAddress = row['crypto_address'] ?? "0xWeb3...Wallet";
             }
+
+            // Use immediate robust fallback values initialized from Future query to completely bypass WebSocket timeout blanks
+            double liveCryptoBalance = _fallbackCryptoBalance; 
+            double liveCryptoFiatValue = _fallbackCryptoFiatValue; 
+            String liveCryptoAddress = _fallbackCryptoAddress;
 
             // 💸 SAFE RIVERPOD STREAM VALUE EXTRACTION PARSER ENGINE
             final double actualLiveNaira = walletAsyncValue.when(

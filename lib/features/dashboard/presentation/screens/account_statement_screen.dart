@@ -28,7 +28,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
   }
 
   Future<void> _fetchTransactions() async {
-    final response = await _supabase.from('fiat_transactions').select().order('created_at', ascending: false);
+    final response = await _supabase.from('transactions').select().order('created_at', ascending: false);
     setState(() => _allTransactions = List<Map<String, dynamic>>.from(response));
   }
 

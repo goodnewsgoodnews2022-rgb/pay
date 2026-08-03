@@ -1,9 +1,12 @@
 // ignore_for_file: unnecessary_nullable_for_final_variable_declarations, use_build_context_synchronously
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutterwave_standard/flutterwave.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fintech/app/config/environment.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AddMoneyScreen extends StatefulWidget {
   final String userIdentifier;
@@ -62,39 +65,59 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
       transactionId = response['id'] as String;
 
-      // 2. Initialize Flutterwave
-      final Customer customer = Customer(
-        name: "Test User",
-        phoneNumber: "08012345678",
-        email: "user@example.com",
-      );
+      // 🌐 2. WEB vs MOBILE PLATFORM SPLIT
+      if (kIsWeb) {
+        final webCheckoutUrl = Uri.parse(
+          "https://checkout.flutterwave.com/v3/hosted/pay?public_key=${Environment.flutterwavePublicKey}&tx_ref=$transactionId&amount=$amount&currency=NGN&customer[email]=user@example.com&customer[name]=Test+User&redirect_url=${Uri.encodeComponent(Environment.flutterwaveRedirectUrl)}",
+        );
 
-      final Flutterwave flutterwave = Flutterwave(
-        publicKey: Environment.flutterwavePublicKey,
-        currency: "NGN",
-        redirectUrl: Environment.flutterwaveRedirectUrl,
-        txRef: transactionId,
-        amount: amount.toStringAsFixed(2),
-        customer: customer,
-        paymentOptions: "card, banktransfer, ussd",
-        isTestMode: true,
-        customization: Customization(
-          title: "Fund Wallet",
-          description: "Fund wallet balance with NGN $amountText",
-        ),
-      );
+        if (await canLaunchUrl(webCheckoutUrl)) {
+          await launchUrl(webCheckoutUrl, mode: LaunchMode.externalApplication);
+          isPaymentSuccessful = true;
+        } else {
+          throw 'Could not launch web checkout';
+        }
+      } else {
+        // 2. Initialize Flutterwave for Mobile
+        final Customer customer = Customer(
+          name: "Test User",
+          phoneNumber: "08012345678",
+          email: "user@example.com",
+        );
 
-      // 3. Trigger charge
-      final ChargeResponse? chargeResponse = await flutterwave.charge(context);
+        final Flutterwave flutterwave = Flutterwave(
+          publicKey: Environment.flutterwavePublicKey,
+          currency: "NGN",
+          redirectUrl: Environment.flutterwaveRedirectUrl,
+          txRef: transactionId,
+          amount: amount.toStringAsFixed(2),
+          customer: customer,
+          paymentOptions: "card, banktransfer, ussd",
+          isTestMode: true,
+          customization: Customization(
+            title: "Fund Wallet",
+            description: "Fund wallet balance with NGN $amountText",
+          ),
+        );
 
-      // 4. Handle Response - Backend Data Only
-      if (chargeResponse != null &&
-          (chargeResponse.success == true ||
-              chargeResponse.status == "successful")) {
-        
-        // 🚨 Lock in the success state so the catch block cannot revert it
-        isPaymentSuccessful = true;
+        // 3. Trigger charge
+        final ChargeResponse? chargeResponse = await flutterwave.charge(context);
 
+        // 4. Handle Response - Backend Data Only
+        if (chargeResponse != null &&
+            (chargeResponse.success == true ||
+                chargeResponse.status == "successful")) {
+          isPaymentSuccessful = true;
+        } else {
+          await Supabase.instance.client
+              .from('transactions')
+              .update({'status': 'canceled'})
+              .eq('id', transactionId);
+        }
+      }
+
+      // If successful (common for web launch or mobile charge response)
+      if (isPaymentSuccessful) {
         // Update Transaction Status to Success
         await Supabase.instance.client
             .from('transactions')
@@ -124,12 +147,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             'updated_at': DateTime.now().toIso8601String(),
           });
         }
-      } else {
-        // User actively cancelled or payment failed
-        await Supabase.instance.client
-            .from('transactions')
-            .update({'status': 'canceled'})
-            .eq('id', transactionId);
       }
     } catch (e) {
       // 🚨 CRITICAL FIX: Only revert to 'canceled' if the payment wasn't ALREADY marked successful
@@ -144,8 +161,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     }
 
     // --- SECTION 2: UI ROUTING OUTSIDE THE TRY/CATCH ---
-    // If a routing error happens here, it will no longer trigger the database catch block.
-    
     if (!mounted) return;
 
     setState(() => _isProcessing = false);
@@ -157,7 +172,13 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context, true); // Return true to trigger refresh
+      
+      // Use GoRouter's context.pop() safely on the next frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.pop(true);
+        }
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -187,7 +208,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SingleChildScrollView(
