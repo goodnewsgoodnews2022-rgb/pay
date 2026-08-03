@@ -10,23 +10,23 @@ void main() async {
   );
 
   try {
-    print('Testing query on deposits table...');
-    final res = await client.from('deposits').select().limit(5);
-    print('Deposits table query success:');
+    print('Testing query on transactions table...');
+    final res = await client.from('transactions').select().limit(5);
+    print('Transactions table query success:');
     print(res);
   } catch (e) {
-    print('Error querying deposits: $e');
+    print('Error querying transactions: $e');
   }
 
   try {
-    print('Testing RPC increment_balance...');
-    // We try to call the increment_balance with dummy values to see if it exists (it might fail due to permissions or validation, but it will tell us if it exists)
-    final rpcRes = await client.rpc('increment_balance', params: {
-      'p_user_id': '00000000-0000-0000-0000-000000000000',
-      'p_amount': 0.0,
+    print('Testing RPC update_wallet_balance...');
+    final rpcRes = await client.rpc('update_wallet_balance', params: {
+      'user_id': '00000000-0000-0000-0000-000000000000',
+      'amount_to_add': 0.0,
     });
-    print('RPC increment_balance success: $rpcRes');
+    print('RPC update_wallet_balance success: $rpcRes');
   } catch (e) {
     print('Error calling RPC: $e');
   }
 }
+

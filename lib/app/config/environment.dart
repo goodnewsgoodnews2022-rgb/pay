@@ -31,7 +31,7 @@ class Environment {
 
   static const String flutterwaveRedirectUrl = String.fromEnvironment(
     'FLUTTERWAVE_REDIRECT_URL',
-    defaultValue: 'https://flutterwave.com',
+    defaultValue: 'https://gisrbsjzzdtmvjsdnyym.supabase.co',
   );
 
   static const String nowPaymentsApiKey = String.fromEnvironment(

@@ -6,7 +6,10 @@ import 'package:flutterwave_standard/flutterwave.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fintech/app/config/environment.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+// Conditionally route web payment logic so mobile builds never touch js libraries
+import 'add_money_stub.dart'
+    if (dart.library.js_interop) 'add_money_web.dart';
 
 class AddMoneyScreen extends StatefulWidget {
   final String userIdentifier;
@@ -67,16 +70,18 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
       // 🌐 2. WEB vs MOBILE PLATFORM SPLIT
       if (kIsWeb) {
-        final webCheckoutUrl = Uri.parse(
-          "https://checkout.flutterwave.com/v3/hosted/pay?public_key=${Environment.flutterwavePublicKey}&tx_ref=$transactionId&amount=$amount&currency=NGN&customer[email]=user@example.com&customer[name]=Test+User&redirect_url=${Uri.encodeComponent(Environment.flutterwaveRedirectUrl)}",
+        handleWebPayment(
+          context: context,
+          publicKey: Environment.flutterwavePublicKey,
+          transactionId: transactionId,
+          amount: amount,
+          amountText: amountText,
+          userIdentifier: widget.userIdentifier,
+          onProcessingChanged: (processing) {
+            if (mounted) setState(() => _isProcessing = processing);
+          },
         );
-
-        if (await canLaunchUrl(webCheckoutUrl)) {
-          await launchUrl(webCheckoutUrl, mode: LaunchMode.externalApplication);
-          isPaymentSuccessful = true;
-        } else {
-          throw 'Could not launch web checkout';
-        }
+        return;
       } else {
         // 2. Initialize Flutterwave for Mobile
         final Customer customer = Customer(
@@ -116,7 +121,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         }
       }
 
-      // If successful (common for web launch or mobile charge response)
+      // If successful (Mobile flow charge response)
       if (isPaymentSuccessful) {
         // Update Transaction Status to Success
         await Supabase.instance.client
@@ -131,7 +136,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             params: {'user_id': widget.userIdentifier, 'amount_to_add': amount},
           );
         } catch (rpcError) {
-          // Fallback direct upsert if RPC fails
           final balanceRes = await Supabase.instance.client
               .from('wallet_balances')
               .select('naira_balance')
@@ -149,8 +153,8 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         }
       }
     } catch (e) {
-      // 🚨 CRITICAL FIX: Only revert to 'canceled' if the payment wasn't ALREADY marked successful
-      if (transactionId != null && !isPaymentSuccessful) {
+      debugPrint("Error in mobile payment process: $e");
+      if (transactionId != null && !isPaymentSuccessful && !kIsWeb) {
         try {
           await Supabase.instance.client
               .from('transactions')
@@ -160,8 +164,8 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
       }
     }
 
-    // --- SECTION 2: UI ROUTING OUTSIDE THE TRY/CATCH ---
-    if (!mounted) return;
+    // --- SECTION 2: UI ROUTING OUTSIDE THE TRY/CATCH (Mobile Only) ---
+    if (!mounted || kIsWeb) return;
 
     setState(() => _isProcessing = false);
 
@@ -173,10 +177,13 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         ),
       );
       
-      // Use GoRouter's context.pop() safely on the next frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          context.pop(true);
+          if (context.canPop()) {
+            context.pop(true);
+          } else {
+            context.go('/dashboard');
+          }
         }
       });
     } else {
