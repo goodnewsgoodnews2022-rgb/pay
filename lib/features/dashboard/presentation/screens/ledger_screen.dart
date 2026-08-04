@@ -36,7 +36,7 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
     try {
       // Corrected to 'fiat_transactions' based on your console error
       final data = await Supabase.instance.client
-          .from('fiat_transactions')
+          .from('transactions')
           .select()
           .order('created_at', ascending: false);
 

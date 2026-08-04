@@ -510,7 +510,7 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
               .eq('user_id', userId);
 
           // FIXED: Changed from public.transactions to public.fiat_transactions matching your database schema
-          await client.from('fiat_transactions').insert({
+          await client.from('transactions').insert({
             'user_id': userId,
             'type': 'crypto withdrawal out',
             'amount': _inputAmount,
@@ -570,7 +570,7 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
           .eq('user_id', userId);
 
       // FIXED: Changed from public.transactions to public.fiat_transactions matching your database schema
-      await client.from('fiat_transactions').insert({
+      await client.from('transactions').insert({
         'user_id': userId,
         'type': 'crypto withdrawal out',
         'amount': _inputAmount,

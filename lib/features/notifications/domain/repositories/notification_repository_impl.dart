@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:fintech/features/notifications/data/model/notification_model.dart';
 import 'package:fintech/features/notifications/domain/entities/notification_entities.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

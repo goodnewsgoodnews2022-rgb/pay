@@ -6,20 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 // ✅ MAIN ACCESS & PROVIDER IMPORTS
 import 'package:fintech/main.dart';
 import 'package:fintech/features/dashboard/providers/wallet_provider.dart';
-
-// ============================================
-// 🔐 SECURE API KEY CONFIGURATION
-// ============================================
-class FlutterwaveConfig {
-  static const String secretKey = 'FLWSECK_TEST-07e819a991ccfe75ddac4a9fbb8a75d3-X';
-  static const String baseUrl = 'https://api.flutterwave.com/v3';
-}
 
 class AppPreferencesScreen extends ConsumerStatefulWidget {
   const AppPreferencesScreen({super.key});
@@ -29,186 +19,6 @@ class AppPreferencesScreen extends ConsumerStatefulWidget {
 }
 
 class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
-  // ============================================
-  // 🏦 BALANCE STATE VARIABLES
-  // ============================================
-  double _ngnBalance = 0.0;
-  bool _isLoadingBalances = false;
-  String? _lastError;
-
-  static const String _ngnWalletId = 'YOUR_NGN_WALLET_ID';
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchAllBalances();
-  }
-
-  // ============================================
-  // 🔄 FETCH ALL BALANCES FROM FLUTTERWAVE & SUPABASE
-  // ============================================
-  Future<void> _fetchAllBalances() async {
-    if (_isLoadingBalances) return;
-
-    setState(() {
-      _isLoadingBalances = true;
-      _lastError = null;
-    });
-
-    try {
-      final flutterwaveBalance = await _fetchFlutterwaveBalance();
-      final supabaseData = await _fetchSupabaseWallet();
-      await _syncBalances(flutterwaveBalance, supabaseData);
-
-      if (mounted) {
-        setState(() {
-          _ngnBalance = flutterwaveBalance;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _lastError = 'Failed to fetch balances: $e';
-        });
-      }
-      debugPrint('Error fetching balances: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingBalances = false;
-        });
-      }
-    }
-  }
-
-  // ============================================
-  // 🌐 FETCH FLUTTERWAVE BALANCE (NGN ONLY)
-  // ============================================
-  Future<double> _fetchFlutterwaveBalance() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${FlutterwaveConfig.baseUrl}/wallet-balances'),
-        headers: {
-          'Authorization': 'Bearer ${FlutterwaveConfig.secretKey}',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
-          final walletData = data['data'] as List;
-
-          for (var wallet in walletData) {
-            final currency = wallet['currency'] ?? '';
-            if (currency == 'NGN') {
-              final balance = (wallet['balance'] ?? 0.0).toDouble();
-              final availableBalance = (wallet['available_balance'] ?? balance).toDouble();
-              return availableBalance;
-            }
-          }
-        }
-      } else {
-        debugPrint('Flutterwave API error: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to fetch Flutterwave balance');
-      }
-    } catch (e) {
-      debugPrint('Error fetching Flutterwave balance: $e');
-      rethrow;
-    }
-    return 0.0;
-  }
-
-  // ============================================
-  // 📊 FETCH SUPABASE WALLET DATA
-  // ============================================
-  Future<Map<String, dynamic>?> _fetchSupabaseWallet() async {
-    try {
-      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (currentUserId == null) return null;
-
-      final response = await Supabase.instance.client
-          .from('fiat_wallets')
-          .select()
-          .eq('user_id', currentUserId)
-          .maybeSingle();
-
-      return response;
-    } catch (e) {
-      debugPrint('Error fetching Supabase wallet: $e');
-      return null;
-    }
-  }
-
-  // ============================================
-  /// 🔄 SYNC BALANCES TO SUPABASE
-  // ============================================
-  Future<void> _syncBalances(double flutterwaveBalance, Map<String, dynamic>? supabaseData) async {
-    try {
-      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (currentUserId == null) return;
-
-      final Map<String, dynamic> updateData = {
-        'user_id': currentUserId,
-        'ngn_balance': flutterwaveBalance,
-        'last_synced_at': DateTime.now().toIso8601String(),
-      };
-
-      if (supabaseData != null) {
-        await Supabase.instance.client
-            .from('fiat_wallets')
-            .update(updateData)
-            .eq('user_id', currentUserId);
-      } else {
-        await Supabase.instance.client.from('fiat_wallets').insert(updateData);
-      }
-
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'naira_balance': flutterwaveBalance})
-          .eq('id', currentUserId);
-
-      await _createBalanceAuditLog(flutterwaveBalance);
-    } catch (e) {
-      debugPrint('Error syncing balances to Supabase: $e');
-      rethrow;
-    }
-  }
-
-  // ============================================
-  // 📝 CREATE AUDIT LOG
-  // ============================================
-  Future<void> _createBalanceAuditLog(double ngnBalance) async {
-    try {
-      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (currentUserId == null) return;
-
-      await Supabase.instance.client.from('balance_audit_logs').insert({
-        'user_id': currentUserId,
-        'ngn_balance': ngnBalance,
-        'synced_at': DateTime.now().toIso8601String(),
-        'source': 'flutterwave_sync',
-      });
-    } catch (e) {
-      debugPrint('Error creating audit log: $e');
-    }
-  }
-
-  // ============================================
-  // 🔄 MANUAL REFRESH
-  // ============================================
-  Future<void> _manualRefresh() async {
-    await _fetchAllBalances();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Balance refreshed successfully'),
-          backgroundColor: Color(0xFF10B981),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentThemeMode = ref.watch(themeStateProvider);
@@ -217,8 +27,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     const headerTextColor = Color(0xFF6E7A8A);
     final tileBackground = isDarkPalette ? const Color(0xFF111622) : Colors.grey[200];
     final fallbackTitleColor = isDarkPalette ? Colors.white : Colors.black87;
-
-    final walletAsyncValue = ref.watch(fiatWalletStreamProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -248,15 +56,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isLoadingBalances ? Icons.sync : Icons.refresh_rounded,
-              color: isDarkPalette ? Colors.white : Colors.black87,
-            ),
-            onPressed: _isLoadingBalances ? null : _manualRefresh,
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -268,93 +67,11 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             title: 'Language',
             onTap: () => context.push('/language'),
           ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: tileBackground,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _isLoadingBalances
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFF10B981),
-                          ),
-                        )
-                      : const Icon(
-                          Icons.monetization_on_outlined,
-                          color: Color(0xFF10B981),
-                          size: 20,
-                        ),
-                ),
-                title: Text(
-                  'Currency Holdings Pool',
-                  style: TextStyle(
-                    color: fallbackTitleColor,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_lastError != null || walletAsyncValue.hasError)
-                      Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: isDarkPalette ? Colors.grey[400] : Colors.grey[600],
-                    ),
-                  ],
-                ),
-                children: [
-                  walletAsyncValue.when(
-                    data: (walletData) {
-                      final double displayedNgn = (walletData?['ngn_balance'] ?? _ngnBalance).toDouble();
-                      return _buildSubCurrencyRow(
-                        context,
-                        label: 'Nigerian Naira (NGN)',
-                        value: '₦${displayedNgn.toStringAsFixed(2)}',
-                        icon: '🇳🇬',
-                      );
-                    },
-                    loading: () => _buildSubCurrencyRow(
-                      context,
-                      label: 'Nigerian Naira (NGN)',
-                      value: '₦${_ngnBalance.toStringAsFixed(2)}',
-                      icon: '🇳🇬',
-                    ),
-                    error: (err, stack) => _buildSubCurrencyRow(
-                      context,
-                      label: 'Nigerian Naira (NGN) [Error]',
-                      value: '₦${_ngnBalance.toStringAsFixed(2)}',
-                      icon: '🇳🇬',
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 52.0, top: 8.0, bottom: 4.0, right: 4.0),
-                    child: Text(
-                      'Last updated: ${DateTime.now().toLocal().toString().split('.').first}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDarkPalette ? Colors.grey[500] : Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _buildMenuTile(
+            context,
+            icon: Icons.monetization_on_outlined,
+            title: 'Currency Holdings Pool',
+            onTap: () => context.push('/currency-holding'), // ✅ Navigates to main currency holding page
           ),
           const SizedBox(height: 16),
 
@@ -466,7 +183,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
-    widget,
     Widget? trailing,
     Color iconColor = const Color(0xFF10B981),
     Color? titleColor,
@@ -497,51 +213,6 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
           ),
         ),
         trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF374151), size: 13),
-      ),
-    );
-  }
-
-  Widget _buildSubCurrencyRow(BuildContext context, {required String label, required String value, String icon = ''}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.only(left: 52.0, top: 4.0, bottom: 4.0, right: 4.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0D111A) : Colors.grey[50],
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isDark ? const Color(0xFF1A202E) : Colors.grey[200]!),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                if (icon.isNotEmpty) ...[
-                  Text(icon, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: isDark ? Colors.grey[300] : Colors.grey[700],
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -59,7 +59,7 @@ class FiatRepositoryImpl implements FiatRepository {
     int limit = 50,
   }) async {
     final response = await _supabase
-        .from('fiat_transactions')
+        .from('transactions')
         .select()
         .eq('wallet_id', walletId)
         .order('created_at', ascending: false)
