@@ -32,25 +32,26 @@ class _SplashScreenState extends State<SplashScreen> {
           context.go('/login');
         }
       },
-      child: const Scaffold(
-        backgroundColor: Color(0xFF0A0E17),
+      child: Scaffold(
+        backgroundColor: Colors.white,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.shield_rounded,
-                size: 85,
-                color: Color(0xFF00E676),
+              Image.asset(
+                'assets/images/app_logo.png',
+                width: 120,
+                height: 120,
+                fit: BoxFit.contain,
               ),
-              SizedBox(height: 32),
-              SizedBox(
+              const SizedBox(height: 32),
+              const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.white30,
+                    Colors.black26,
                   ),
                 ),
               ),
