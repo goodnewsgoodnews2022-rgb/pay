@@ -34,12 +34,13 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
 
   List<Map<String, dynamic>> _filterTransactions(String? category) {
     return _allTransactions.where((tx) {
-      final date = DateTime.parse(tx['created_at']);
-      final dateStr = DateFormat.yMMMM().format(date).toLowerCase();
+      final dateStr = tx['created_at'] != null 
+          ? DateFormat.yMMMM().format(DateTime.parse(tx['created_at'])).toLowerCase() 
+          : '';
       final query = _searchQuery.toLowerCase();
       
-      final matchesSearch = dateStr.contains(query) || 
-                            tx['reference'].toString().toLowerCase().contains(query);
+      final referenceStr = tx['reference']?.toString().toLowerCase() ?? '';
+      final matchesSearch = dateStr.contains(query) || referenceStr.contains(query);
       
       if (category == null) return matchesSearch;
       return matchesSearch && (tx['category'] ?? 'fiat') == category;
@@ -53,7 +54,6 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
       pw.Page(
         build: (pw.Context context) => pw.Stack(
           children: [
-            // Background Watermark layer
             pw.Center(
               child: pw.Transform.rotate(
                 angle: 0.8,
@@ -67,7 +67,6 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                 ),
               ),
             ),
-            // Content layer
             pw.Column(
               children: [
                 pw.Header(level: 0, child: pw.Text("Account Statement")),
@@ -75,9 +74,9 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                 pw.TableHelper.fromTextArray(
                   headers: ['Type', 'Reference', 'Amount'],
                   data: filteredData.map((t) => [
-                    t['type'].toString().toUpperCase(),
-                    t['reference'].toString(),
-                    t['amount'].toString()
+                    t['type']?.toString().toUpperCase() ?? 'N/A',
+                    t['reference']?.toString() ?? 'N/A',
+                    t['amount']?.toString() ?? '0.00'
                   ]).toList(),
                 ),
               ],
@@ -91,16 +90,37 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Adaptive theme tokens
+    final canvasColor = isDark ? const Color(0xFF0A0A0C) : const Color(0xFFF8FAFC);
+    final surfaceColor = isDark ? const Color(0xFF161618) : Colors.white;
+    final mainTextColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final secondaryTextColor = isDark ? Colors.grey : const Color(0xFF64748B);
+    const accentColor = Colors.purpleAccent;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0C),
+      backgroundColor: canvasColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text("Statement", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        title: Text(
+          "Statement", 
+          style: TextStyle(fontWeight: FontWeight.bold, color: mainTextColor, fontSize: 18),
+        ),
+        iconTheme: IconThemeData(color: mainTextColor),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [Tab(text: 'All'), Tab(text: 'Fiat'), Tab(text: 'Web3')],
+          labelColor: accentColor,
+          unselectedLabelColor: secondaryTextColor,
+          indicatorColor: accentColor,
+          tabs: const [
+            Tab(text: 'All'), 
+            Tab(text: 'Fiat'), 
+            Tab(text: 'Web3'),
+          ],
         ),
       ),
       body: Column(
@@ -109,14 +129,25 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               onChanged: (v) => setState(() => _searchQuery = v),
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: mainTextColor),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: const Color(0xFF161618),
+                fillColor: surfaceColor,
                 hintText: "Search by month (e.g. june 2026)...",
-                hintStyle: const TextStyle(color: Colors.grey),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                hintStyle: TextStyle(color: secondaryTextColor),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12), 
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.transparent : Colors.grey.withValues(alpha: 0.2),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12), 
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.transparent : Colors.grey.withValues(alpha: 0.2),
+                  ),
+                ),
+                prefixIcon: Icon(Icons.search, color: secondaryTextColor),
               ),
             ),
           ),
@@ -124,24 +155,40 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildListView(_filterTransactions(null)),
-                _buildListView(_filterTransactions('fiat')),
-                _buildListView(_filterTransactions('web3')),
+                _buildListView(_filterTransactions(null), isDark, surfaceColor, mainTextColor, secondaryTextColor),
+                _buildListView(_filterTransactions('fiat'), isDark, surfaceColor, mainTextColor, secondaryTextColor),
+                _buildListView(_filterTransactions('web3'), isDark, surfaceColor, mainTextColor, secondaryTextColor),
               ],
             ),
           )
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.purpleAccent,
+        backgroundColor: accentColor,
+        foregroundColor: Colors.white,
         onPressed: () => _exportAndShare(_filterTransactions(null)),
-        label: const Text("Export PDF"),
+        label: const Text("Export PDF", style: TextStyle(fontWeight: FontWeight.bold)),
         icon: const Icon(Icons.picture_as_pdf),
       ),
     );
   }
 
-  Widget _buildListView(List<Map<String, dynamic>> items) {
+  Widget _buildListView(
+    List<Map<String, dynamic>> items, 
+    bool isDark, 
+    Color surfaceColor, 
+    Color mainTextColor, 
+    Color secondaryTextColor,
+  ) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No transactions found',
+          style: TextStyle(color: secondaryTextColor, fontSize: 14),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
@@ -150,17 +197,48 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
         final tx = items[i];
         return Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: const Color(0xFF161618), borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.transparent : Colors.grey.withValues(alpha: 0.15),
+            ),
+            boxShadow: !isDark 
+                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]
+                : [],
+          ),
           child: Row(
             children: [
-              const Icon(Icons.receipt_long, color: Colors.purpleAccent),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.purpleAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.receipt_long_rounded, color: Colors.purpleAccent, size: 24),
+              ),
               const SizedBox(width: 16),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tx['type'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                Text(tx['reference'].toString(), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ]),
-              const Spacer(),
-              Text(tx['amount'].toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, 
+                  children: [
+                    Text(
+                      tx['type']?.toString().toUpperCase() ?? 'TRANSACTION', 
+                      style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tx['reference']?.toString() ?? 'No reference', 
+                      style: TextStyle(color: secondaryTextColor, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                tx['amount']?.toString() ?? '0.00', 
+                style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 15),
+              ),
             ],
           ),
         );

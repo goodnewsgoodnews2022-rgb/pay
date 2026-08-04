@@ -1,47 +1,10 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: unused_local_variable, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class LanguageScreen extends StatefulWidget {
+class LanguageScreen extends StatelessWidget {
   const LanguageScreen({super.key});
-
-  @override
-  State<LanguageScreen> createState() => _LanguageScreenState();
-}
-
-class _LanguageScreenState extends State<LanguageScreen> {
-  // Default selected language code (e.g., 'en' for English)
-  String _selectedLanguageCode = 'en';
-
-  // List of the most popular languages in the world
-  final List<Map<String, String>> _languages = [
-    {'name': 'English', 'nativeName': 'English', 'code': 'en'},
-    {'name': 'Mandarin Chinese', 'nativeName': '中文 (Zhōngwén)', 'code': 'zh'},
-    {'name': 'Spanish', 'nativeName': 'Español', 'code': 'es'},
-    {'name': 'Hindi', 'nativeName': 'हिन्दी', 'code': 'hi'},
-    {'name': 'Arabic', 'nativeName': 'العربية', 'code': 'ar'},
-    {'name': 'French', 'nativeName': 'Français', 'code': 'fr'},
-    {'name': 'Bengali', 'nativeName': 'বাংলা', 'code': 'bn'},
-    {'name': 'Portuguese', 'nativeName': 'Português', 'code': 'pt'},
-    {'name': 'Russian', 'nativeName': 'Русский', 'code': 'ru'},
-    {'name': 'Urdu', 'nativeName': 'اُردُو', 'code': 'ur'},
-    {'name': 'Indonesian', 'nativeName': 'Bahasa Indonesia', 'code': 'id'},
-    {'name': 'German', 'nativeName': 'Deutsch', 'code': 'de'},
-  ];
-
-  void _handleLanguageChange(String languageCode, String languageName) {
-    setState(() {
-      _selectedLanguageCode = languageCode;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('App language changed to $languageName'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,58 +14,88 @@ class _LanguageScreenState extends State<LanguageScreen> {
     // Resolve structural theme tokens relative to adaptive brightness rules
     final mainTextColor = isDarkMode ? Colors.white : const Color(0xFF1E293B);
     final secondaryTextColor = isDarkMode ? Colors.white38 : const Color(0xFF64748B);
-    final unselectedRadioColor = isDarkMode ? Colors.white12 : const Color(0xFFCBD5E1);
-    final listDividerColor = isDarkMode ? Colors.white10 : const Color(0xFFE2E8F0);
+    const accentColor = Color(0xFF10B981);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).cardColor, 
+      backgroundColor: Theme.of(context).cardColor,
       appBar: AppBar(
         title: Text(
-          'Select Language', 
+          'App Language',
           style: TextStyle(
-            fontWeight: FontWeight.bold, 
-            color: mainTextColor, // Dynamic app bar text
+            fontWeight: FontWeight.bold,
+            color: mainTextColor,
+            fontSize: 18,
           ),
         ),
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: mainTextColor), // Dynamic back arrow
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: mainTextColor, size: 20),
           onPressed: () => context.pop(),
         ),
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        itemCount: _languages.length,
-        separatorBuilder: (context, index) => Divider(color: listDividerColor, height: 1),
-        itemBuilder: (context, index) {
-          final lang = _languages[index];
-          final isSelected = _selectedLanguageCode == lang['code'];
+      body: ListView(
+        padding: const EdgeInsets.all(20.0),
+        children: [
+          // Informational fintech style notice
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accentColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.language_rounded, color: accentColor, size: 28),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    'This application currently operates exclusively in English for optimal localization and security standardization.',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[800],
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
 
-          return ListTile(
-            onTap: () => _handleLanguageChange(lang['code']!, lang['name']!),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            title: Text(
-              lang['name']!,
-              style: TextStyle(
-                color: isSelected ? const Color(0xFF10B981) : mainTextColor, // Professional green accent matched with adaptive main text
-                fontSize: 15,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          // Single English Selection Card
+          Card(
+            color: isDarkMode ? const Color(0xFF111622) : Colors.grey[100],
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              title: const Text(
+                'English',
+                style: TextStyle(
+                  color: accentColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'English (Default & Active)',
+                style: TextStyle(
+                  color: accentColor.withOpacity(0.7),
+                  fontSize: 13,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.check_circle_rounded,
+                color: accentColor,
+                size: 22,
               ),
             ),
-            subtitle: Text(
-              lang['nativeName']!,
-              style: TextStyle(
-                color: isSelected ? const Color(0xFF10B981).withOpacity(0.7) : secondaryTextColor, // Dynamic descriptive labels
-                fontSize: 13,
-              ),
-            ),
-            trailing: isSelected
-                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 22)
-                : Icon(Icons.radio_button_unchecked_rounded, color: unselectedRadioColor, size: 22),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

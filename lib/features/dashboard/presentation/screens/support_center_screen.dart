@@ -1,7 +1,16 @@
-// ignore_for_file: deprecated_member_use, prefer_const_constructors, prefer_const_literals_to_create_immutables
+// ignore_for_file: unused_import, deprecated_member_use, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/report_problem_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/security_center_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/transaction_disputes_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/status_announcements_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/support_help_screen.dart';
+
+
 
 class SupportCenterScreen extends StatelessWidget {
   const SupportCenterScreen({super.key});

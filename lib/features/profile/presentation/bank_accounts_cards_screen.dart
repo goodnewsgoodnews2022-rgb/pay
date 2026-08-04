@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, prefer_const_declarations, prefer_const_constructors, use_build_context_synchronously
+// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,46 +20,43 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
 
   bool _isSaving = false;
 
-  // --- Card Form Controllers ---
   final _cardNumberController = TextEditingController();
   final _cardExpiryController = TextEditingController();
   final _cardCvvController = TextEditingController();
   final _cardHolderController = TextEditingController();
 
-  // --- Bank Form Controllers ---
-  String? _selectedBankName;
+  Map<String, String>? _selectedBank;
   final _accountNumberController = TextEditingController();
   final _accountNameController = TextEditingController();
 
-  // Comprehensive static list of popular Nigerian Banks for instant offline access
-  final List<String> _nigerianBanks = [
-    'Access Bank',
-    'Citibank Nigeria',
-    'Ecobank Nigeria',
-    'Fidelity Bank',
-    'First Bank of Nigeria',
-    'First City Monument Bank (FCMB)',
-    'Globus Bank',
-    'Guaranty Trust Bank (GTBank)',
-    'Heritage Bank',
-    'Keystone Bank',
-    'Kuda Bank',
-    'Moniepoint MFB',
-    'Opay',
-    'Palmpay',
-    'Parallex Bank',
-    'PremiumTrust Bank',
-    'Provadus Bank',
-    'Stanbic IBTC Bank',
-    'Standard Chartered Bank',
-    'Sterling Bank',
-    'SunTrust Bank',
-    'Titan Trust Bank',
-    'Union Bank of Nigeria',
-    'United Bank for Africa (UBA)',
-    'Unity Bank',
-    'Wema Bank',
-    'Zenith Bank',
+  final List<Map<String, String>> _nigerianBanks = [
+    {'name': 'Access Bank', 'code': '044'},
+    {'name': 'Citibank Nigeria', 'code': '023'},
+    {'name': 'Ecobank Nigeria', 'code': '050'},
+    {'name': 'Fidelity Bank', 'code': '070'},
+    {'name': 'First Bank of Nigeria', 'code': '011'},
+    {'name': 'First City Monument Bank (FCMB)', 'code': '214'},
+    {'name': 'Globus Bank', 'code': '00103'},
+    {'name': 'Guaranty Trust Bank (GTBank)', 'code': '058'},
+    {'name': 'Heritage Bank', 'code': '030'},
+    {'name': 'Keystone Bank', 'code': '082'},
+    {'name': 'Kuda Bank', 'code': '50211'},
+    {'name': 'Moniepoint MFB', 'code': '50515'},
+    {'name': 'Opay', 'code': '999992'},
+    {'name': 'Palmpay', 'code': '999991'},
+    {'name': 'Parallex Bank', 'code': '104'},
+    {'name': 'PremiumTrust Bank', 'code': '107'},
+    {'name': 'Providus Bank', 'code': '101'},
+    {'name': 'Stanbic IBTC Bank', 'code': '221'},
+    {'name': 'Standard Chartered Bank', 'code': '068'},
+    {'name': 'Sterling Bank', 'code': '232'},
+    {'name': 'SunTrust Bank', 'code': '100'},
+    {'name': 'Titan Trust Bank', 'code': '102'},
+    {'name': 'Union Bank of Nigeria', 'code': '032'},
+    {'name': 'United Bank for Africa (UBA)', 'code': '033'},
+    {'name': 'Unity Bank', 'code': '215'},
+    {'name': 'Wema Bank', 'code': '035'},
+    {'name': 'Zenith Bank', 'code': '057'},
   ];
 
   @override
@@ -80,7 +77,6 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
     super.dispose();
   }
 
-  // --- Manual Card Saving Routine (Deposit Target) ---
   Future<void> _saveCardDetails() async {
     if (!_cardFormKey.currentState!.validate()) return;
 
@@ -93,10 +89,8 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
       final last4Digits = cleanCardNum.substring(cleanCardNum.length - 4);
       final expiryParts = _cardExpiryController.text.split('/');
 
-      // Reset prior defaults for clean profile structure
       await _supabase.from('linked_cards').update({'is_default': false}).eq('user_id', user.id);
 
-      // Save directly to Supabase
       await _supabase.from('linked_cards').insert({
         'user_id': user.id,
         'brand': _determineCardBrand(cleanCardNum),
@@ -107,19 +101,20 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
         'is_default': true,
       });
 
-      _showSnackBar("Card saved successfully for future deposits!", const Color(0xFF10B981));
+      if (!mounted) return;
+      _showSnackBar("Card saved successfully!", const Color(0xFF10B981));
       Navigator.of(context).pop();
     } catch (e) {
-      _showSnackBar("Failed to save card entry: ${e.toString()}", Colors.redAccent);
+      if (!mounted) return;
+      _showSnackBar("Failed to save card: ${e.toString()}", Colors.redAccent);
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  // --- Manual Bank Account Saving Routine (Withdrawal/Deposit Target) ---
   Future<void> _saveBankAccountDetails() async {
-    if (!_bankFormKey.currentState!.validate() || _selectedBankName == null) {
-      _showSnackBar("Please select your bank institution", Colors.orangeAccent);
+    if (!_bankFormKey.currentState!.validate() || _selectedBank == null) {
+      _showSnackBar("Please select your bank", Colors.orangeAccent);
       return;
     }
 
@@ -130,17 +125,20 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
 
       await _supabase.from('linked_banks').insert({
         'user_id': user.id,
-        'bank_name': _selectedBankName,
+        'bank_name': _selectedBank!['name'],
+        'bank_code': _selectedBank!['code'],
         'account_number': _accountNumberController.text.trim(),
         'account_name': _accountNameController.text.trim(),
       });
 
-      _showSnackBar("Bank Account saved successfully for payments!", const Color(0xFF10B981));
+      if (!mounted) return;
+      _showSnackBar("Bank Account saved successfully!", const Color(0xFF10B981));
       Navigator.of(context).pop();
     } catch (e) {
-      _showSnackBar("Failed to link your account details", Colors.redAccent);
+      if (!mounted) return;
+      _showSnackBar("Failed to link account: ${e.toString()}", Colors.redAccent); 
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -171,8 +169,7 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
     final formFieldBg = isDarkMode ? const Color(0xFF131520) : Colors.white;
     final hintColor = isDarkMode ? Colors.grey[600] : Colors.grey[400];
     final inputBorderColor = isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
-    
-    final brandPrimaryColor = const Color(0xFF3B82F6); 
+    const brandPrimaryColor = Color(0xFF3B82F6); 
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -215,7 +212,6 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
     );
   }
 
-  // --- Add Card UI Tab Layout ---
   Widget _buildCardForm(Color fieldBg, Color borderColors, Color mainText, Color? hintColor, Color actionBtnColor) {
     return Form(
       key: _cardFormKey,
@@ -235,7 +231,6 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
             validator: (val) => val == null || val.trim().isEmpty ? "Enter full name listed on card" : null,
           ),
           const SizedBox(height: 20),
-
           Text("Card Number", style: TextStyle(color: mainText, fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _customTextField(
@@ -252,7 +247,6 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
             },
           ),
           const SizedBox(height: 20),
-
           Row(
             children: [
               Expanded(
@@ -282,7 +276,7 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("CVV Secure Code", style: TextStyle(color: mainText, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text("CVV", style: TextStyle(color: mainText, fontSize: 13, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
                     _customTextField(
                       controller: _cardCvvController,
@@ -301,7 +295,6 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
             ],
           ),
           const SizedBox(height: 50),
-
           ElevatedButton(
             onPressed: _saveCardDetails,
             style: ElevatedButton.styleFrom(
@@ -310,14 +303,13 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               elevation: 0,
             ),
-            child: const Text("Save Secure Card Assets", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            child: const Text("Save Card", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // --- Add Bank Account UI Tab Layout ---
   Widget _buildBankForm(Color fieldBg, Color borderColors, Color mainText, Color? hintColor, Color actionBtnColor) {
     return Form(
       key: _bankFormKey,
@@ -334,24 +326,23 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: borderColors)
             ),
-            child: DropdownButtonFormField<String>(
-              value: _selectedBankName,
-              hint: Text("Choose Bank Profile", style: TextStyle(color: hintColor, fontSize: 14)),
+            child: DropdownButtonFormField<Map<String, String>>(
+              value: _selectedBank,
+              hint: Text("Choose Bank", style: TextStyle(color: hintColor, fontSize: 14)),
               decoration: const InputDecoration(border: InputBorder.none),
               dropdownColor: fieldBg,
               style: TextStyle(color: mainText, fontSize: 14, fontWeight: FontWeight.w500),
               icon: Icon(Icons.keyboard_arrow_down_rounded, color: mainText.withOpacity(0.6)),
-              items: _nigerianBanks.map((bankName) {
-                return DropdownMenuItem<String>(
-                  value: bankName,
-                  child: Text(bankName),
+              items: _nigerianBanks.map((bank) {
+                return DropdownMenuItem<Map<String, String>>(
+                  value: bank,
+                  child: Text(bank['name']!),
                 );
               }).toList(),
-              onChanged: (val) => setState(() => _selectedBankName = val),
+              onChanged: (val) => setState(() => _selectedBank = val),
             ),
           ),
           const SizedBox(height: 20),
-
           Text("Account Number", style: TextStyle(color: mainText, fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _customTextField(
@@ -365,20 +356,18 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
             validator: (val) => val == null || val.trim().length != 10 ? "Account number must be exactly 10 digits" : null,
           ),
           const SizedBox(height: 20),
-
           Text("Account Holder Name", style: TextStyle(color: mainText, fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _customTextField(
             controller: _accountNameController,
-            hint: "Enter matching beneficiary legal name",
+            hint: "Enter matching account name",
             fieldBg: fieldBg,
             borderColor: borderColors,
             mainTextColor: mainText,
             hintColor: hintColor,
-            validator: (val) => val == null || val.trim().isEmpty ? "Account name signature is required" : null,
+            validator: (val) => val == null || val.trim().isEmpty ? "Account name is required" : null,
           ),
           const SizedBox(height: 50),
-
           ElevatedButton(
             onPressed: _saveBankAccountDetails,
             style: ElevatedButton.styleFrom(
@@ -387,14 +376,13 @@ class _AddBankCardAccountScreenState extends ConsumerState<AddBankCardAccountScr
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               elevation: 0,
             ),
-            child: const Text("Save Bank Details Node", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            child: const Text("Save Bank Details", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // Common Reusable Premium Input Field Node
   Widget _customTextField({
     required TextEditingController controller,
     required String hint,

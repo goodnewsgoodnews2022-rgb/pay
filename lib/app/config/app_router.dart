@@ -15,13 +15,23 @@ import 'package:fintech/features/authentication/presentation/screens/forget_pass
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_wallet_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/analysis_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/app_preferences_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/contact_support_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/currency_holding_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/faqs_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/language_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/ledger_screen.dart';
 import 'package:fintech/features/dashboard/presentation/screens/more_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/report_problem_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/security_center_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/status_announcements_screen.dart';
+import 'package:fintech/features/dashboard/presentation/screens/transaction_disputes_screen.dart';
 import 'package:fintech/features/profile/presentation/default_wallet_screen.dart';
 import 'package:fintech/features/settings/auto_save_beneficiary.dart';
 import 'package:fintech/features/settings/transaction_limit.dart';
+import 'package:fintech/features/splash/screens/change_password_screen.dart';
+import 'package:fintech/features/splash/screens/change_pin_screen.dart';
+import 'package:fintech/features/splash/screens/device_management_screen.dart';
+import 'package:fintech/features/splash/screens/two_factor_auth_screen.dart';
 import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -199,6 +209,47 @@ class AppRouter {
             builder: (context, state) => MoreScreen(
               onNavigateToSubScreen: (route) => context.go(route as String),
             ),
+          ),
+          GoRoute(
+            path: '/support/faqs',
+            builder: (context, state) => const FaqsScreen(),
+          ),
+          GoRoute(
+            path: '/support/contact',
+            builder: (context, state) => const ContactSupportScreen(),
+          ),
+          GoRoute(
+            path: '/support/report-problem',
+            builder: (context, state) => const ReportProblemScreen(),
+          ),
+          GoRoute(
+            path: '/support/security-center',
+            builder: (context, state) => const SecurityCenterScreen(),
+          ),
+          GoRoute(
+            path: '/support/disputes',
+            builder: (context, state) => const TransactionDisputesScreen(),
+          ),
+          GoRoute(
+            path: '/support/status-announcements',
+            builder: (context, state) => const StatusAnnouncementsScreen(),
+          ),
+          // ⚙️ SECURITY SUB-ROUTES
+          GoRoute(
+            path: '/settings/change-password',
+            builder: (context, state) => const ChangePasswordScreen(), // Replace with your actual ChangePasswordScreen()
+          ),
+          GoRoute(
+            path: '/settings/change-pin',
+            builder: (context, state) => const ChangePinScreen(), // Replace with your actual ChangePinScreen()
+          ),
+          GoRoute(
+            path: '/settings/two-factor',
+            builder: (context, state) => const TwoFactorAuthScreen(), // Replace with your actual TwoFactorScreen()
+          ),
+          GoRoute(
+            path: '/settings/devices',
+            builder: (context, state) => const DeviceManagementScreen(), // Replace with your actual DeviceManagementScreen()
           ),
 
           // ⚙️ SUBSCREENS & FINANCIAL FEATURES PATHS

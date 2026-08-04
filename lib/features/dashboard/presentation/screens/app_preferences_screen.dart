@@ -94,18 +94,18 @@ class _AppPreferencesScreenState extends ConsumerState<AppPreferencesScreen> {
             title: 'Enable Biometrics',
             onTap: () => context.push('/biometric-setup'),
           ),
-          _buildMenuTile(
-            context,
-            icon: Icons.vibration_rounded,
-            title: 'Enable 2FA',
-            onTap: () => context.push('/settings/two-factor'),
-          ),
-          _buildMenuTile(
-            context,
-            icon: Icons.devices_rounded,
-            title: 'Device Management',
-            onTap: () => context.push('/settings/devices'),
-          ),
+          // _buildMenuTile(
+          //   context,
+          //   icon: Icons.vibration_rounded,
+          //   title: 'Enable 2FA',
+          //   onTap: () => context.push('/settings/two-factor'),
+          // ),
+          // _buildMenuTile(
+          //   context,
+          //   icon: Icons.devices_rounded,
+          //   title: 'Device Management',
+          //   onTap: () => context.push('/settings/devices'),
+          // ),
           const SizedBox(height: 16),
 
           _buildSectionHeader('APPEARANCE', headerTextColor),
