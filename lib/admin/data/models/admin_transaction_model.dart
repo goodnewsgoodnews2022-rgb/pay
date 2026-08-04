@@ -1,5 +1,3 @@
-// lib/features/admin/data/models/admin_transaction_model.dart
-
 import '../../domain/entities/admin_transaction.dart';
 
 class AdminTransactionModel extends AdminTransaction {

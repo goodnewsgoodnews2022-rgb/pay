@@ -26,9 +26,8 @@ class AdminRepositoryImpl implements AdminRepository {
         activeUsers: response['active_users'] ?? 0,
         suspendedUsers: response['suspended_users'] ?? 0,
       );
-    } catch (e) {
-      print('❌ getDashboardStats error: $e');
-      rethrow;
+    } finally  {
+      Exception(["Couldn't get user Try Again"]);
     }
   }
 
@@ -141,6 +140,9 @@ class AdminRepositoryImpl implements AdminRepository {
       'type': 'system',
       'is_read': false, // ✅ ensure this is set
     });
+    if (message != true){
+      throw Exception(['Not Sent To Users']);
+    }
   }
 
   @override
@@ -157,9 +159,9 @@ class AdminRepositoryImpl implements AdminRepository {
         'type': 'system',
         'is_read': false,
       });
-    } catch (e) {
-      print('❌ sendUserNotification error: $e');
-      rethrow;
+    } finally {
+      Exception(['Notification not Send']);
+           
     }
   }
 }
