@@ -102,7 +102,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       onPressed: () {
                         context.read<AuthBloc>().add(
                           AuthPasswordResetRequested(
-                            _emailController.text.trim(),
+                            email: _emailController.text.trim(),
                           ),
                         );
                       },

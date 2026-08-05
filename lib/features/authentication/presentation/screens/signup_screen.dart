@@ -18,11 +18,12 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController(); // ✅ Username controller
   final _mobileController = TextEditingController();
   final _addressController = TextEditingController();
   String? _selectedGender;
   DateTime? _selectedDateOfBirth;
-  bool _obscurePassword = true; // ✅ toggle state
+  bool _obscurePassword = true;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -31,6 +32,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _fullNameController.dispose();
+    _usernameController.dispose(); // ✅ Dispose username controller
     _mobileController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -88,14 +90,14 @@ class _SignupScreenState extends State<SignupScreen> {
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             final user = state.user;
-            if (user.kycStatus == 'APPROVED'){
+            if (user.kycStatus == 'APPROVED') {
               context.go('/dashboard');
               return;
             }
-             context.go('/kyc-intro');
-             return;
-            }
-            
+            context.go('/kyc-intro');
+            return;
+          }
+          
           if (state is AuthError) {
             ScaffoldMessenger.of(
               context,
@@ -127,6 +129,20 @@ class _SignupScreenState extends State<SignupScreen> {
                       decoration: _buildInputDecoration('Full Name *'),
                       validator: (v) =>
                           v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ✅ Unique Username Field
+                    TextFormField(
+                      controller: _usernameController,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: _buildInputDecoration('Unique Username * (e.g. javed_pay)'),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Username is required';
+                        if (v.contains(' ')) return 'Spaces are not allowed';
+                        if (v.length < 3) return 'Must be at least 3 characters';
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -174,8 +190,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      // ignore: deprecated_member_use
-                      value: _selectedGender,
+                      initialValue: _selectedGender,
                       dropdownColor: AppColors.bgSurface,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: _buildInputDecoration('Gender'),
@@ -227,36 +242,32 @@ class _SignupScreenState extends State<SignupScreen> {
                           label: 'Sign Up',
                           isLoading: isLoading,
                           onPressed: () {
-                            context.go('/dashboard');
                             if (_formKey.currentState!.validate()) {
                               context.read<AuthBloc>().add(
-                                AuthSignUpRequested(
-                                  email: _emailController.text.trim(),
-                                  password: _passwordController.text
-                                      .trim(),
-                                  fullName: _fullNameController.text
-                                      .trim(),
-                                  mobileNumber: _mobileController.text
-                                      .trim(),
-                                  gender: _selectedGender,
-                                  dateOfBirth: _selectedDateOfBirth
-                                      ?.toIso8601String(),
-                                  address: _addressController.text.trim(),
-                                ),
-                              );
+                                    AuthSignUpRequested(
+                                      email: _emailController.text.trim(),
+                                      password: _passwordController.text.trim(),
+                                      fullName: _fullNameController.text.trim(),
+                                      username: _usernameController.text.trim().toLowerCase(), // ✅ Passed username
+                                      mobileNumber: _mobileController.text.trim(),
+                                      gender: _selectedGender,
+                                      dateOfBirth: _selectedDateOfBirth
+                                          ?.toIso8601String(),
+                                      address: _addressController.text.trim(),
+                                    ),
+                                  );
                             }
                           },
                         );
                       },
                     ),
 
-                    // Inside the BlocBuilder, after the GreenButton and the "Already have an account?" row
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () {
                         context.read<AuthBloc>().add(
-                          AuthSignInWithGoogleRequested(),
-                        );
+                              AuthSignInWithGoogleRequested(),
+                            );
                       },
                       icon: const Icon(
                         Icons.g_mobiledata,

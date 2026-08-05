@@ -28,6 +28,8 @@ class _SplashScreenState extends State<SplashScreen> {
       listener: (context, state) {
         if (state is AuthAuthenticated) {
           context.go('/dashboard');
+        } else if (state is AuthNeedsUsername) {
+          context.go('/set-username', extra: state.userId);
         } else if (state is AuthUnauthenticated) {
           context.go('/login');
         }

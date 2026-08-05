@@ -31,6 +31,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
   bool _isResolvingUser = false;
   bool _userResolvedSuccessfully = false;
   String _resolvedRecipientName = '';
+  String _resolvedRecipientUsername = '';
   String _resolvedRecipientCurrency = 'GHS'; 
   String _senderCurrency = 'NGN'; 
   double _fiatInputAmount = 0.0;
@@ -140,12 +141,13 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     } catch (_) {}
   }
 
-  void _resolveRecipientProfile(String uidInput) async {
-    final cleanUid = uidInput.trim();
-    if (cleanUid.length < 36) {
+  void _resolveRecipientProfile(String input) async {
+    final cleanInput = input.trim().toLowerCase();
+    if (cleanInput.length < 3) {
       setState(() {
         _userResolvedSuccessfully = false;
         _resolvedRecipientName = '';
+        _resolvedRecipientUsername = '';
       });
       return;
     }
@@ -157,11 +159,25 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
 
     try {
       final client = Supabase.instance.client;
-      final profile = await client.from('profiles').select().eq('id', cleanUid).maybeSingle();
+      
+      var query = client.from('profiles').select();
+      if (cleanInput.length == 36 && cleanInput.contains('-')) {
+        query = query.eq('id', cleanInput);
+      } else {
+        final usernameToSearch = cleanInput.startsWith('@') ? cleanInput.substring(1) : cleanInput;
+        query = query.eq('username', usernameToSearch);
+      }
+
+      final profile = await query.maybeSingle();
 
       if (profile != null) {
+        // ✅ Set text field to display the clean username instead of raw UID
+        final fetchedUsername = profile['username'] ?? '';
+        _fiatRecipientUidController.text = fetchedUsername;
+
         setState(() {
-          _resolvedRecipientName = profile['full_name'] ?? 'Payme User';
+          _resolvedRecipientName = profile['full_name'] ?? fetchedUsername;
+          _resolvedRecipientUsername = fetchedUsername;
           _resolvedRecipientCurrency = profile['currency'] ?? 'GHS';
           _userResolvedSuccessfully = true;
           _isResolvingUser = false;
@@ -174,6 +190,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         setState(() {
           _userResolvedSuccessfully = false;
           _resolvedRecipientName = '';
+          _resolvedRecipientUsername = '';
           _isResolvingUser = false;
         });
       }
@@ -181,6 +198,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
       setState(() {
         _userResolvedSuccessfully = false;
         _resolvedRecipientName = '';
+        _resolvedRecipientUsername = '';
         _isResolvingUser = false;
       });
     }
@@ -289,16 +307,29 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
 
   // FIAT P2P Disbursement Ledger Process
   Future<void> _processFiatP2PSend() async {
-    final cleanRecipientUid = _fiatRecipientUidController.text.trim();
-    if (_fiatInputAmount <= 0 || cleanRecipientUid.isEmpty || !_userResolvedSuccessfully) return;
+    final cleanUsername = _resolvedRecipientUsername;
+    if (_fiatInputAmount <= 0 || cleanUsername.isEmpty || !_userResolvedSuccessfully) return;
 
     setState(() => _isLoading = true);
 
     try {
       final client = Supabase.instance.client;
+
+      // ✅ Fetch recipient user ID using the verified username
+      final recipientProfile = await client.from('profiles').select('id, currency, full_name').eq('username', cleanUsername).maybeSingle();
+      if (recipientProfile == null) {
+        _showErrorSnackbar('Recipient profile no longer exists.');
+        setState(() => _isLoading = false);
+        return;
+      }
+      final cleanRecipientUid = recipientProfile['id'];
+
       final senderUid = client.auth.currentUser?.id;
 
       if (senderUid != null) {
+        final senderProfile = await client.from('profiles').select('username, full_name').eq('id', senderUid).maybeSingle();
+        final senderDisplayName = senderProfile?['username'] ?? senderProfile?['full_name'] ?? 'A user';
+
         final senderWalletResponse = await client.from('wallets').select('balance').eq('user_id', senderUid).maybeSingle();
         double currentSenderBalance = senderWalletResponse != null ? (senderWalletResponse['balance'] ?? 0.0).toDouble() : 0.0;
 
@@ -349,7 +380,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
           await client.from('notifications').insert({
             'user_id': cleanRecipientUid,
             'title': 'Funds Received',
-            'message': 'You received ${_convertedPayoutAmount.toStringAsFixed(2)} $_resolvedRecipientCurrency from Lawrence.',
+            'message': 'You received ${_convertedPayoutAmount.toStringAsFixed(2)} $_resolvedRecipientCurrency from $senderDisplayName.',
             'created_at': DateTime.now().toIso8601String(),
           });
         } catch (_) {}
@@ -573,12 +604,12 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Instantly send money to any peer using their Payme User ID (UID). Flutterwave dynamically handles the currency conversion.',
+            'Instantly send money to any Pay Me user using their unique username.',
             style: TextStyle(color: secondaryColor, fontSize: 13),
           ),
           const SizedBox(height: 24),
 
-          _buildInputLabel('Recipient User ID (UID)', textColor),
+          _buildInputLabel('Recipient Username', textColor),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
@@ -591,7 +622,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
               onChanged: _resolveRecipientProfile,
               style: TextStyle(color: textColor, fontSize: 13, fontFamily: 'monospace'),
               decoration: InputDecoration(
-                hintText: 'Paste sender UID (e.g. 550e8400-e29b-41d4-a716...)',
+                hintText: 'Enter username (e.g. javed)',
                 hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400], fontSize: 12),
                 border: InputBorder.none,
                 suffixIcon: _isResolvingUser
@@ -633,7 +664,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _userResolvedSuccessfully ? 'Recipient Resolved' : 'Resolving User UID...',
+                          _userResolvedSuccessfully ? 'Recipient Resolved' : 'Resolving User...',
                           style: TextStyle(color: _userResolvedSuccessfully ? Colors.green : secondaryColor, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 2),
@@ -703,7 +734,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Goodnews Receives', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text('Recipient Receives', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
                               _isFetchingRate
                                   ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF8B5CF6)))
                                   : Text('${_convertedPayoutAmount.toStringAsFixed(2)} $_resolvedRecipientCurrency', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),

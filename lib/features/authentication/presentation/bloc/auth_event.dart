@@ -4,6 +4,7 @@ class AuthSignUpRequested extends AuthEvent {
   final String email;
   final String password;
   final String fullName;
+  final String username; // ✅ Added username field
   final String? mobileNumber;
   final String? gender;
   final String? dateOfBirth;
@@ -13,6 +14,7 @@ class AuthSignUpRequested extends AuthEvent {
     required this.email,
     required this.password,
     required this.fullName,
+    required this.username, // ✅ Required in constructor
     this.mobileNumber,
     this.gender,
     this.dateOfBirth,
@@ -23,7 +25,7 @@ class AuthSignUpRequested extends AuthEvent {
 class AuthSignInRequested extends AuthEvent {
   final String email;
   final String password;
-  AuthSignInRequested(this.email, this.password);
+  AuthSignInRequested({required this.email, required this.password});
 }
 
 class AuthSignOutRequested extends AuthEvent {}
@@ -32,7 +34,7 @@ class AuthCheckStatus extends AuthEvent {}
 
 class AuthPasswordResetRequested extends AuthEvent {
   final String email;
-  AuthPasswordResetRequested(this.email);
+  AuthPasswordResetRequested({required this.email});
 }
 
 class AuthSignInWithGoogleRequested extends AuthEvent {}
