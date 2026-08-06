@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_const_constructors, unnecessary_import, unused_local_variable, use_build_context_synchronously, curly_braces_in_flow_control_structures
+// ignore_for_file: prefer_const_constructors, unnecessary_import, unused_local_variable, use_build_context_synchronously, curly_braces_in_flow_control_structures, avoid_print
 
 import 'dart:convert';
 import 'package:fintech/app/config/environment.dart';
@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 class CryptoWithdrawalScreen extends StatefulWidget {
   const CryptoWithdrawalScreen({super.key});
@@ -18,11 +19,9 @@ class CryptoWithdrawalScreen extends StatefulWidget {
 class _CryptoWithdrawalScreenState extends State<CryptoWithdrawalScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Secure local runtime extraction
-final pubKey = Environment.flutterwavePublicKey;
-final secKey = Environment.flutterwaveSecretKey;
-final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
-  // Backwards-compatible alias used in older code references
+  final pubKey = Environment.flutterwavePublicKey;
+  final secKey = Environment.flutterwaveSecretKey;
+  final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
   String get _flutterwaveSecretKey => secKey;
 
   // Crypto Controllers
@@ -46,18 +45,16 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
   bool _isFetchingCryptoMeta = true;
 
   // FIAT specific states
-  String _selectedBank = 'Providus Bank';
+  String _selectedBank = 'Access Bank';
   double _fiatInputAmount = 0.0;
   bool _isResolvingAccountName = false;
   bool _accountResolvedSuccessfully = false;
   String? _resolutionErrorMessage;
 
-  // Premium system palette matching dashboard alignments
   static const Color emeraldColor = Color(0xFF10B981);
   static const Color warningRedColor = Color(0xFFEF4444);
   static const Color brandOrangeColor = Color(0xFFFBBF24);
 
-  // Offline Fallback Data Structure to bypass browser constraints gracefully
   final List<String> _fallbackNetworks = [
     'TRON', 'BSC', 'ETH', 'BITCOIN', 'SOLANA', 'CARDANO', 'DOGE', 'POLYGON', 'ARBITRUM', 'OPTIMISM', 'AVALANCHE',
   ];
@@ -307,7 +304,7 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
           _fiatAccountNameController.clear();
           _accountResolvedSuccessfully = false;
           _isResolvingAccountName = false;
-          _resolutionErrorMessage = decodedResponse['message'] ?? 'Could not resolve bank account details.';
+          _resolutionErrorMessage = decodedResponse['message'] ?? 'Could not resolve bank account details. (Note: Use Flutterwave Test Account 0690000032 for sandbox testing)';
         });
       }
     } catch (e) {
@@ -412,11 +409,11 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
       final userId = client.auth.currentUser?.id;
 
       if (userId != null) {
-        final response = await client.from('wallets').select().eq('user_id', userId).maybeSingle();
-        double currentFiatBalance = response != null ? (response['balance'] ?? 0.0).toDouble() : 0.0;
+        final walletBalanceResponse = await client.from('wallet_balances').select().eq('user_identifier', userId).maybeSingle();
+        double currentNairaBalance = walletBalanceResponse != null ? (walletBalanceResponse['naira_balance'] ?? 0.0).toDouble() : 0.0;
 
-        if (currentFiatBalance < _fiatInputAmount) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance.'), backgroundColor: warningRedColor));
+        if (currentNairaBalance < _fiatInputAmount) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient balance in your Naira wallet.'), backgroundColor: warningRedColor));
           setState(() => _isLoading = false);
           return;
         }
@@ -437,10 +434,24 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
         final decodedTransfer = jsonDecode(flwResponse.body);
 
         if (flwResponse.statusCode == 200 && decodedTransfer['status'] == 'success') {
-          // FIXED: Changed from .upsert to .update targeting fiat_transactions parameters
-          await client.from('wallets').update({'balance': currentFiatBalance - _fiatInputAmount}).eq('user_id', userId);
+          double newNairaBalance = currentNairaBalance - _fiatInputAmount;
+          await client.from('wallet_balances').update({'naira_balance': newNairaBalance}).eq('user_identifier', userId);
+          
+          await client.from('transactions').insert({
+            'user_identifier': userId,
+            'amount': _fiatInputAmount,
+            'type': 'withdrawal',
+            'status': 'success',
+            'created_at': DateTime.now().toIso8601String(),
+          });
+
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal sent successfully.'), backgroundColor: emeraldColor));
-          Navigator.pop(context);
+          
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            context.go('/dashboard');
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(decodedTransfer['message'] ?? 'Rejected.'), backgroundColor: warningRedColor));
         }
@@ -470,8 +481,7 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
           return;
         }
 
-        final String targetColumn = walletResponse.containsKey('crypto_balance') ? 'crypto_balance' : 'balance';
-        double currentCryptoBalance = (walletResponse[targetColumn] ?? 0.0).toDouble();
+        double currentCryptoBalance = (walletResponse['crypto_balance'] ?? 0.0).toDouble();
 
         if (currentCryptoBalance < _inputAmount) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -506,14 +516,13 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
 
           await client
               .from('wallets')
-              .update({targetColumn: newCryptoBalance})
+              .update({'crypto_balance': newCryptoBalance})
               .eq('user_id', userId);
 
-          // FIXED: Changed from public.transactions to public.fiat_transactions matching your database schema
           await client.from('transactions').insert({
-            'user_id': userId,
-            'type': 'crypto withdrawal out',
+            'user_identifier': userId,
             'amount': _inputAmount,
+            'type': 'withdrawal',
             'status': 'success',
             'created_at': DateTime.now().toIso8601String(),
           });
@@ -535,10 +544,15 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
                 content: Text('Withdrawal of $_inputAmount $_selectedCrypto successfully sent across processing corridors!'),
               ),
             );
-            Navigator.pop(context);
+            
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              context.go('/dashboard');
+            }
           }
         } else {
-          _executeCryptoWithdrawalFallback(currentCryptoBalance, userId, targetColumn);
+          _executeCryptoWithdrawalFallback(currentCryptoBalance, userId);
         }
       }
     } catch (e) {
@@ -547,9 +561,8 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
       if (fallbackUserId != null) {
         final walletRes = await client.from('wallets').select().eq('user_id', fallbackUserId).maybeSingle();
         if (walletRes != null) {
-          final String targetColumn = walletRes.containsKey('crypto_balance') ? 'crypto_balance' : 'balance';
-          double currentCryptoBalance = (walletRes[targetColumn] ?? 0.0).toDouble();
-          _executeCryptoWithdrawalFallback(currentCryptoBalance, fallbackUserId, targetColumn);
+          double currentCryptoBalance = (walletRes['crypto_balance'] ?? 0.0).toDouble();
+          _executeCryptoWithdrawalFallback(currentCryptoBalance, fallbackUserId);
         }
       } else {
         _showErrorSnackbar('Session timed out. Please authenticate again.');
@@ -559,21 +572,20 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
     }
   }
 
-  void _executeCryptoWithdrawalFallback(double currentCryptoBalance, String userId, String targetColumn) async {
+  void _executeCryptoWithdrawalFallback(double currentCryptoBalance, String userId) async {
     final client = Supabase.instance.client;
     double newCryptoBalance = currentCryptoBalance - _inputAmount;
 
     try {
       await client
           .from('wallets')
-          .update({targetColumn: newCryptoBalance})
+          .update({'crypto_balance': newCryptoBalance})
           .eq('user_id', userId);
 
-      // FIXED: Changed from public.transactions to public.fiat_transactions matching your database schema
       await client.from('transactions').insert({
-        'user_id': userId,
-        'type': 'crypto withdrawal out',
+        'user_identifier': userId,
         'amount': _inputAmount,
+        'type': 'withdrawal',
         'status': 'success',
         'created_at': DateTime.now().toIso8601String(),
       });
@@ -586,7 +598,12 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
             content: Text('Withdrawal of \$$_inputAmount completed locally via sandbox fallback ledger.'),
           ),
         );
-        Navigator.pop(context);
+        
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          context.go('/dashboard');
+        }
       }
     } catch (dbError) {
       _showErrorSnackbar('Ledger allocation error: ${dbError.toString().split('\n').first}');
@@ -835,7 +852,7 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
             ),
           ),
           const SizedBox(height: 24),
-          Text('Account Number', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
+          Text('Account Number (Sandbox Test: 0690000032)', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -881,9 +898,9 @@ final _nowPaymentsApiKey = Environment.nowPaymentsApiKey;
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_accountResolvedSuccessfully ? 'Verified Beneficiary Name:' : _resolutionErrorMessage != null ? 'Verification Failed' : 'Verifying Account Details...', style: TextStyle(color: _accountResolvedSuccessfully ? emeraldColor : _resolutionErrorMessage != null ? warningRedColor : secondaryTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text(_accountResolvedSuccessfully ? 'Verified Beneficiary Name:' : _resolutionErrorMessage != null ? 'Verification Failed (Test Environment)' : 'Verifying Account Details...', style: TextStyle(color: _accountResolvedSuccessfully ? emeraldColor : _resolutionErrorMessage != null ? warningRedColor : secondaryTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 2),
-                        Text(_accountResolvedSuccessfully ? _fiatAccountNameController.text : _resolutionErrorMessage != null ? _resolutionErrorMessage! : 'Validating account credentials with Flutterwave...', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                        Text(_accountResolvedSuccessfully ? _fiatAccountNameController.text : _resolutionErrorMessage != null ? _resolutionErrorMessage! : 'Validating account credentials with Flutterwave...', style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
