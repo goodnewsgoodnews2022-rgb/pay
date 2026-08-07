@@ -13,37 +13,50 @@ class AccountStatementScreen extends StatefulWidget {
   State<AccountStatementScreen> createState() => _AccountStatementScreenState();
 }
 
-class _AccountStatementScreenState extends State<AccountStatementScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AccountStatementScreenState extends State<AccountStatementScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   
   List<Map<String, dynamic>> _allTransactions = [];
+  bool _isLoading = true;
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _fetchTransactions();
   }
 
   Future<void> _fetchTransactions() async {
-    final response = await _supabase.from('transactions').select().order('created_at', ascending: false);
-    setState(() => _allTransactions = List<Map<String, dynamic>>.from(response));
+    try {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      
+      // Fetching strictly from the database table mapped to the current user
+      final response = await _supabase
+          .from('transactions')
+          .select()
+          .eq('user_identifier', currentUserId ?? '')
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _allTransactions = List<Map<String, dynamic>>.from(response);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
   }
 
-  List<Map<String, dynamic>> _filterTransactions(String? category) {
+  List<Map<String, dynamic>> _filterTransactions() {
     return _allTransactions.where((tx) {
       final dateStr = tx['created_at'] != null 
           ? DateFormat.yMMMM().format(DateTime.parse(tx['created_at'])).toLowerCase() 
           : '';
       final query = _searchQuery.toLowerCase();
       
-      final referenceStr = tx['reference']?.toString().toLowerCase() ?? '';
-      final matchesSearch = dateStr.contains(query) || referenceStr.contains(query);
+      final typeStr = tx['type']?.toString().toLowerCase() ?? '';
+      final matchesSearch = dateStr.contains(query) || typeStr.contains(query);
       
-      if (category == null) return matchesSearch;
-      return matchesSearch && (tx['category'] ?? 'fiat') == category;
+      return matchesSearch;
     }).toList();
   }
 
@@ -72,11 +85,11 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
                 pw.Header(level: 0, child: pw.Text("Account Statement")),
                 pw.SizedBox(height: 20),
                 pw.TableHelper.fromTextArray(
-                  headers: ['Type', 'Reference', 'Amount'],
+                  headers: ['Type', 'Date', 'Amount'],
                   data: filteredData.map((t) => [
                     t['type']?.toString().toUpperCase() ?? 'N/A',
-                    t['reference']?.toString() ?? 'N/A',
-                    t['amount']?.toString() ?? '0.00'
+                    t['created_at'] != null ? t['created_at'].toString().substring(0, 10) : 'N/A',
+                    '₦${(t['amount'] ?? 0.0).toStringAsFixed(2)}'
                   ]).toList(),
                 ),
               ],
@@ -99,6 +112,8 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
     final secondaryTextColor = isDark ? Colors.grey : const Color(0xFF64748B);
     const accentColor = Colors.purpleAccent;
 
+    final filteredData = _filterTransactions();
+
     return Scaffold(
       backgroundColor: canvasColor,
       appBar: AppBar(
@@ -111,17 +126,6 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
           style: TextStyle(fontWeight: FontWeight.bold, color: mainTextColor, fontSize: 18),
         ),
         iconTheme: IconThemeData(color: mainTextColor),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: accentColor,
-          unselectedLabelColor: secondaryTextColor,
-          indicatorColor: accentColor,
-          tabs: const [
-            Tab(text: 'All'), 
-            Tab(text: 'Fiat'), 
-            Tab(text: 'Web3'),
-          ],
-        ),
       ),
       body: Column(
         children: [
@@ -133,7 +137,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
               decoration: InputDecoration(
                 filled: true,
                 fillColor: surfaceColor,
-                hintText: "Search by month (e.g. june 2026)...",
+                hintText: "Search by month (e.g. june 2026) or type...",
                 hintStyle: TextStyle(color: secondaryTextColor),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12), 
@@ -152,97 +156,84 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> with Si
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildListView(_filterTransactions(null), isDark, surfaceColor, mainTextColor, secondaryTextColor),
-                _buildListView(_filterTransactions('fiat'), isDark, surfaceColor, mainTextColor, secondaryTextColor),
-                _buildListView(_filterTransactions('web3'), isDark, surfaceColor, mainTextColor, secondaryTextColor),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: accentColor))
+                : filteredData.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No transactions found',
+                          style: TextStyle(color: secondaryTextColor, fontSize: 14),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredData.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, i) {
+                          final tx = filteredData[i];
+                          final type = tx['type']?.toString().toUpperCase() ?? 'TRANSACTION';
+                          final amount = (tx['amount'] ?? 0.0).toDouble();
+                          final date = tx['created_at'] != null ? tx['created_at'].toString().substring(0, 10) : '';
+
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: surfaceColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.transparent : Colors.grey.withValues(alpha: 0.15),
+                              ),
+                              boxShadow: !isDark 
+                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]
+                                  : [],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.purpleAccent.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.receipt_long_rounded, color: Colors.purpleAccent, size: 24),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start, 
+                                    children: [
+                                      Text(
+                                        type, 
+                                        style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        date, 
+                                        style: TextStyle(color: secondaryTextColor, fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  "₦${amount.toStringAsFixed(2)}", 
+                                  style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
           )
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: accentColor,
         foregroundColor: Colors.white,
-        onPressed: () => _exportAndShare(_filterTransactions(null)),
+        onPressed: () => _exportAndShare(filteredData),
         label: const Text("Export PDF", style: TextStyle(fontWeight: FontWeight.bold)),
         icon: const Icon(Icons.picture_as_pdf),
       ),
-    );
-  }
-
-  Widget _buildListView(
-    List<Map<String, dynamic>> items, 
-    bool isDark, 
-    Color surfaceColor, 
-    Color mainTextColor, 
-    Color secondaryTextColor,
-  ) {
-    if (items.isEmpty) {
-      return Center(
-        child: Text(
-          'No transactions found',
-          style: TextStyle(color: secondaryTextColor, fontSize: 14),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, i) {
-        final tx = items[i];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? Colors.transparent : Colors.grey.withValues(alpha: 0.15),
-            ),
-            boxShadow: !isDark 
-                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))]
-                : [],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.purpleAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.receipt_long_rounded, color: Colors.purpleAccent, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, 
-                  children: [
-                    Text(
-                      tx['type']?.toString().toUpperCase() ?? 'TRANSACTION', 
-                      style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tx['reference']?.toString() ?? 'No reference', 
-                      style: TextStyle(color: secondaryTextColor, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                tx['amount']?.toString() ?? '0.00', 
-                style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

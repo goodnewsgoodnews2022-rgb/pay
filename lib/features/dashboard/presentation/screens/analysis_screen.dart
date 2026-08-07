@@ -14,7 +14,6 @@ class AnalysisScreen extends StatefulWidget {
 class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProviderStateMixin {
   late final Stream<List<Map<String, dynamic>>> _analysisStream;
   late TabController _timeframeController;
-  int _selectedAssetTab = 0; // 0 = Fiat, 1 = Crypto
 
   @override
   void initState() {
@@ -24,11 +23,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
       setState(() {}); 
     });
 
-    // 🔧 DATA SEEDING & GUARD: Pulling directly from balance_audit_logs. 
-    // Removed strict user constraints to verify data renders immediately during deployment testing phases.
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
     _analysisStream = Supabase.instance.client
-        .from('balance_audit_logs')
+        .from('transactions')
         .stream(primaryKey: ['id'])
+        .eq('user_identifier', currentUserId ?? '')
         .order('created_at', ascending: false);
   }
 
@@ -89,73 +89,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
           final rawData = snapshot.data ?? [];
           final metrics = _calculateMetrics(rawData, _timeframeController.index);
 
-          // Determine current selected view values
-          final double currentReceived = _selectedAssetTab == 0 ? metrics.fiatReceived : metrics.cryptoReceived;
-          final double currentSent = _selectedAssetTab == 0 ? metrics.fiatSent : metrics.cryptoSent;
-          final double currentWithdraw = _selectedAssetTab == 0 ? metrics.fiatWithdraw : metrics.cryptoWithdraw;
-          final double currentSwap = _selectedAssetTab == 0 ? metrics.fiatSwap : metrics.cryptoSwap;
-          final double totalVolume = currentReceived + currentSent + currentWithdraw + currentSwap;
+          // Combined unified volume metrics
+          final double totalReceived = metrics.received;
+          final double totalSent = metrics.sent;
+          final double totalWithdraw = metrics.withdraw;
+          final double totalSwap = metrics.swap;
+          final double totalVolume = totalReceived + totalSent + totalWithdraw + totalSwap;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Premium Segment Header Toggle Switches
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedAssetTab = 0),
-                          child: Container(
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _selectedAssetTab == 0 ? brandPurple : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Fiat Allocation',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: _selectedAssetTab == 0 ? Colors.white : textColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedAssetTab = 1),
-                          child: Container(
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _selectedAssetTab == 1 ? brandPurple : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Crypto Assets',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: _selectedAssetTab == 1 ? Colors.white : textColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
                 // 📊 PREMIUM CUSTOM GRAPHIC PIE/DONUT CHART ARCHITECTURE
                 Container(
@@ -185,7 +131,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                             height: 130,
                             child: CustomPaint(
                               painter: _FintechPieChartPainter(
-                                values: [currentReceived, currentSent, currentWithdraw, currentSwap],
+                                values: [totalReceived, totalSent, totalWithdraw, totalSwap],
                                 colors: [emeraldGreen, warningRed, blueWithdraw, amberSwap],
                               ),
                               child: Center(
@@ -198,9 +144,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      _selectedAssetTab == 0 
-                                          ? (totalVolume > 9999 ? "₦${(totalVolume / 1000).toStringAsFixed(1)}k" : "₦${totalVolume.toStringAsFixed(0)}")
-                                          : "${totalVolume.toStringAsFixed(1)} U",
+                                      totalVolume > 9999 ? "₦${(totalVolume / 1000).toStringAsFixed(1)}k" : "₦${totalVolume.toStringAsFixed(0)}",
                                       style: TextStyle(color: textColor, fontWeight: FontWeight.w900, fontSize: 15),
                                     ),
                                   ],
@@ -213,13 +157,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildIndicator(emeraldGreen, 'Received', currentReceived, totalVolume, _selectedAssetTab == 1),
+                              _buildIndicator(emeraldGreen, 'Received', totalReceived, totalVolume),
                               const SizedBox(height: 8),
-                              _buildIndicator(warningRed, 'Sent Out', currentSent, totalVolume, _selectedAssetTab == 1),
+                              _buildIndicator(warningRed, 'Sent Out', totalSent, totalVolume),
                               const SizedBox(height: 8),
-                              _buildIndicator(blueWithdraw, 'Withdrawn', currentWithdraw, totalVolume, _selectedAssetTab == 1),
+                              _buildIndicator(blueWithdraw, 'Withdrawn', totalWithdraw, totalVolume),
                               const SizedBox(height: 8),
-                              _buildIndicator(amberSwap, 'Swapped', currentSwap, totalVolume, _selectedAssetTab == 1),
+                              _buildIndicator(amberSwap, 'Swapped', totalSwap, totalVolume),
                             ],
                           )
                         ],
@@ -238,10 +182,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.4,
                   children: [
-                    _buildMetricCard('Total Received', currentReceived, _selectedAssetTab == 1, emeraldGreen, cardColor, textColor, Icons.arrow_downward_rounded),
-                    _buildMetricCard('Total Sent', currentSent, _selectedAssetTab == 1, warningRed, cardColor, textColor, Icons.arrow_upward_rounded),
-                    _buildMetricCard('Withdrawals', currentWithdraw, _selectedAssetTab == 1, blueWithdraw, cardColor, textColor, Icons.account_balance_wallet_rounded),
-                    _buildMetricCard('Asset Swaps', currentSwap, _selectedAssetTab == 1, amberSwap, cardColor, textColor, Icons.swap_horizontal_circle_rounded),
+                    _buildMetricCard('Total Received', totalReceived, emeraldGreen, cardColor, textColor, Icons.arrow_downward_rounded),
+                    _buildMetricCard('Total Sent', totalSent, warningRed, cardColor, textColor, Icons.arrow_upward_rounded),
+                    _buildMetricCard('Withdrawals', totalWithdraw, blueWithdraw, cardColor, textColor, Icons.account_balance_wallet_rounded),
+                    _buildMetricCard('Asset Swaps', totalSwap, amberSwap, cardColor, textColor, Icons.swap_horizontal_circle_rounded),
                   ],
                 ),
                 const SizedBox(height: 28),
@@ -274,23 +218,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                         itemCount: metrics.filteredItems.length,
                         itemBuilder: (context, index) {
                           final log = metrics.filteredItems[index];
-                          final String source = (log['source'] ?? '').toString().toLowerCase();
-                          final double amt = (log['amount'] ?? log['ngn_balance'] ?? 0.0).toDouble();
-                          
-                          final bool isCryptoLog = source.contains('crypto') || source.contains('web3');
-                          if ((_selectedAssetTab == 0 && isCryptoLog) || (_selectedAssetTab == 1 && !isCryptoLog)) {
-                            return const SizedBox.shrink();
-                          }
+                          final String type = (log['type'] ?? '').toString().toLowerCase();
+                          final double amt = (log['amount'] ?? 0.0).toDouble();
 
                           Color actionColor = emeraldGreen;
                           IconData actionIcon = Icons.arrow_downward_rounded;
-                          if (source.contains('send')) {
+                          if (type.contains('p2p outbound') || type.contains('transfer out')) {
                             actionColor = warningRed;
                             actionIcon = Icons.arrow_upward_rounded;
-                          } else if (source.contains('withdraw')) {
+                          } else if (type.contains('withdrawal')) {
                             actionColor = blueWithdraw;
                             actionIcon = Icons.account_balance_rounded;
-                          } else if (source.contains('swap')) {
+                          } else if (type.contains('swap')) {
                             actionColor = amberSwap;
                             actionIcon = Icons.swap_horiz_rounded;
                           }
@@ -317,12 +256,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          source.toUpperCase().replaceAll('_', ' '),
+                                          type.toUpperCase().replaceAll('_', ' '),
                                           style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          log['created_at'].toString().substring(0, 10),
+                                          log['created_at'] != null ? log['created_at'].toString().substring(0, 10) : '',
                                           style: const TextStyle(color: Colors.grey, fontSize: 11),
                                         ),
                                       ],
@@ -330,7 +269,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
                                   ],
                                 ),
                                 Text(
-                                  "${_selectedAssetTab == 0 ? '₦' : ''}${amt.toStringAsFixed(2)}${_selectedAssetTab == 1 ? ' Units' : ''}",
+                                  "₦${amt.toStringAsFixed(2)}",
                                   style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                               ],
@@ -346,7 +285,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildIndicator(Color color, String label, double val, double total, bool isCrypto) {
+  Widget _buildIndicator(Color color, String label, double val, double total) {
     final double percentage = total > 0 ? (val / total) * 100 : 0.0;
     return Row(
       children: [
@@ -357,7 +296,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
           children: [
             Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey)),
             Text(
-              isCrypto ? "${val.toStringAsFixed(2)} U obligation (${percentage.toStringAsFixed(0)}%)" : "₦${val.toStringAsFixed(0)} (${percentage.toStringAsFixed(0)}%)",
+              "₦${val.toStringAsFixed(0)} (${percentage.toStringAsFixed(0)}%)",
               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
             ),
           ],
@@ -366,7 +305,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildMetricCard(String title, double amount, bool isCrypto, Color accentColor, Color cardBg, Color txtColor, IconData icon) {
+  Widget _buildMetricCard(String title, double amount, Color accentColor, Color cardBg, Color txtColor, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16)),
@@ -382,7 +321,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
             ],
           ),
           Text(
-            isCrypto ? "${amount.toStringAsFixed(2)} Units" : "₦${amount.toStringAsFixed(2)}",
+            "₦${amount.toStringAsFixed(2)}",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: txtColor, letterSpacing: -0.3),
           ),
         ],
@@ -391,8 +330,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
   }
 
   _ProcessedFintechMetrics _calculateMetrics(List<Map<String, dynamic>> logs, int timeframeIndex) {
-    double fiatReceived = 0.0, fiatSent = 0.0, fiatWithdraw = 0.0, fiatSwap = 0.0;
-    double cryptoReceived = 0.0, cryptoSent = 0.0, cryptoWithdraw = 0.0, cryptoSwap = 0.0;
+    double received = 0.0, sent = 0.0, withdraw = 0.0, swap = 0.0;
     List<Map<String, dynamic>> filteredList = [];
     final now = DateTime.now();
 
@@ -412,41 +350,25 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
         isInTimeframe = logDate.year == now.year;
       }
 
-      // Default backup: if log count is low during testing, make sure we show them directly on the analyzer screen view.
-      if (logs.length < 15) isInTimeframe = true; 
-
       if (isInTimeframe) {
         filteredList.add(log);
-        final String source = (log['source'] ?? '').toString().toLowerCase();
-        final double amt = (log['amount'] ?? log['ngn_balance'] ?? 0.0).toDouble();
+        final String type = (log['type'] ?? '').toString().toLowerCase();
+        final double amt = (log['amount'] ?? 0.0).toDouble();
 
-        if (source.contains('crypto') || source.contains('web3')) {
-          if (source.contains('receive') || source.contains('deposit') || source.contains('sync')) {
-            cryptoReceived += amt;
-          } else if (source.contains('withdraw')) {
-            cryptoWithdraw += amt;
-          } else if (source.contains('swap')) {
-            cryptoSwap += amt;
-          } else {
-            cryptoSent += amt;
-          }
+        if (type.contains('deposit') || type.contains('inbound')) {
+          received += amt;
+        } else if (type.contains('withdrawal')) {
+          withdraw += amt;
+        } else if (type.contains('swap')) {
+          swap += amt;
         } else {
-          if (source.contains('receive') || source.contains('deposit') || source.contains('flutterwave_sync')) {
-            fiatReceived += amt;
-          } else if (source.contains('withdraw')) {
-            fiatWithdraw += amt;
-          } else if (source.contains('swap')) {
-            fiatSwap += amt;
-          } else {
-            fiatSent += amt;
-          }
+          sent += amt;
         }
       }
     }
 
     return _ProcessedFintechMetrics(
-      fiatReceived: fiatReceived, fiatSent: fiatSent, fiatWithdraw: fiatWithdraw, fiatSwap: fiatSwap,
-      cryptoReceived: cryptoReceived, cryptoSent: cryptoSent, cryptoWithdraw: cryptoWithdraw, cryptoSwap: cryptoSwap,
+      received: received, sent: sent, withdraw: withdraw, swap: swap,
       filteredItems: filteredList,
     );
   }
@@ -492,19 +414,17 @@ class _FintechPieChartPainter extends CustomPainter {
 }
 
 class _ProcessedFintechMetrics {
-  final double fiatReceived;
-  final double fiatSent;
-  final double fiatWithdraw;
-  final double fiatSwap;
-  final double cryptoReceived;
-  final double cryptoSent;
-  final double cryptoWithdraw;
-  final double cryptoSwap;
+  final double received;
+  final double sent;
+  final double withdraw;
+  final double swap;
   final List<Map<String, dynamic>> filteredItems;
 
   _ProcessedFintechMetrics({
-    required this.fiatReceived, required this.fiatSent, required this.fiatWithdraw, required this.fiatSwap,
-    required this.cryptoReceived, required this.cryptoSent, required this.cryptoWithdraw, required this.cryptoSwap,
+    required this.received, 
+    required this.sent, 
+    required this.withdraw, 
+    required this.swap,
     required this.filteredItems,
   });
 }
