@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures, deprecated_member_use
+// ignore_for_file: unused_field, use_build_context_synchronously, curly_braces_in_flow_control_structures, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -88,8 +88,8 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     if (lower.contains('binance') || lower == 'bnb') return 'bnb';
     if (lower.contains('solana') || lower == 'sol') return 'sol';
     if (lower.contains('polygon') || lower == 'matic') return 'matic';
-    if (lower.contains('arbitrum') || lower == 'eth') return 'eth'; // fallback icon mapping for arb
-    if (lower.contains('optimism') || lower == 'eth') return 'eth'; // fallback icon mapping for op
+    if (lower.contains('arbitrum') || lower == 'eth') return 'eth'; 
+    if (lower.contains('optimism') || lower == 'eth') return 'eth'; 
     if (lower == 'usdt') return 'usdt';
     if (lower == 'usdc') return 'usdc';
     if (lower == 'busd') return 'usdt';
@@ -136,12 +136,15 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
   }
 
   void _resolveRecipientProfile(String input) async {
-    final cleanInput = input.trim().toLowerCase();
-    if (cleanInput.length < 3) {
+    final cleanInput = input.trim();
+    if (cleanInput.length < 2) {
       setState(() {
         _userResolvedSuccessfully = false;
         _resolvedRecipientName = '';
         _resolvedRecipientUsername = '';
+        _isResolvingUser = false;
+        _fiatAmountController.clear();
+        _fiatInputAmount = 0.0;
       });
       return;
     }
@@ -153,23 +156,19 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
 
     try {
       final client = Supabase.instance.client;
-      
-      var query = client.from('profiles').select('id, full_name, username');
-      if (cleanInput.length == 36 && cleanInput.contains('-')) {
-        query = query.eq('id', cleanInput);
-      } else {
-        final usernameToSearch = cleanInput.startsWith('@') ? cleanInput.substring(1) : cleanInput;
-        query = query.eq('username', usernameToSearch);
-      }
+      final searchVal = cleanInput.startsWith('@') ? cleanInput.substring(1) : cleanInput;
 
-      final profile = await query.maybeSingle();
+      // Case-insensitive query to resolve user profiles accurately
+      final profile = cleanInput.length == 36 && cleanInput.contains('-')
+          ? await client.from('profiles').select('id, full_name, username').eq('id', cleanInput).maybeSingle()
+          : await client.from('profiles').select('id, full_name, username').ilike('username', searchVal).maybeSingle();
 
       if (profile != null) {
         final fetchedUsername = profile['username'] ?? '';
-        _fiatRecipientUidController.text = fetchedUsername;
+        final fetchedName = profile['full_name'] ?? fetchedUsername;
 
         setState(() {
-          _resolvedRecipientName = profile['full_name'] ?? fetchedUsername;
+          _resolvedRecipientName = fetchedName;
           _resolvedRecipientUsername = fetchedUsername;
           _resolvedRecipientCurrency = 'NGN';
           _userResolvedSuccessfully = true;
@@ -184,6 +183,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         });
       }
     } catch (e) {
+      debugPrint('Recipient Resolution Error: $e');
       setState(() {
         _userResolvedSuccessfully = false;
         _resolvedRecipientName = '';
@@ -200,7 +200,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
       _isFetchingCryptoRate = true;
     });
 
-    // Bypass direct web browser CORS block by jumping straight to reliable calculation math
     await Future.delayed(const Duration(milliseconds: 150));
     _executeCryptoFallbackMath();
   }
@@ -220,7 +219,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     });
   }
 
-  // FIAT P2P Disbursement Ledger Process
   Future<void> _processFiatP2PSend() async {
     final cleanUsername = _resolvedRecipientUsername;
     if (_fiatInputAmount <= 0 || cleanUsername.isEmpty || !_userResolvedSuccessfully) return;
@@ -230,7 +228,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     try {
       final client = Supabase.instance.client;
 
-      final recipientProfile = await client.from('profiles').select('id, full_name, username').eq('username', cleanUsername).maybeSingle();
+      final recipientProfile = await client.from('profiles').select('id, full_name, username').ilike('username', cleanUsername).maybeSingle();
       if (recipientProfile == null) {
         _showErrorSnackbar('cancelled: Recipient profile no longer exists.');
         setState(() => _isLoading = false);
@@ -244,7 +242,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         final senderProfile = await client.from('profiles').select('username, full_name').eq('id', senderUid).maybeSingle();
         final senderDisplayName = senderProfile?['username'] ?? senderProfile?['full_name'] ?? 'A user';
 
-        // Sender wallet balance lookup
         final senderWalletResponse = await client
             .from('wallet_balances')
             .select('naira_balance')
@@ -259,7 +256,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
           return;
         }
 
-        // Recipient wallet balance lookup
         final recipientWalletResponse = await client
             .from('wallet_balances')
             .select('naira_balance')
@@ -271,7 +267,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         double newSenderBalance = currentSenderBalance - _fiatInputAmount;
         double newRecipientBalance = currentRecipientBalance + _fiatInputAmount;
 
-        // Update balances in wallet_balances
         await client
             .from('wallet_balances')
             .update({'naira_balance': newSenderBalance})
@@ -282,7 +277,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
             .update({'naira_balance': newRecipientBalance})
             .eq('user_identifier', cleanRecipientUid);
 
-        // Insert records into transactions table
         await client.from('transactions').insert({
           'user_identifier': senderUid,
           'amount': _fiatInputAmount,
@@ -299,7 +293,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
           'created_at': DateTime.now().toIso8601String(),
         });
 
-        // Insert notifications
         try {
           await client.from('user_notifications').insert({
             'user_id': senderUid,
@@ -326,6 +319,12 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
               content: Text('success'),
             ),
           );
+          setState(() {
+            _fiatRecipientUidController.clear();
+            _fiatAmountController.clear();
+            _userResolvedSuccessfully = false;
+            _fiatInputAmount = 0.0;
+          });
         }
       }
     } catch (e) {
@@ -335,7 +334,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
     }
   }
 
-  // Pure Crypto Transaction Processor
   Future<void> _processCryptoSend() async {
     final cleanAddress = _cryptoAddressController.text.trim();
     if (_cryptoInputAmount <= 0 || cleanAddress.isEmpty) return;
@@ -502,37 +500,52 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
+          // Professional OPay-Style Account Name Verification Feedback Card
           if (_isResolvingUser || _userResolvedSuccessfully)
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _userResolvedSuccessfully ? Colors.green.withOpacity(0.08) : Colors.grey.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _userResolvedSuccessfully ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.1)),
+                border: Border.all(
+                  color: _userResolvedSuccessfully ? Colors.green.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+                ),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
                     backgroundColor: _userResolvedSuccessfully ? Colors.green : Colors.grey,
-                    radius: 16,
-                    child: Icon(_userResolvedSuccessfully ? Icons.person : Icons.hourglass_top_rounded, color: Colors.white, size: 16),
+                    radius: 18,
+                    child: Icon(
+                      _userResolvedSuccessfully ? Icons.verified_user_rounded : Icons.hourglass_top_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _userResolvedSuccessfully ? 'Recipient Resolved' : 'Resolving User...',
-                          style: TextStyle(color: _userResolvedSuccessfully ? Colors.green : secondaryColor, fontSize: 10, fontWeight: FontWeight.bold),
+                          _userResolvedSuccessfully ? 'Verified Account Name' : 'Verifying Username...',
+                          style: TextStyle(
+                            color: _userResolvedSuccessfully ? Colors.green : secondaryColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
-                          _userResolvedSuccessfully ? '$_resolvedRecipientName ($_resolvedRecipientCurrency)' : 'Connecting to Payme nodes...',
-                          style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                          _userResolvedSuccessfully ? '$_resolvedRecipientName (@$_resolvedRecipientUsername)' : 'Checking Payme user database...',
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -541,82 +554,72 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
               ),
             ),
 
-          if (_isResolvingUser || _userResolvedSuccessfully) const SizedBox(height: 24),
-
-          AnimatedOpacity(
-            opacity: _userResolvedSuccessfully ? 1.0 : 0.4,
-            duration: const Duration(milliseconds: 200),
-            child: IgnorePointer(
-              ignoring: !_userResolvedSuccessfully,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildInputLabel('Amount to Send', textColor),
-                      Text('Your Base Currency: $_senderCurrency', style: TextStyle(color: secondaryColor, fontSize: 11, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  _buildInputField(
-                    _fiatAmountController, 
-                    '0.00', 
-                    cardColor, 
-                    isDark, 
-                    true, 
-                    onChanged: (val) {
-                      setState(() {
-                        _fiatInputAmount = double.tryParse(val) ?? 0.0;
-                        _convertedPayoutAmount = _fiatInputAmount;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  if (_fiatInputAmount > 0)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.withOpacity(isDark ? 0.05 : 0.15)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Exchange Rate', style: TextStyle(color: secondaryColor, fontSize: 12)),
-                              Text('1 NGN = 1 NGN (Direct Local Transfer)', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                            ],
-                          ),
-                          const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1)),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Recipient Receives', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
-                              Text('${_convertedPayoutAmount.toStringAsFixed(2)} NGN', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(height: 32),
-
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _fiatInputAmount <= 0 || !_userResolvedSuccessfully ? null : _processFiatP2PSend,
-                    child: Text('Send to $_resolvedRecipientName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  ),
-                ],
-              ),
+          // Only show Amount to Send and Transfer button after successful recipient verification
+          if (_userResolvedSuccessfully) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildInputLabel('Amount to Send', textColor),
+                Text('Base Currency: $_senderCurrency', style: TextStyle(color: secondaryColor, fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
             ),
-          ),
+            _buildInputField(
+              _fiatAmountController, 
+              '0.00', 
+              cardColor, 
+              isDark, 
+              true, 
+              onChanged: (val) {
+                setState(() {
+                  _fiatInputAmount = double.tryParse(val) ?? 0.0;
+                  _convertedPayoutAmount = _fiatInputAmount;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+
+            if (_fiatInputAmount > 0)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.withOpacity(isDark ? 0.05 : 0.15)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Transfer Type', style: TextStyle(color: secondaryColor, fontSize: 12)),
+                        Text('Instant P2P Transfer', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Recipient Receives', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text('${_convertedPayoutAmount.toStringAsFixed(2)} NGN', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 32),
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.purpleAccent : const Color(0xFF8B5CF6),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _fiatInputAmount <= 0 ? null : _processFiatP2PSend,
+              child: Text('Send to $_resolvedRecipientName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
+          ],
         ],
       ),
     );
