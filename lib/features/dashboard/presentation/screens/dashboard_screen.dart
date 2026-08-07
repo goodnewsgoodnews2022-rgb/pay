@@ -1,46 +1,28 @@
 // ignore_for_file: duplicate_ignore, unused_field, prefer_const_constructors, duplicate_import, unnecessary_non_null_assertion, deprecated_member_use, unused_import
 
+import 'dart:ui' as html;
+
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_withdrawal_screen.dart';
-
+import 'package:fintech/features/notifications/presentation/screen/notification_screen.dart';
 import 'package:fintech/features/support/presentation/screens/Chat_UI.dart';
-
 import 'package:flutter/material.dart';
-
 import 'package:flutter/foundation.dart';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:go_router/go_router.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
-
 import 'package:fintech/features/crypto_wallet/presentation/screens/crypto_swap_screen.dart';
-
 import 'package:fintech/features/dashboard/presentation/screens/add_money_screen.dart';
-
 import 'package:fintech/features/dashboard/presentation/screens/receive_funds_screen.dart';
-
 import 'package:fintech/features/dashboard/presentation/screens/send_funds_screen.dart';
-
 import 'package:fintech/features/fiat_wallet/presentation/screens/withdraw_screen.dart';
-
 import 'package:fintech/features/profile/presentation/screens/profile_screen.dart';
-
 import 'package:fintech/features/fiat_wallet/presentation/screens/deposit_screen.dart';
-
 import 'package:fintech/features/dashboard/providers/wallet_provider.dart';
-
 import '../../../../features/authentication/presentation/bloc/auth_bloc.dart';
-
 import '../../../../features/authentication/presentation/bloc/auth_state.dart';
-
 import '../../data/models/bank_card_model.dart';
-
 import 'support_help_screen.dart';
-
-import '../../../notifications/presentation/screen/notification_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final Function(Widget) onNavigateToSubScreen;
@@ -89,6 +71,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // Check for payment redirect query parameters on Web
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Instantly clear any lingering snackbars from previous screens
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+
       if (kIsWeb && mounted) {
         final queryParams = Uri.base.queryParameters;
 
@@ -124,7 +111,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               try {
                 await Supabase.instance.client.rpc(
                   'update_wallet_balance',
-
                   params: {'user_id': userId, 'amount_to_add': amount},
                 );
               } catch (_) {
@@ -139,9 +125,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 await Supabase.instance.client.from('wallet_balances').upsert({
                   'user_identifier': userId,
-
                   'naira_balance': currentBalance + amount,
-
                   'updated_at': DateTime.now().toIso8601String(),
                 });
               }
@@ -158,12 +142,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text("Payment completed successfully!"),
-
                 backgroundColor: Colors.green,
               ),
             );
 
-            GoRouter.of(context).go('/dashboard');
+            // Clean browser URL parameters cleanly to stop infinite re-triggers
+            try {
+              GoRouter.of(context).go('/dashboard');
+            } catch (_) {
+              // ignore navigation errors
+            }
           }
         } else if (txRef != null &&
             (status == 'cancelled' || status == 'failed')) {
@@ -180,12 +168,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text("Payment was cancelled or failed."),
-
                 backgroundColor: Colors.amber,
               ),
             );
 
-            GoRouter.of(context).go('/dashboard');
+            try {
+              GoRouter.of(context).go('/dashboard');
+            } catch (_) {
+              // ignore navigation errors
+            }
           }
         }
       }
@@ -304,16 +295,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final netWorthGradient = isDarkMode
         ? const LinearGradient(
             begin: Alignment.topLeft,
-
             end: Alignment.bottomRight,
-
             colors: [Color(0xFF151424), Color(0xFF0A0A0C)],
           )
         : const LinearGradient(
             begin: Alignment.topLeft,
-
             end: Alignment.bottomRight,
-
             colors: [Color(0xFF1E1B4B), Color(0xFF311042)],
           );
 
@@ -345,7 +332,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: _profileStream,
-
           builder: (context, profileSnapshot) {
             if (!mounted) return const SizedBox.shrink();
 
@@ -397,11 +383,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ? _fallbackFiatUsdBalance
                     : profileUsdBalanceFallback;
               },
-
               loading: () => _fallbackFiatUsdBalance > 0
                   ? _fallbackFiatUsdBalance
                   : profileUsdBalanceFallback,
-
               error: (_, __) => _fallbackFiatUsdBalance > 0
                   ? _fallbackFiatUsdBalance
                   : profileUsdBalanceFallback,
@@ -413,175 +397,132 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             return Scaffold(
               backgroundColor: scaffoldBg,
-
               appBar: AppBar(
                 backgroundColor: scaffoldBg,
-
                 elevation: 0,
-
                 scrolledUnderElevation: 0,
-
                 leading: GestureDetector(
                   onTap: () =>
                       widget.onNavigateToSubScreen(const ProfileScreen()),
-
                   child: Padding(
                     padding: const EdgeInsets.all(10.0),
-
                     child: CircleAvatar(
                       backgroundColor: isDarkMode
                           ? const Color(0xFF1A1A1A)
                           : const Color(0xFFE2E8F0),
-
                       child: ClipOval(
                         child:
                             resolvedAvatarUrl != null &&
-                                resolvedAvatarUrl.isNotEmpty
-                            ? Image.network(
-                                resolvedAvatarUrl,
-
-                                width: double.infinity,
-
-                                height: double.infinity,
-
-                                fit: BoxFit.cover,
-
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Icon(
+                                    resolvedAvatarUrl.isNotEmpty
+                                ? Image.network(
+                                    resolvedAvatarUrl,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Icon(
                                       Icons.person,
                                       color: isDarkMode
                                           ? Colors.grey
                                           : const Color(0xFF94A3B8),
                                       size: 18,
                                     ),
-                              )
-                            : Icon(
-                                Icons.person,
-                                color: isDarkMode
-                                    ? Colors.grey
-                                    : const Color(0xFF94A3B8),
-                                size: 18,
-                              ),
+                                  )
+                                : Icon(
+                                    Icons.person,
+                                    color: isDarkMode
+                                        ? Colors.grey
+                                        : const Color(0xFF94A3B8),
+                                    size: 18,
+                                  ),
                       ),
                     ),
                   ),
                 ),
-
                 title: Text(
                   'Hello $resolvedName',
-
                   style: TextStyle(
                     color: mainTextColor,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 actions: [
                   IconButton(
                     icon: Icon(Icons.notifications_none, color: mainTextColor),
-
                     onPressed: () => widget.onNavigateToSubScreen(
                       const NotificationScreen(),
                     ),
                   ),
-
                   IconButton(
                     icon: Icon(Icons.help_outline, color: mainTextColor),
-
                     onPressed: () =>
                         widget.onNavigateToSubScreen(const ChatScreen()),
                   ),
                 ],
               ),
-
               body: SafeArea(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
-
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-
                       children: [
                         // TOTAL NET WORTH PANEL
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-
                           child: Container(
                             padding: const EdgeInsets.all(18.0),
-
                             decoration: BoxDecoration(
                               gradient: netWorthGradient,
-
                               borderRadius: BorderRadius.circular(24),
-
                               border: Border.all(
                                 color: cardBorderColor,
                                 width: 1.5,
                               ),
                             ),
-
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-
                               mainAxisSize: MainAxisSize.min,
-
                               children: [
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
-
                                   children: [
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
-
                                       children: [
                                         Text(
                                           'TOTAL NET WORTH (USD)',
-
                                           style: TextStyle(
                                             color: isDarkMode
                                                 ? Colors.grey[400]
                                                 : Colors.white.withOpacity(0.7),
-
                                             fontSize: 11,
-
                                             fontWeight: FontWeight.w600,
-
                                             letterSpacing: 0.8,
                                           ),
                                         ),
-
                                         const SizedBox(width: 6),
-
                                         IconButton(
                                           constraints: const BoxConstraints(),
-
                                           padding: EdgeInsets.zero,
-
                                           icon: Icon(
                                             _isBalanceHidden
                                                 ? Icons.visibility_off_outlined
                                                 : Icons.visibility_outlined,
-
                                             color: isDarkMode
                                                 ? Colors.grey[500]
                                                 : Colors.white.withOpacity(0.6),
-
                                             size: 18,
                                           ),
-
                                           onPressed: () => setState(
-                                            () => _isBalanceHidden =
-                                                !_isBalanceHidden,
-                                          ),
+                                              () => _isBalanceHidden =
+                                                  !_isBalanceHidden),
                                         ),
                                       ],
                                     ),
-
                                     GestureDetector(
                                       onTap: () => widget.onNavigateToSubScreen(
                                         AddMoneyScreen(
@@ -591,27 +532,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               '',
                                         ),
                                       ),
-
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
                                           vertical: 6,
                                         ),
-
                                         decoration: BoxDecoration(
                                           color: emeraldColor.withOpacity(0.2),
-
                                           borderRadius: BorderRadius.circular(
                                             20,
                                           ),
-
                                           border: Border.all(
                                             color: emeraldColor.withOpacity(
                                               0.4,
                                             ),
                                           ),
                                         ),
-
                                         child: const Row(
                                           children: [
                                             Icon(
@@ -619,9 +555,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               color: Colors.white,
                                               size: 16,
                                             ),
-
                                             SizedBox(width: 4),
-
                                             Text(
                                               'Add Money',
                                               style: TextStyle(
@@ -636,36 +570,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     ),
                                   ],
                                 ),
-
                                 const SizedBox(height: 10),
-
                                 Row(
                                   children: [
                                     Text(
                                       _isBalanceHidden
                                           ? '••••••'
                                           : '\$${totalNetWorth.toStringAsFixed(2)}',
-
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 28,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-
                                     const SizedBox(width: 8),
-
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
                                         vertical: 2,
                                       ),
-
                                       decoration: BoxDecoration(
                                         color: emeraldColor.withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-
                                       child: const Text(
                                         '4.2%',
                                         style: TextStyle(
@@ -681,93 +608,59 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 24),
-
-                        // ====================================================================
-
-                        // SIDE-BY-SIDE CARDS
-
-                        // ====================================================================
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-
                           physics: const BouncingScrollPhysics(),
-
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-
                           child: Row(
                             children: [
-                              // CARD 1: FIAT WALLET (Fetches directly from USD Currency Holdings)
                               _buildDashboardCard(
                                 width: 310,
-
                                 gradient: const LinearGradient(
                                   begin: Alignment.topLeft,
-
                                   end: Alignment.bottomRight,
-
                                   colors: [
                                     Color(0xFF1E3A8A),
                                     Color(0xFF3B82F6),
                                   ],
                                 ),
-
                                 title: "FIAT WALLET",
-
                                 balance: _isBalanceHidden
                                     ? '••••••'
                                     : '\$${actualLiveUsd.toStringAsFixed(2)}',
-
                                 footerText: "USD Holding",
-
                                 footerTrailing: "VISA",
                               ),
-
                               const SizedBox(width: 14),
-
-                              // CARD 2: WEB3 SMART WALLET
                               _buildDashboardCard(
                                 width: 310,
-
                                 gradient: const LinearGradient(
                                   begin: Alignment.topLeft,
-
                                   end: Alignment.bottomRight,
-
                                   colors: [
                                     Color(0xFF4C1D95),
                                     Color(0xFF7C3AED),
                                   ],
                                 ),
-
                                 title: "WEB3 SMART WALLET",
-
                                 balance: _isBalanceHidden
                                     ? '••••••'
                                     : '${liveCryptoBalance.toStringAsFixed(2)} USDT',
-
                                 subBalance: _isBalanceHidden
                                     ? '••••••'
                                     : '\$${liveCryptoFiatValue.toStringAsFixed(2)} USD',
-
                                 footerText: liveCryptoAddress,
-
                                 footerTrailing: "WEB3",
                               ),
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 28),
-
-                        // ACTION BUTTON ENGINE HUB
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
                             children: [
                               _buildActionButton(
                                 context,
@@ -777,7 +670,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 const SendFundsScreen(),
                                 mainTextColor,
                               ),
-
                               _buildActionButton(
                                 context,
                                 Icons.call_received,
@@ -786,7 +678,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 const ReceiveFundsScreen(),
                                 mainTextColor,
                               ),
-
                               _buildActionButton(
                                 context,
                                 Icons.swap_horiz,
@@ -795,7 +686,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 const CryptoSwapScreen(),
                                 mainTextColor,
                               ),
-
                               _buildActionButton(
                                 context,
                                 Icons.account_balance_wallet,
@@ -807,16 +697,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 28),
-
-                        // RECENT ACTIVITY LEDGER
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-
                             children: [
                               Text(
                                 'RECENT ACTIVITY',
@@ -827,9 +712,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   letterSpacing: 1.2,
                                 ),
                               ),
-
                               const SizedBox(height: 12),
-
                               _buildLedgerRow(
                                 Icons.movie_filter,
                                 Colors.blueAccent,
@@ -844,7 +727,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -860,56 +742,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildDashboardCard({
     required double width,
-
     required Gradient gradient,
-
     required String title,
-
     required String balance,
-
     String? subBalance,
-
     required String footerText,
-
     required String footerTrailing,
   }) {
     return Container(
       width: width,
-
       height: 175,
-
       padding: const EdgeInsets.all(22),
-
       decoration: BoxDecoration(
         gradient: gradient,
-
         borderRadius: BorderRadius.circular(24),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
             children: [
               Text(
                 title,
-
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.9),
-
                   fontSize: 12,
-
                   fontWeight: FontWeight.bold,
-
                   letterSpacing: 0.8,
                 ),
               ),
-
               Icon(
                 Icons.contactless,
                 color: Colors.white.withOpacity(0.6),
@@ -917,73 +780,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ],
           ),
-
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               Text(
                 balance,
-
                 style: const TextStyle(
                   color: Colors.white,
-
                   fontSize: 25,
-
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               if (subBalance != null) ...[
                 const SizedBox(height: 2),
-
                 Text(
                   subBalance,
-
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
-
                     fontSize: 13,
-
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ],
           ),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
             children: [
               Expanded(
                 child: Text(
                   footerText,
-
                   overflow: TextOverflow.ellipsis,
-
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
-
                     fontSize: 12,
-
                     fontFamily: 'monospace',
                   ),
                 ),
               ),
-
               const SizedBox(width: 8),
-
               Text(
                 footerTrailing,
-
                 style: const TextStyle(
                   color: Colors.white,
-
                   fontSize: 14,
-
                   fontWeight: FontWeight.w900,
-
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -1004,30 +845,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ) {
     return GestureDetector(
       onTap: () => widget.onNavigateToSubScreen(targetScreen),
-
       child: Column(
         children: [
           Container(
             width: 52,
-
             height: 52,
-
             decoration: BoxDecoration(
               color: const Color(0xFF1E2235),
-
               shape: BoxShape.circle,
-
               border: Border.all(
                 color: Colors.white.withOpacity(0.05),
                 width: 1,
               ),
             ),
-
             child: Icon(icon, color: accentColor, size: 22),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             label,
             style: TextStyle(
@@ -1054,34 +887,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ) {
     return Container(
       padding: const EdgeInsets.all(14),
-
       decoration: BoxDecoration(
         color: componentBgColor,
-
         borderRadius: BorderRadius.circular(16),
-
         border: Border.all(color: Colors.white.withOpacity(0.03), width: 1),
       ),
-
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-
             decoration: BoxDecoration(
               color: iconWrapperBg,
               borderRadius: BorderRadius.circular(12),
             ),
-
             child: Icon(icon, color: iconColor, size: 20),
           ),
-
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
                 Text(
                   title,
@@ -1091,9 +915,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 4),
-
                 Text(
                   subtitle,
                   style: TextStyle(color: secondaryTextColor, fontSize: 12),
@@ -1101,7 +923,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ],
             ),
           ),
-
           Text(
             amount,
             style: TextStyle(
