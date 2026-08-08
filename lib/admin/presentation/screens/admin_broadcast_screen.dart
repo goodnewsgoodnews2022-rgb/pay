@@ -34,7 +34,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bgSurface,
         title: const Text(
-          'Send Broadcast',
+          'Notification Centre',
           style: TextStyle(color: AppColors.textPrimary),
         ),
       ),
