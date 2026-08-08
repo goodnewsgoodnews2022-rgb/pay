@@ -23,9 +23,35 @@
 
   <!-- ✅ ADD THIS LINE: Flutterwave Web Inline Checkout SDK -->
   <script src="https://checkout.flutterwave.com/v3.js"></script>
+
+  <style>
+    /* Splash screen loader styling */
+    #web-loading-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #FFFFFF;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    #web-loading-splash img {
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+    }
+  </style>
 </head>
 
 <body>
+  <!-- Native Web Splash Loading Screen -->
+  <div id="web-loading-splash">
+    <img src="assets/images/app_logo.png" alt="Loading...">
+  </div>
+
   <script>
     // 🟢 FIXED: Changed the naked template text into a safe local string variable
     const env = "local";
@@ -34,7 +60,23 @@
     // This permanently stops layout crashes caused by failed online font downloads
     window.flutterWebRenderer = "html";
   </script>
+
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // Remove the splash screen as soon as Flutter boots up
+    window.addEventListener('load', function() {
+      const splash = document.getElementById('web-loading-splash');
+      if (splash) {
+        // Give a short smooth fade out once the engine loads
+        setTimeout(() => {
+          splash.style.transition = 'opacity 0.3s ease';
+          splash.style.opacity = '0';
+          setTimeout(() => splash.remove(), 300);
+        }, 500);
+      }
+    });
+  </script>
 </body>
 
 </html>

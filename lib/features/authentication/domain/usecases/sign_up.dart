@@ -9,6 +9,7 @@ class SignUp {
     required String email,
     required String password,
     required String fullName,
+    required String username, // ✅ Added username
     String? mobileNumber,
     String? gender,
     String? dateOfBirth,

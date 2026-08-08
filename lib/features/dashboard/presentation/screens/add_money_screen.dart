@@ -24,6 +24,17 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   bool _isProcessing = false;
   final List<double> _quickAmounts = [1000, 2500, 5000, 10000, 25000, 50000];
 
+  @override
+  void initState() {
+    super.initState();
+    // 🛡️ Ensure any lingering global snackbars are cleared when opening this screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    });
+  }
+
   void _handlePayment() async {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
@@ -170,6 +181,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     setState(() => _isProcessing = false);
 
     if (isPaymentSuccessful) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("₦${amount.toStringAsFixed(2)} added successfully!"),
@@ -187,6 +199,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         }
       });
     } else {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Payment was cancelled or failed."),

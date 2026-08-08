@@ -6,6 +6,8 @@ import 'package:fintech/features/authentication/domain/usecases/sign_in.dart';
 import 'package:fintech/features/authentication/domain/usecases/sign_out.dart';
 import 'package:fintech/features/authentication/domain/usecases/sign_up.dart';
 import 'package:fintech/features/authentication/domain/usecases/send_password_reset.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+// ✅ Import Supabase for profile check
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -33,6 +35,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInWithGoogleRequested>(_onSignInWithGoogle);
   }
 
+  // Helper method to check if the user has a username in the database
+  Future<bool> _hasUsername(String userId) async {
+    try {
+      final profile = await supabase.Supabase.instance.client
+          .from('profiles')
+          .select('username')
+          .eq('id', userId)
+          .maybeSingle();
+      
+      final username = profile?['username'];
+      return username != null && username.toString().trim().isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _onSignUp(
     AuthSignUpRequested event,
     Emitter<AuthState> emit,
@@ -43,11 +61,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
         fullName: event.fullName,
+        username: event.username, // Make sure your repository handles saving this!
         mobileNumber: event.mobileNumber,
         gender: event.gender,
         dateOfBirth: event.dateOfBirth,
         address: event.address,
       );
+      
+      // Since they just signed up with a username, they are fully authenticated
       emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -61,7 +82,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       final user = await signIn(event.email, event.password);
-      emit(AuthAuthenticated(user));
+      
+      // Check if this existing user has a username set up
+      final hasUser = await _hasUsername(user.id);
+      if (!hasUser) {
+        emit(AuthNeedsUsername(user.id));
+      } else {
+        emit(AuthAuthenticated(user));
+      }
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -75,9 +103,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       await signOut();
-      print(
-        '✅ [AuthBloc] Sign-out successful, emitting AuthUnauthenticated',
-      );
+      print('✅ [AuthBloc] Sign-out successful, emitting AuthUnauthenticated');
       emit(AuthUnauthenticated());
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -91,7 +117,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     final user = await getCurrentUser();
     if (user != null) {
-      emit(AuthAuthenticated(user));
+      // Check if already logged-in user has a username
+      final hasUser = await _hasUsername(user.id);
+      if (!hasUser) {
+        emit(AuthNeedsUsername(user.id));
+      } else {
+        emit(AuthAuthenticated(user));
+      }
     } else {
       emit(AuthUnauthenticated());
     }
@@ -110,7 +142,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  // ✅ Google Sign‑In handler – now inside the class
   Future<void> _onSignInWithGoogle(
     AuthSignInWithGoogleRequested event,
     Emitter<AuthState> emit,
@@ -118,7 +149,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       final user = await signInWithGoogle();
-      emit(AuthAuthenticated(user));
+      
+      // Check username for Google sign-in accounts as well
+      final hasUser = await _hasUsername(user.id);
+      if (!hasUser) {
+        emit(AuthNeedsUsername(user.id));
+      } else {
+        emit(AuthAuthenticated(user));
+      }
     } catch (e) {
       emit(AuthError(e.toString()));
     }

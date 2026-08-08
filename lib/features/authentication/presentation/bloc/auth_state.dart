@@ -11,6 +11,12 @@ class AuthAuthenticated extends AuthState {
   AuthAuthenticated(this.user);
 }
 
+// ✅ Added state to intercept users missing a unique username
+class AuthNeedsUsername extends AuthState {
+  final String userId;
+  AuthNeedsUsername(this.userId);
+}
+
 class AuthUnauthenticated extends AuthState {}
 
 class AuthError extends AuthState {

@@ -22,7 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Form Controllers
   late TextEditingController _fullNameController;
-  late TextEditingController _accountNumberController;
+  late TextEditingController _usernameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _dobController;
@@ -34,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _fullNameController = TextEditingController();
-    _accountNumberController = TextEditingController();
+    _usernameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _dobController = TextEditingController();
@@ -45,7 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _accountNumberController.dispose();
+    _usernameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
     _dobController.dispose();
@@ -76,8 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _selectedGender = profile['gender'] ?? 'Male';
           _serverImageUrl = profile['avatar_url'];
           
-          _accountNumberController.text = profile['account_number'] ?? 
-              '102${(user.id.hashCode % 10000000).toString().padLeft(7, '0')}';
+          _usernameController.text = profile['username'] ?? '';
         });
       }
     } catch (e) {
@@ -152,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _supabase.from('profiles').upsert({
         'id': userId,
         'full_name': _fullNameController.text.trim(),
-        'account_number': _accountNumberController.text.trim(),
+        'username': _usernameController.text.trim().toLowerCase(),
         'mobile_number': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
         'date_of_birth': _dobController.text.trim(),
@@ -222,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // --- Account Number Display Card ---
+                  // --- Username Display Card ---
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -245,7 +244,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'FINTECH ACCOUNT NUMBER',
+                              'PAYME USERNAME',
                               style: TextStyle(
                                 color: theme.hintColor,
                                 fontSize: 10,
@@ -255,7 +254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _accountNumberController.text,
+                              _usernameController.text.isNotEmpty ? '@${_usernameController.text}' : '---',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -267,8 +266,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         IconButton(
                           icon: Icon(Icons.copy_rounded, color: theme.hintColor),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: _accountNumberController.text));
-                            _showSnackbar('Account number copied to clipboard.');
+                            Clipboard.setData(ClipboardData(text: _usernameController.text));
+                            _showSnackbar('Username copied to clipboard.');
                           },
                         )
                       ],

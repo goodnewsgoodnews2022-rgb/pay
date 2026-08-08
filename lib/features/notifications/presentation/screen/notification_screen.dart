@@ -53,8 +53,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
               style: TextStyle(color: AppColors.dev2Green),
             ),
           ),
-          // ✅ "Delete all" – only shows for admin (or you can allow for users to delete personal)
-          // But we'll show it for everyone – it will only delete personal notifications anyway.
           TextButton.icon(
             onPressed: () {
               _confirmDeleteAll(context);
@@ -134,7 +132,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 final notification = state.notifications[index];
                 return NotificationTile(
                   notification: notification,
-                  isAdmin: isAdmin, // ✅ pass admin status
+                  isAdmin: isAdmin,
                   onTap: () {
                     if (!notification.isRead) {
                       context.read<NotificationBloc>().add(

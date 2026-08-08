@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
             email.isNotEmpty &&
             password.isNotEmpty) {
           context.read<AuthBloc>().add(
-            AuthSignInRequested(email, password),
+            AuthSignInRequested(email: email, password: password),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -173,8 +173,9 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
             context.go('/dashboard');
-          }
-          if (state is AuthError) {
+          } else if (state is AuthNeedsUsername) {
+            context.go('/set-username', extra: state.userId);
+          } else if (state is AuthError) {
             final errorMessage = state.message;
             if (errorMessage.toLowerCase().contains('suspended')) {
               _showSuspendedDialog(context);
@@ -257,8 +258,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               if (_formKey.currentState!.validate()) {
                                 context.read<AuthBloc>().add(
                                   AuthSignInRequested(
-                                    _emailController.text.trim(),
-                                    _passwordController.text.trim(),
+                                    email: _emailController.text.trim(),
+                                    password: _passwordController.text.trim(),
                                   ),
                                 );
                               }
@@ -283,8 +284,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ElevatedButton.icon(
                             onPressed: () {
                               context.read<AuthBloc>().add(
-                                AuthSignInWithGoogleRequested(),
-                              );
+                                    AuthSignInWithGoogleRequested(),
+                                  );
                             },
                             icon: const Icon(
                               Icons.g_mobiledata,
