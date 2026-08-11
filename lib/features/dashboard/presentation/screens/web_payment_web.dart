@@ -156,6 +156,7 @@ void _launchFlutterwaveOverlay({
         'customizations': {
           'title': 'Wallet Cash-In',
           'description': 'Fund your account pool via Flutterwave Checkout Gateway',
+          'logo': '${Uri.base.origin}/assets/images/app_logo.png',
         },
         'callback': js.allowInterop((response) {
           try {

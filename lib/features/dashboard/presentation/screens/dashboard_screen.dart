@@ -85,6 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
         if (txRef != null &&
             (status == 'successful' || status == 'completed')) {
+          bool wasUpdated = false;
           try {
             // Check if transaction exists and is pending
 
@@ -133,18 +134,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               // Refresh local direct balance fetch
 
               _fetchDirectFiatBalance();
+              wasUpdated = true;
             }
           } catch (e) {
             debugPrint("Error updating Web redirected transaction: $e");
           }
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Payment completed successfully!"),
-                backgroundColor: Colors.green,
-              ),
-            );
+            if (wasUpdated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Payment completed successfully!"),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
 
             // Clean browser URL parameters cleanly to stop infinite re-triggers
             try {
@@ -155,22 +159,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           }
         } else if (txRef != null &&
             (status == 'cancelled' || status == 'failed')) {
+          bool wasCanceled = false;
           try {
-            await Supabase.instance.client
+            // Check if transaction exists and is pending first to avoid duplicate cancels
+            final txRes = await Supabase.instance.client
                 .from('transactions')
-                .update({'status': 'canceled'})
-                .eq('id', txRef);
+                .select()
+                .eq('id', txRef)
+                .maybeSingle();
+
+            if (txRes != null && txRes['status'] == 'pending') {
+              await Supabase.instance.client
+                  .from('transactions')
+                  .update({'status': 'canceled'})
+                  .eq('id', txRef);
+              wasCanceled = true;
+            }
           } catch (e) {
             debugPrint("Error cancelling Web redirected transaction: $e");
           }
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Payment was cancelled or failed."),
-                backgroundColor: Colors.amber,
-              ),
-            );
+            if (wasCanceled) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Payment was cancelled or failed."),
+                  backgroundColor: Colors.amber,
+                ),
+              );
+            }
 
             try {
               GoRouter.of(context).go('/dashboard');
