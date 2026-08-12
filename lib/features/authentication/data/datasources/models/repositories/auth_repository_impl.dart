@@ -16,6 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
     required String fullName,
+    required String username,
     String? mobileNumber,
     String? gender,
     String? dateOfBirth,
@@ -27,6 +28,7 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
         data: {
           'full_name': fullName,
+          'username': username,
           'mobile_number': mobileNumber,
           'gender': gender,
           'date_of_birth': dateOfBirth,
@@ -41,29 +43,48 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
-      try {
-        await _supabase.from('profiles').insert({
-          'id': user.id,
-          'full_name': fullName,
-          'mobile_number': mobileNumber,
-          'gender': gender,
-          'date_of_birth': dateOfBirth,
-          'address': address,
-          'kyc_status': 'PENDING',
-          'is_admin': false,
-          'is_suspended': false,
-        });
-      } catch (dbError) {
-        throw AuthException(
-          'Auth account created, but profile generation failed. RLS policies or schema columns might be mismatched: $dbError',
-        );
+      // ✅ Insert/Upsert complete user profile into the profiles table with the username
+      await _supabase.from('profiles').upsert({
+        'id': user.id,
+        'full_name': fullName,
+        'username': username,
+        'mobile_number': mobileNumber,
+        'gender': gender,
+        'date_of_birth': dateOfBirth,
+        'address': address,
+        'kyc_status': 'PENDING',
+        'is_admin': false,
+        'is_suspended': false,
+      }, onConflict: 'id');
+
+      // ✅ Completely safe null-safe wallet row check and dynamic key assignment
+      final existingWallet = await _supabase
+          .from('wallets')
+          .select('account_or_public_key')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      String validPublicKey;
+      if (existingWallet == null || existingWallet['account_or_public_key'] == null) {
+        validPublicKey = 'payme_${user.id}_${DateTime.now().millisecondsSinceEpoch}';
+      } else {
+        final currentKey = existingWallet['account_or_public_key'].toString().trim();
+        validPublicKey = currentKey.isEmpty 
+            ? 'payme_${user.id}_${DateTime.now().millisecondsSinceEpoch}' 
+            : currentKey;
       }
+
+      await _supabase.from('wallets').upsert({
+        'user_id': user.id,
+        'crypto_balance': 0.0,
+        'account_or_public_key': validPublicKey,
+      }, onConflict: 'user_id');
 
       final profile = await _supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
       return AppUserModel.fromSupabaseUser(
         user,
@@ -72,10 +93,10 @@ class AuthRepositoryImpl implements AuthRepository {
         gender: gender,
         dateOfBirth: dateOfBirth,
         address: address,
-        accountNumber: profile['account_number'],
-        kycStatus: 'PENDING',
-        isAdmin: profile['is_admin'] ?? false,
-        isSuspended: profile['is_suspended'] ?? false,
+        accountNumber: profile?['account_number'],
+        kycStatus: profile?['kyc_status'] ?? 'PENDING',
+        isAdmin: profile?['is_admin'] ?? false,
+        isSuspended: profile?['is_suspended'] ?? false,
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -269,14 +290,14 @@ class AuthRepositoryImpl implements AuthRepository {
 
   if (profile == null) {
     // Create minimal profile
-    await _supabase.from('profiles').insert({
+    await _supabase.from('profiles').upsert({
       'id': user.id,
       'full_name': user.userMetadata?['full_name'] ?? 'Fintech User',
       'kyc_status': 'PENDING',
       'is_admin': false,
       'biometric_enabled': false,
       'is_suspended': false,
-    });
+    }, onConflict: 'id');
 
     final created = await _supabase
         .from('profiles')

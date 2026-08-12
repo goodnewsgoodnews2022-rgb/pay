@@ -1,11 +1,11 @@
 import 'package:fintech/features/authentication/domain/entities/app_user.dart';
 
-
 abstract class AuthRepository {
   Future<AppUser> signUp({
     required String email,
     required String password,
     required String fullName,
+    required String username, // ✅ Added to match AuthRepositoryImpl
     String? mobileNumber,
     String? gender,
     String? dateOfBirth,
