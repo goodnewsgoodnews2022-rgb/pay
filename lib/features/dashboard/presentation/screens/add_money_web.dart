@@ -32,7 +32,7 @@ void handleWebPayment({
     'customizations': {
       'title': 'Fund Wallet',
       'description': 'Fund wallet balance with NGN $amountText',
-      'logo': 'https://flutterwave.com/images/logo/logo-mark.svg',
+      'logo': '${Uri.base.origin}/assets/images/app_logo.png',
     },
     'callback': ((JSObject responseObj) {
       Future.microtask(() async {

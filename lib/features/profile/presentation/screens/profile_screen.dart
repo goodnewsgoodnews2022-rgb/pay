@@ -1,4 +1,6 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: unnecessary_import, deprecated_member_use
+
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,31 +16,39 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
+
   final _formKey = GlobalKey<FormState>();
-  
+
   bool _isLoading = false;
-  Uint8List? _pickedImageBytes; 
+
+  Uint8List? _pickedImageBytes;
   String? _serverImageUrl;
 
-  // Form Controllers
+  // --------------------------------------------------
+  // FORM CONTROLLERS
+  // --------------------------------------------------
+
   late TextEditingController _fullNameController;
   late TextEditingController _usernameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _dobController;
-  
+  late TextEditingController _emailController;
+
   String _selectedGender = 'Male';
   String _userEmail = '';
 
   @override
   void initState() {
     super.initState();
+
     _fullNameController = TextEditingController();
     _usernameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _dobController = TextEditingController();
-    
+    _emailController = TextEditingController();
+
     _loadUserProfileData();
   }
 
@@ -49,290 +59,786 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.dispose();
     _addressController.dispose();
     _dobController.dispose();
+    _emailController.dispose();
+
     super.dispose();
   }
 
-  /// Fetch real user data from Supabase Auth and Public Tables
+  // ==================================================
+  // LOAD USER PROFILE
+  // ==================================================
+
+  /// Loads the currently authenticated user's details.
+  ///
+  /// The email comes from Supabase Auth.
+  ///
+  /// The remaining signup information comes from the
+  /// user's row in the `profiles` table.
+  ///
+  /// IMPORTANT:
+  /// This method does NOT access the wallets table.
   Future<void> _loadUserProfileData() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) return;
+
+      if (user == null) {
+        _showSnackbar(
+          'No authenticated user was found.',
+          isError: true,
+        );
+        return;
+      }
+
+      // ------------------------------------------------
+      // EMAIL FROM SUPABASE AUTH
+      // ------------------------------------------------
 
       _userEmail = user.email ?? '';
 
+      _emailController.text = _userEmail;
+
+      // ------------------------------------------------
+      // PROFILE DATA FROM PROFILES TABLE
+      // ------------------------------------------------
+
       final profile = await _supabase
           .from('profiles')
-          .select()
+          .select(
+            'id, full_name, username, mobile_number, gender, date_of_birth, address, avatar_url',
+          )
           .eq('id', user.id)
           .maybeSingle();
 
-      if (profile != null) {
+      if (profile != null && mounted) {
         setState(() {
-          _fullNameController.text = profile['full_name'] ?? '';
-          _phoneController.text = profile['mobile_number'] ?? '';
-          _addressController.text = profile['address'] ?? '';
-          _dobController.text = profile['date_of_birth'] ?? '';
-          _selectedGender = profile['gender'] ?? 'Male';
-          _serverImageUrl = profile['avatar_url'];
-          
-          _usernameController.text = profile['username'] ?? '';
+          _fullNameController.text =
+              profile['full_name']?.toString() ?? '';
+
+          _usernameController.text =
+              profile['username']?.toString() ?? '';
+
+          _phoneController.text =
+              profile['mobile_number']?.toString() ?? '';
+
+          _addressController.text =
+              profile['address']?.toString() ?? '';
+
+          _dobController.text =
+              profile['date_of_birth']?.toString() ?? '';
+
+          final gender =
+              profile['gender']?.toString();
+
+          if (gender == 'Male' ||
+              gender == 'Female' ||
+              gender == 'Other') {
+            _selectedGender = gender!;
+          } else {
+            _selectedGender = 'Male';
+          }
+
+          final avatarUrl =
+              profile['avatar_url']?.toString();
+
+          if (avatarUrl != null &&
+              avatarUrl.isNotEmpty) {
+            _serverImageUrl = avatarUrl;
+          } else {
+            _serverImageUrl = null;
+          }
         });
+      } else {
+        // ------------------------------------------------
+        // FALLBACK TO AUTH USER METADATA
+        // ------------------------------------------------
+        //
+        // This helps when the profile row has not loaded
+        // yet but the signup implementation stored the
+        // user's details inside Supabase Auth metadata.
+        //
+        // This does NOT create a profile or wallet.
+        // ------------------------------------------------
+
+        final metadata = user.userMetadata ?? {};
+
+        if (mounted) {
+          setState(() {
+            _fullNameController.text =
+                metadata['full_name']?.toString() ??
+                    metadata['fullName']?.toString() ??
+                    '';
+
+            _usernameController.text =
+                metadata['username']?.toString() ?? '';
+
+            _phoneController.text =
+                metadata['mobile_number']?.toString() ??
+                    metadata['mobileNumber']?.toString() ??
+                    '';
+
+            _addressController.text =
+                metadata['address']?.toString() ?? '';
+
+            _dobController.text =
+                metadata['date_of_birth']?.toString() ??
+                    metadata['dateOfBirth']?.toString() ??
+                    '';
+
+            final gender =
+                metadata['gender']?.toString();
+
+            if (gender == 'Male' ||
+                gender == 'Female' ||
+                gender == 'Other') {
+              _selectedGender = gender!;
+            }
+
+            _serverImageUrl =
+                metadata['avatar_url']?.toString();
+          });
+        }
       }
     } catch (e) {
-      _showSnackbar('Error loading profile configurations: $e', isError: true);
+      _showSnackbar(
+        'Error loading profile information: $e',
+        isError: true,
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  /// Select image from device gallery safely using memory bytes
+  // ==================================================
+  // PICK PROFILE IMAGE
+  // ==================================================
+
   Future<void> _pickImageFromGallery() async {
     final picker = ImagePicker();
+
     try {
       final pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 70, 
+        imageQuality: 70,
         maxWidth: 510,
       );
 
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
-        setState(() {
-          _pickedImageBytes = bytes;
-        });
-        await _uploadAvatarToSupabaseBucket(pickedFile);
+
+        if (mounted) {
+          setState(() {
+            _pickedImageBytes = bytes;
+          });
+        }
+
+        await _uploadAvatarToSupabaseBucket(
+          pickedFile,
+        );
       }
     } catch (e) {
-      _showSnackbar('Image collection rejected: $e', isError: true);
+      _showSnackbar(
+        'Image collection rejected: $e',
+        isError: true,
+      );
     }
   }
 
-  /// Upload image binary directly to Supabase Storage Bucket
-  Future<void> _uploadAvatarToSupabaseBucket(XFile pickedFile) async {
+  // ==================================================
+  // UPLOAD PROFILE IMAGE
+  // ==================================================
+
+  Future<void> _uploadAvatarToSupabaseBucket(
+    XFile pickedFile,
+  ) async {
     if (_pickedImageBytes == null) return;
-    
-    setState(() => _isLoading = true);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      final userId =
+          _supabase.auth.currentUser?.id;
 
-      final fileExtension = pickedFile.name.split('.').last;
-      final pathName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      if (userId == null) {
+        _showSnackbar(
+          'No authenticated user was found.',
+          isError: true,
+        );
+        return;
+      }
 
-      await _supabase.storage.from('avatars').uploadBinary(
+      final fileExtension =
+          pickedFile.name.split('.').last;
+
+      final pathName =
+          '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+
+      await _supabase.storage
+          .from('avatars')
+          .uploadBinary(
             pathName,
             _pickedImageBytes!,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+            fileOptions: const FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+            ),
           );
 
-      final String publicUrl = _supabase.storage.from('avatars').getPublicUrl(pathName);
+      final publicUrl = _supabase.storage
+          .from('avatars')
+          .getPublicUrl(pathName);
 
-      setState(() {
-        _serverImageUrl = publicUrl;
-      });
-      _showSnackbar('Profile photo uploaded successfully!');
+      if (mounted) {
+        setState(() {
+          _serverImageUrl = publicUrl;
+        });
+      }
+
+      _showSnackbar(
+        'Profile photo uploaded successfully!',
+      );
     } catch (e) {
-      _showSnackbar('Storage bucket upload configuration failed: $e', isError: true);
+      _showSnackbar(
+        'Storage bucket upload configuration failed: $e',
+        isError: true,
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  /// Persist mutated forms to Public Profile rows
+  // ==================================================
+  // UPDATE PROFILE
+  // ==================================================
+
+  /// Saves changes to the user's profile.
+  ///
+  /// IMPORTANT:
+  /// There is NO wallet code in this method.
+  ///
+  /// This method only updates the `profiles` table.
   Future<void> _updateProfileDatabaseRecord() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    setState(() => _isLoading = true);
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
-
-      await _supabase.from('profiles').upsert({
-        'id': userId,
-        'full_name': _fullNameController.text.trim(),
-        'username': _usernameController.text.trim().toLowerCase(),
-        'mobile_number': _phoneController.text.trim(),
-        'address': _addressController.text.trim(),
-        'date_of_birth': _dobController.text.trim(),
-        'gender': _selectedGender,
-        'avatar_url': _serverImageUrl,
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
       });
+    }
 
-      _showSnackbar('Account profile preferences updated successfully!');
+    try {
+      final userId =
+          _supabase.auth.currentUser?.id;
+
+      if (userId == null) {
+        _showSnackbar(
+          'No authenticated user was found.',
+          isError: true,
+        );
+        return;
+      }
+
+      // ------------------------------------------------
+      // UPDATE ONLY THE PROFILE
+      // ------------------------------------------------
+
+      await _supabase.from('profiles').upsert(
+        {
+          'id': userId,
+          'full_name':
+              _fullNameController.text.trim(),
+          'username':
+              _usernameController.text
+                  .trim()
+                  .toLowerCase(),
+          'mobile_number':
+              _phoneController.text.trim(),
+          'address':
+              _addressController.text.trim(),
+          'date_of_birth':
+              _dobController.text.trim(),
+          'gender': _selectedGender,
+          'avatar_url': _serverImageUrl,
+        },
+        onConflict: 'id',
+      );
+
+      _showSnackbar(
+        'Profile updated successfully!',
+      );
     } catch (e) {
-      _showSnackbar('Database record updates encountered an error: $e', isError: true);
+      _showSnackbar(
+        'Profile update failed: $e',
+        isError: true,
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
+
+  // ==================================================
+  // BUILD
+  // ==================================================
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+
+    final isDark =
+        theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Account Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Account Profile',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.check_circle_outline, color: Color(0xFF00E676), size: 28),
-            onPressed: _isLoading ? null : _updateProfileDatabaseRecord,
-          )
+            icon: const Icon(
+              Icons.check_circle_outline,
+              color: Color(0xFF00E676),
+              size: 28,
+            ),
+            onPressed: _isLoading
+                ? null
+                : _updateProfileDatabaseRecord,
+          ),
         ],
       ),
-      body: _isLoading && _fullNameController.text.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+
+      body: _isLoading &&
+              _fullNameController.text.isEmpty
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 10,
+                ),
                 children: [
-                  // --- Avatar Section ---
+
+                  // ====================================
+                  // AVATAR
+                  // ====================================
+
                   Center(
                     child: Stack(
                       children: [
                         CircleAvatar(
                           radius: 64,
-                          backgroundColor: theme.cardColor,
-                          backgroundImage: _pickedImageBytes != null
-                              ? MemoryImage(_pickedImageBytes!)
-                              : (_serverImageUrl != null ? NetworkImage(_serverImageUrl!) : null) as ImageProvider?,
-                          child: _pickedImageBytes == null && _serverImageUrl == null
-                              ? Icon(Icons.person_rounded, size: 60, color: theme.hintColor)
-                              : null,
+                          backgroundColor:
+                              theme.cardColor,
+
+                          backgroundImage:
+                              _pickedImageBytes != null
+                                  ? MemoryImage(
+                                      _pickedImageBytes!,
+                                    )
+                                  : (_serverImageUrl !=
+                                          null &&
+                                      _serverImageUrl!
+                                          .isNotEmpty
+                                      ? NetworkImage(
+                                          _serverImageUrl!,
+                                        )
+                                      : null) as ImageProvider?,
+
+                          child:
+                              _pickedImageBytes ==
+                                          null &&
+                                      (_serverImageUrl ==
+                                              null ||
+                                          _serverImageUrl!
+                                              .isEmpty)
+                                  ? Icon(
+                                      Icons
+                                          .person_rounded,
+                                      size: 60,
+                                      color:
+                                          theme.hintColor,
+                                    )
+                                  : null,
                         ),
+
                         Positioned(
                           bottom: 0,
                           right: 4,
                           child: InkWell(
-                            onTap: _pickImageFromGallery,
+                            onTap:
+                                _pickImageFromGallery,
                             child: CircleAvatar(
                               radius: 18,
-                              backgroundColor: theme.colorScheme.primary,
-                              child: Icon(Icons.camera_alt_outlined, color: theme.colorScheme.onPrimary, size: 18),
+                              backgroundColor:
+                                  theme.colorScheme
+                                      .primary,
+                              child: Icon(
+                                Icons
+                                    .camera_alt_outlined,
+                                color: theme
+                                    .colorScheme
+                                    .onPrimary,
+                                size: 18,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 32),
 
-                  // --- Username Display Card ---
+                  // ====================================
+                  // USERNAME CARD
+                  // ====================================
+
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding:
+                        const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+                      borderRadius:
+                          BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.dividerColor
+                            .withOpacity(0.1),
+                      ),
                       boxShadow: [
                         if (!isDark)
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black
+                                .withOpacity(0.05),
                             blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
+                            offset:
+                                const Offset(0, 4),
+                          ),
                       ],
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                          MainAxisAlignment
+                              .spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PAYME USERNAME',
-                              style: TextStyle(
-                                color: theme.hintColor,
-                                fontSize: 10,
-                                letterSpacing: 1.1,
-                                fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                'PAYME USERNAME',
+                                style: TextStyle(
+                                  color:
+                                      theme.hintColor,
+                                  fontSize: 10,
+                                  letterSpacing: 1.1,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _usernameController.text.isNotEmpty ? '@${_usernameController.text}' : '---',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
+
+                              const SizedBox(
+                                height: 6,
                               ),
-                            ),
-                          ],
+
+                              Text(
+                                _usernameController
+                                        .text
+                                        .isNotEmpty
+                                    ? '@${_usernameController.text}'
+                                    : '---',
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight:
+                                      FontWeight.w700,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+
                         IconButton(
-                          icon: Icon(Icons.copy_rounded, color: theme.hintColor),
+                          icon: Icon(
+                            Icons.copy_rounded,
+                            color:
+                                theme.hintColor,
+                          ),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: _usernameController.text));
-                            _showSnackbar('Username copied to clipboard.');
+                            if (_usernameController
+                                .text
+                                .isEmpty) {
+                              _showSnackbar(
+                                'No username available to copy.',
+                                isError: true,
+                              );
+                              return;
+                            }
+
+                            Clipboard.setData(
+                              ClipboardData(
+                                text:
+                                    _usernameController
+                                        .text,
+                              ),
+                            );
+
+                            _showSnackbar(
+                              'Username copied to clipboard.',
+                            );
                           },
-                        )
+                        ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 24),
 
-                  // --- Form Section ---
-                  _buildSectionLabel(context, 'PERSONAL INFORMATION'),
-                  _buildInputField(context, label: 'Full Name', controller: _fullNameController, icon: Icons.badge_outlined),
-                  _buildInputField(context, label: 'Mobile Number', controller: _phoneController, icon: Icons.phone_android, keyboardType: TextInputType.phone),
-                  
+                  // ====================================
+                  // PERSONAL INFORMATION
+                  // ====================================
+
+                  _buildSectionLabel(
+                    context,
+                    'PERSONAL INFORMATION',
+                  ),
+
+                  _buildInputField(
+                    context,
+                    label: 'Full Name',
+                    controller:
+                        _fullNameController,
+                    icon:
+                        Icons.badge_outlined,
+                  ),
+
+                  _buildInputField(
+                    context,
+                    label: 'Mobile Number',
+                    controller:
+                        _phoneController,
+                    icon:
+                        Icons.phone_android,
+                    keyboardType:
+                        TextInputType.phone,
+                  ),
+
+                  // ====================================
+                  // GENDER
+                  // ====================================
+
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: DropdownButtonFormField<String>(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 16.0,
+                    ),
+                    child:
+                        DropdownButtonFormField<
+                            String>(
                       value: _selectedGender,
-                      dropdownColor: theme.cardColor,
-                      decoration: _inputDecoration(context, 'Gender', Icons.wc_outlined),
-                      items: ['Male', 'Female', 'Other'].map((String category) {
-                        return DropdownMenuItem(value: category, child: Text(category));
-                      }).toList(),
-                      onChanged: (value) => setState(() => _selectedGender = value!),
+                      dropdownColor:
+                          theme.cardColor,
+                      decoration:
+                          _inputDecoration(
+                        context,
+                        'Gender',
+                        Icons.wc_outlined,
+                      ),
+                      items: [
+                        'Male',
+                        'Female',
+                        'Other',
+                      ].map(
+                        (category) {
+                          return DropdownMenuItem<
+                              String>(
+                            value: category,
+                            child:
+                                Text(category),
+                          );
+                        },
+                      ).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+
+                        setState(() {
+                          _selectedGender =
+                              value;
+                        });
+                      },
                     ),
                   ),
+
+                  // ====================================
+                  // DATE OF BIRTH
+                  // ====================================
 
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 16.0,
+                    ),
                     child: TextFormField(
-                      controller: _dobController,
+                      controller:
+                          _dobController,
                       readOnly: true,
-                      decoration: _inputDecoration(context, 'Date of Birth', Icons.calendar_today_outlined),
-                      onTap: _selectDateOfBirth,
+                      decoration:
+                          _inputDecoration(
+                        context,
+                        'Date of Birth',
+                        Icons
+                            .calendar_today_outlined,
+                      ),
+                      onTap:
+                          _selectDateOfBirth,
                     ),
                   ),
 
-                  _buildInputField(context, label: 'Residential Address', controller: _addressController, icon: Icons.home_outlined, maxLines: 2),
+                  // ====================================
+                  // ADDRESS
+                  // ====================================
 
-                  _buildSectionLabel(context, 'SYSTEM GATEWAY INTEGRATION'),
+                  _buildInputField(
+                    context,
+                    label: 'Residential Address',
+                    controller:
+                        _addressController,
+                    icon:
+                        Icons.home_outlined,
+                    maxLines: 2,
+                  ),
+
+                  // ====================================
+                  // EMAIL
+                  // ====================================
+
+                  _buildSectionLabel(
+                    context,
+                    'SYSTEM GATEWAY INTEGRATION',
+                  ),
+
                   TextFormField(
-                    initialValue: _userEmail,
+                    controller:
+                        _emailController,
                     readOnly: true,
-                    style: TextStyle(color: theme.textTheme.bodyLarge?.color?.withOpacity(0.6)),
-                    decoration: _inputDecoration(context, 'Registered Email Address', Icons.email_outlined).copyWith(
+                    style: TextStyle(
+                      color: theme.textTheme
+                          .bodyLarge
+                          ?.color
+                          ?.withOpacity(0.6),
+                    ),
+                    decoration:
+                        _inputDecoration(
+                      context,
+                      'Registered Email Address',
+                      Icons.email_outlined,
+                    ).copyWith(
                       filled: true,
-                      fillColor: theme.disabledColor.withOpacity(0.05),
-                      helperText: 'Email parameters cannot be changed manually without system authorization.',
-                      helperStyle: TextStyle(color: theme.hintColor.withOpacity(0.7), fontSize: 10),
+                      fillColor: theme
+                          .disabledColor
+                          .withOpacity(0.05),
+                      helperText:
+                          'Email parameters cannot be changed manually without system authorization.',
+                      helperStyle: TextStyle(
+                        color: theme.hintColor
+                            .withOpacity(0.7),
+                        fontSize: 10,
+                      ),
                     ),
                   ),
+
                   const SizedBox(height: 40),
 
-                  // --- Primary Action Button ---
+                  // ====================================
+                  // SAVE BUTTON
+                  // ====================================
+
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: isDark ? 0 : 2,
+                    style:
+                        ElevatedButton.styleFrom(
+                      backgroundColor:
+                          theme.colorScheme
+                              .primary,
+                      foregroundColor:
+                          theme.colorScheme
+                              .onPrimary,
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        vertical: 16,
+                      ),
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(
+                          16,
+                        ),
+                      ),
+                      elevation:
+                          isDark ? 0 : 2,
                     ),
-                    onPressed: _isLoading ? null : _updateProfileDatabaseRecord,
-                    child: _isLoading 
-                        ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: theme.colorScheme.onPrimary, strokeWidth: 2))
-                        : const Text('Save Profile Updates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+
+                    onPressed: _isLoading
+                        ? null
+                        : _updateProfileDatabaseRecord,
+
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child:
+                                CircularProgressIndicator(
+                              color: theme
+                                  .colorScheme
+                                  .onPrimary,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Save Profile Updates',
+                            style: TextStyle(
+                              fontWeight:
+                                  FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                   ),
+
                   const SizedBox(height: 40),
                 ],
               ),
@@ -340,74 +846,174 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ==================================================
+  // DATE PICKER
+  // ==================================================
+
   Future<void> _selectDateOfBirth() async {
-    DateTime? picked = await showDatePicker(
+    final picked =
+        await showDatePicker(
       context: context,
       initialDate: DateTime(2000),
       firstDate: DateTime(1930),
       lastDate: DateTime.now(),
     );
-    if (picked != null) {
+
+    if (picked != null && mounted) {
       setState(() {
-        _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        _dobController.text =
+            '${picked.year}-'
+            '${picked.month.toString().padLeft(2, '0')}-'
+            '${picked.day.toString().padLeft(2, '0')}';
       });
     }
   }
 
-  Widget _buildSectionLabel(BuildContext context, String label) {
+  // ==================================================
+  // SECTION LABEL
+  // ==================================================
+
+  Widget _buildSectionLabel(
+    BuildContext context,
+    String label,
+  ) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 12, top: 8),
+      padding: const EdgeInsets.only(
+        left: 4,
+        bottom: 12,
+        top: 8,
+      ),
       child: Text(
         label,
         style: TextStyle(
-          color: Theme.of(context).colorScheme.primary, 
-          fontSize: 11, 
-          fontWeight: FontWeight.bold, 
+          color:
+              Theme.of(context)
+                  .colorScheme
+                  .primary,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
           letterSpacing: 1.3,
         ),
       ),
     );
   }
 
+  // ==================================================
+  // INPUT FIELD
+  // ==================================================
+
   Widget _buildInputField(
     BuildContext context, {
     required String label,
     required TextEditingController controller,
     required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
+    TextInputType keyboardType =
+        TextInputType.text,
     int maxLines = 1,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(
+        bottom: 16.0,
+      ),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
-        decoration: _inputDecoration(context, label, icon),
-        validator: (value) => value == null || value.trim().isEmpty ? '$label cannot be left empty.' : null,
+        decoration: _inputDecoration(
+          context,
+          label,
+          icon,
+        ),
+        validator: (value) {
+          if (value == null ||
+              value.trim().isEmpty) {
+            return '$label cannot be left empty.';
+          }
+
+          return null;
+        },
       ),
     );
   }
 
-  InputDecoration _inputDecoration(BuildContext context, String label, IconData prefixIcon) {
+  // ==================================================
+  // INPUT DECORATION
+  // ==================================================
+
+  InputDecoration _inputDecoration(
+    BuildContext context,
+    String label,
+    IconData prefixIcon,
+  ) {
     final theme = Theme.of(context);
+
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: theme.hintColor, fontSize: 14),
-      prefixIcon: Icon(prefixIcon, color: theme.hintColor, size: 20),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary, width: 2)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error, width: 2)),
+      labelStyle: TextStyle(
+        color: theme.hintColor,
+        fontSize: 14,
+      ),
+      prefixIcon: Icon(
+        prefixIcon,
+        color: theme.hintColor,
+        size: 20,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius:
+            BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: theme.dividerColor,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius:
+            BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color:
+              theme.colorScheme.primary,
+          width: 2,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius:
+            BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color:
+              theme.colorScheme.error,
+        ),
+      ),
+      focusedErrorBorder:
+          OutlineInputBorder(
+        borderRadius:
+            BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color:
+              theme.colorScheme.error,
+          width: 2,
+        ),
+      ),
     );
   }
 
-  void _showSnackbar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
+  // ==================================================
+  // SNACKBAR
+  // ==================================================
+
+  void _showSnackbar(
+    String message, {
+    bool isError = false,
+  }) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
-        content: Text(message), 
-        backgroundColor: isError ? Colors.redAccent : const Color(0xFF00E676), 
-        behavior: SnackBarBehavior.floating,
+        content: Text(message),
+        backgroundColor: isError
+            ? Colors.redAccent
+            : const Color(0xFF00E676),
+        behavior:
+            SnackBarBehavior.floating,
       ),
     );
   }

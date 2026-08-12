@@ -7,7 +7,6 @@ import 'package:fintech/features/authentication/domain/usecases/sign_out.dart';
 import 'package:fintech/features/authentication/domain/usecases/sign_up.dart';
 import 'package:fintech/features/authentication/domain/usecases/send_password_reset.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
-// ✅ Import Supabase for profile check
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -35,7 +34,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInWithGoogleRequested>(_onSignInWithGoogle);
   }
 
-  // Helper method to check if the user has a username in the database
   Future<bool> _hasUsername(String userId) async {
     try {
       final profile = await supabase.Supabase.instance.client
@@ -58,18 +56,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     print('🔐 [AuthBloc] SignUpRequested event received');
     emit(AuthLoading());
     try {
+      // 1. Perform auth and profile creation through the UseCase, explicitly passing username
       final user = await signUp(
         email: event.email,
         password: event.password,
         fullName: event.fullName,
-        username: event.username, // Make sure your repository handles saving this!
+        username: event.username,
         mobileNumber: event.mobileNumber,
         gender: event.gender,
         dateOfBirth: event.dateOfBirth,
         address: event.address,
       );
       
-      // Since they just signed up with a username, they are fully authenticated
+      // 2. Safely auto-initialize the wallet row with explicit onConflict: 'user_id' to bypass 23505 constraints
+      try {
+        await supabase.Supabase.instance.client.from('wallets').upsert({
+          'user_id': user.id,
+          'crypto_balance': 0.0,
+          'account_or_public_key': 'payme_${user.id}_${DateTime.now().millisecondsSinceEpoch}',
+        }, onConflict: 'user_id');
+      } catch (walletErr) {
+        print('⚠️ [AuthBloc] Wallet initialization warning: $walletErr');
+      }
+
+      // 3. Emit authenticated state so the app navigates cleanly to the profile/dashboard without mismatches
       emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -84,7 +94,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await signIn(event.email, event.password);
       
-      // Check if this existing user has a username set up
       final hasUser = await _hasUsername(user.id);
       if (!hasUser) {
         emit(AuthNeedsUsername(user.id));
@@ -118,7 +127,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     final user = await getCurrentUser();
     if (user != null) {
-      // Check if already logged-in user has a username
       final hasUser = await _hasUsername(user.id);
       if (!hasUser) {
         emit(AuthNeedsUsername(user.id));
@@ -151,7 +159,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await signInWithGoogle();
       
-      // Check username for Google sign-in accounts as well
       final hasUser = await _hasUsername(user.id);
       if (!hasUser) {
         emit(AuthNeedsUsername(user.id));
