@@ -52,7 +52,7 @@ flutter:
 
   assets:
     - assets/images/app_logo.png
-    - assets/.env
+    
 
 # --- SPLASH SCREEN CONFIGURATION ---
 flutter_native_splash:

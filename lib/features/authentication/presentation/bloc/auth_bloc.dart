@@ -55,6 +55,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignUpRequested event,
     Emitter<AuthState> emit,
   ) async {
+    print('🔐 [AuthBloc] SignUpRequested event received');
     emit(AuthLoading());
     try {
       final user = await signUp(
