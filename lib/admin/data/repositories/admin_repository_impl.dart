@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: unrelated_type_equality_checks, avoid_print
 
 import 'package:fintech/admin/domain/entities/admin_dashboard_stat.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
