@@ -1,4 +1,4 @@
-// ignore_for_file: unnecessary_null_comparison, override_on_non_overriding_member, avoid_print
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use, unnecessary_null_comparison, override_on_non_overriding_member, avoid_print
 
 import 'dart:async';
 import 'dart:html' as html show window;
