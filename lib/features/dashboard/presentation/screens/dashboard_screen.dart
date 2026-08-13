@@ -1,4 +1,4 @@
-// ignore_for_file: duplicate_ignore, unused_field, prefer_const_constructors, duplicate_import, unnecessary_non_null_assertion, deprecated_member_use, unused_import
+// ignore_for_file: unused_element, unused_local_variable, duplicate_ignore, unused_field, prefer_const_constructors, duplicate_import, unnecessary_non_null_assertion, deprecated_member_use, unused_import
 
 import 'dart:ui' as html;
 
@@ -730,17 +730,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              _buildLedgerRow(
-                                Icons.movie_filter,
-                                Colors.blueAccent,
-                                'Netflix Subscription',
-                                'Debit Card • 2 mins ago',
-                                _isBalanceHidden ? '••••' : '-\$14.99',
-                                componentBgColor,
-                                mainTextColor,
-                                secondaryTextColor,
-                                iconWrapperBg,
-                              ),
+                              // _buildLedgerRow(
+                              //   Icons.movie_filter,
+                              //   Colors.blueAccent,
+                              //   'Netflix Subscription',
+                              //   'Debit Card • 2 mins ago',
+                              //   _isBalanceHidden ? '••••' : '-\$14.99',
+                              //   componentBgColor,
+                              //   mainTextColor,
+                              //   secondaryTextColor,
+                              //   iconWrapperBg,
+                              // ),
                             ],
                           ),
                         ),

@@ -64,38 +64,31 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> {
     final pdf = pw.Document();
 
     pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) => pw.Stack(
-          children: [
-            pw.Center(
-              child: pw.Transform.rotate(
-                angle: 0.8,
-                child: pw.Text(
-                  "Pay Me",
-                  style: pw.TextStyle(
-                    fontSize: 100,
-                    color: PdfColors.grey200,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            pw.Column(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Header(level: 0, child: pw.Text("Account Statement")),
-                pw.SizedBox(height: 20),
-                pw.TableHelper.fromTextArray(
-                  headers: ['Type', 'Date', 'Amount'],
-                  data: filteredData.map((t) => [
-                    t['type']?.toString().toUpperCase() ?? 'N/A',
-                    t['created_at'] != null ? t['created_at'].toString().substring(0, 10) : 'N/A',
-                    'NGN ${(t['amount'] ?? 0.0).toStringAsFixed(2)}'
-                  ]).toList(),
-                ),
+                pw.Text("Account Statement", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                pw.Text("Pay Me", style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700, fontWeight: pw.FontWeight.bold)),
               ],
             ),
-          ],
-        ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.TableHelper.fromTextArray(
+            headers: ['Type', 'Date', 'Amount'],
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            data: filteredData.map((t) => [
+              t['type']?.toString().toUpperCase() ?? 'N/A',
+              t['created_at'] != null ? t['created_at'].toString().substring(0, 10) : 'N/A',
+              'NGN ${(t['amount'] ?? 0.0).toStringAsFixed(2)}'
+            ]).toList(),
+          ),
+        ],
       ),
     );
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
@@ -216,7 +209,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  "NGN ${(amount ?? 0.0).toStringAsFixed(2)}",
+                                  "NGN ${amount.toStringAsFixed(2)}", 
                                   style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                               ],
