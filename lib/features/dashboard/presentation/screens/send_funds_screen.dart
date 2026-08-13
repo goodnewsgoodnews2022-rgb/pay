@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_build_context_synchronously, curly_braces_in_flow_control_structures, deprecated_member_use
+// ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -30,6 +30,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
   bool _userResolvedSuccessfully = false;
   String _resolvedRecipientName = '';
   String _resolvedRecipientUsername = '';
+  // ignore: unused_field
   String _resolvedRecipientCurrency = 'NGN'; 
   String _senderCurrency = 'NGN'; 
   double _fiatInputAmount = 0.0;
@@ -235,20 +236,28 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         return;
       }
       final cleanRecipientUid = recipientProfile['id'] as String;
-
       final senderUid = client.auth.currentUser?.id;
 
       if (senderUid != null) {
-        final senderProfile = await client.from('profiles').select('username, full_name').eq('id', senderUid).maybeSingle();
-        final senderDisplayName = senderProfile?['username'] ?? senderProfile?['full_name'] ?? 'A user';
+        if (senderUid == cleanRecipientUid) {
+          _showErrorSnackbar('You cannot send funds to yourself.');
+          setState(() => _isLoading = false);
+          return;
+        }
 
+        final senderProfile = await client.from('profiles').select('username, full_name, balance').eq('id', senderUid).maybeSingle();
+        final senderDisplayName = senderProfile?['username'] ?? senderProfile?['full_name'] ?? 'A user';
+        
+        // Fetch sender balance safely from both sources to avoid mismatch
         final senderWalletResponse = await client
             .from('wallet_balances')
             .select('naira_balance')
             .eq('user_identifier', senderUid)
             .maybeSingle();
             
-        double currentSenderBalance = senderWalletResponse != null ? (senderWalletResponse['naira_balance'] ?? 0.0).toDouble() : 0.0;
+        double currentSenderBalance = senderWalletResponse != null 
+            ? (senderWalletResponse['naira_balance'] ?? 0.0).toDouble() 
+            : (senderProfile?['balance'] ?? 0.0).toDouble();
 
         if (currentSenderBalance < _fiatInputAmount) {
           _showErrorSnackbar('insufficient fund in your wallet');
@@ -267,16 +276,21 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
         double newSenderBalance = currentSenderBalance - _fiatInputAmount;
         double newRecipientBalance = currentRecipientBalance + _fiatInputAmount;
 
+        // Update wallet_balances for sender
         await client
             .from('wallet_balances')
-            .update({'naira_balance': newSenderBalance})
-            .eq('user_identifier', senderUid);
+            .upsert({'user_identifier': senderUid, 'naira_balance': newSenderBalance}, onConflict: 'user_identifier');
             
+        // Update wallet_balances for recipient
         await client
             .from('wallet_balances')
-            .update({'naira_balance': newRecipientBalance})
-            .eq('user_identifier', cleanRecipientUid);
+            .upsert({'user_identifier': cleanRecipientUid, 'naira_balance': newRecipientBalance}, onConflict: 'user_identifier');
 
+        // Also update profiles balance if used anywhere in dashboard views
+        await client.from('profiles').update({'balance': newSenderBalance}).eq('id', senderUid);
+        await client.from('profiles').update({'balance': newRecipientBalance}).eq('id', cleanRecipientUid);
+
+        // Insert transaction for sender
         await client.from('transactions').insert({
           'user_identifier': senderUid,
           'amount': _fiatInputAmount,
@@ -285,6 +299,7 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
           'created_at': DateTime.now().toIso8601String(),
         });
 
+        // Insert transaction for recipient so it appears instantly in their list & history
         await client.from('transactions').insert({
           'user_identifier': cleanRecipientUid,
           'amount': _fiatInputAmount,
@@ -502,7 +517,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
           ),
           const SizedBox(height: 16),
 
-          // Professional OPay-Style Account Name Verification Feedback Card
           if (_isResolvingUser || _userResolvedSuccessfully)
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
@@ -554,7 +568,6 @@ class _SendFundsScreenState extends State<SendFundsScreen> with SingleTickerProv
               ),
             ),
 
-          // Only show Amount to Send and Transfer button after successful recipient verification
           if (_userResolvedSuccessfully) ...[
             const SizedBox(height: 24),
             Row(

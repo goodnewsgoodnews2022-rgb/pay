@@ -34,26 +34,31 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
 
   Future<void> _fetchTransactions() async {
     try {
-      // Corrected to 'fiat_transactions' based on your console error
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
+      // ✅ Fetch strictly transactions belonging to the currently logged-in user
       final data = await Supabase.instance.client
           .from('transactions')
           .select()
+          .eq('user_identifier', currentUserId ?? '')
           .order('created_at', ascending: false);
 
       setState(() {
         _unifiedLedger = (data as List<dynamic>).map((tx) {
-          // Assuming 'amount' is a number in your DB
           final val = double.tryParse(tx['amount'].toString()) ?? 0.0;
-          final isIncome = val >= 0;
+          final type = tx['type']?.toString().toLowerCase() ?? '';
+          
+          // Determine if it's income or expense based on transaction type
+          final isIncome = type == 'deposit' || type == 'p2p inbound' || type == 'receive';
           
           return {
             'title': tx['type']?.toString().toUpperCase() ?? 'TRANSACTION',
             'subtitle': tx['reference'] ?? 'No ref',
             'date': tx['created_at'] ?? DateTime.now().toIso8601String(),
-            'amount': (isIncome ? '+' : '') + val.toStringAsFixed(2),
+            'amount': (isIncome ? '+' : '-') + val.toStringAsFixed(2),
             'isIncome': isIncome,
-            'type': tx['type'] ?? 'other', 
-            'icon': _getIconForType(tx['type']),
+            'type': type, 
+            'icon': _getIconForType(type),
             'iconColor': isIncome ? brandAccentColor : brandRedColor,
             'ticker': tx['ticker'] ?? 'USD',
             'peerName': tx['peer_name'] ?? 'N/A',
@@ -73,8 +78,10 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
     switch (type?.toLowerCase()) {
       case 'deposit': return Icons.account_balance;
       case 'swap': return Icons.currency_exchange;
-      case 'send': return Icons.call_made;
-      case 'receive': return Icons.call_received;
+      case 'send': 
+      case 'p2p outbound': return Icons.call_made;
+      case 'receive': 
+      case 'p2p inbound': return Icons.call_received;
       default: return Icons.swap_horiz;
     }
   }
@@ -128,7 +135,13 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
           labelColor: isDark ? brandPurpleColor : const Color(0xFF8B5CF6),
           unselectedLabelColor: secondaryTextColor,
           indicatorColor: isDark ? brandPurpleColor : const Color(0xFF8B5CF6),
-          tabs: const [Tab(text: 'All Activity'), Tab(text: 'Deposits'), Tab(text: 'Swaps'), Tab(text: 'P2P Sent'), Tab(text: 'P2P Received')],
+          tabs: const [
+            Tab(text: 'All Activity'), 
+            Tab(text: 'Deposits'), 
+            Tab(text: 'Swaps'), 
+            Tab(text: 'P2P Sent'), 
+            Tab(text: 'P2P Received')
+          ],
         ),
       ),
       body: _isLoading
@@ -156,8 +169,8 @@ class _LedgerScreenState extends State<LedgerScreen> with SingleTickerProviderSt
                       _buildLedgerList(filteredLedger, cardColor, textColor, secondaryTextColor, isDark),
                       _buildLedgerList(filteredLedger.where((tx) => tx['type'] == 'deposit').toList(), cardColor, textColor, secondaryTextColor, isDark),
                       _buildLedgerList(filteredLedger.where((tx) => tx['type'] == 'swap').toList(), cardColor, textColor, secondaryTextColor, isDark),
-                      _buildLedgerList(filteredLedger.where((tx) => tx['type'] == 'send').toList(), cardColor, textColor, secondaryTextColor, isDark),
-                      _buildLedgerList(filteredLedger.where((tx) => tx['type'] == 'receive').toList(), cardColor, textColor, secondaryTextColor, isDark),
+                      _buildLedgerList(filteredLedger.where((tx) => tx['type'] == 'p2p outbound' || tx['type'] == 'send').toList(), cardColor, textColor, secondaryTextColor, isDark),
+                      _buildLedgerList(filteredLedger.where((tx) => tx['type'] == 'p2p inbound' || tx['type'] == 'receive').toList(), cardColor, textColor, secondaryTextColor, isDark),
                     ],
                   ),
                 ),

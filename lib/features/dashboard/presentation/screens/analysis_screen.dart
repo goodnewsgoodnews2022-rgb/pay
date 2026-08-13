@@ -25,6 +25,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
 
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
+    // ✅ Correctly fetching stream filtered strictly by current logged-in user
     _analysisStream = Supabase.instance.client
         .from('transactions')
         .stream(primaryKey: ['id'])
@@ -223,7 +224,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
 
                           Color actionColor = emeraldGreen;
                           IconData actionIcon = Icons.arrow_downward_rounded;
-                          if (type.contains('p2p outbound') || type.contains('transfer out')) {
+                          if (type.contains('p2p outbound') || type.contains('transfer out') || type.contains('send')) {
                             actionColor = warningRed;
                             actionIcon = Icons.arrow_upward_rounded;
                           } else if (type.contains('withdrawal')) {
@@ -355,7 +356,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with SingleTickerProvid
         final String type = (log['type'] ?? '').toString().toLowerCase();
         final double amt = (log['amount'] ?? 0.0).toDouble();
 
-        if (type.contains('deposit') || type.contains('inbound')) {
+        if (type.contains('deposit') || type.contains('inbound') || type.contains('receive')) {
           received += amt;
         } else if (type.contains('withdrawal')) {
           withdraw += amt;

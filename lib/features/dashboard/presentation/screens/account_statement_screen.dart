@@ -89,7 +89,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> {
                   data: filteredData.map((t) => [
                     t['type']?.toString().toUpperCase() ?? 'N/A',
                     t['created_at'] != null ? t['created_at'].toString().substring(0, 10) : 'N/A',
-                    '₦${(t['amount'] ?? 0.0).toStringAsFixed(2)}'
+                    'NGN ${(t['amount'] ?? 0.0).toStringAsFixed(2)}'
                   ]).toList(),
                 ),
               ],
@@ -216,7 +216,7 @@ class _AccountStatementScreenState extends State<AccountStatementScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  "₦${amount.toStringAsFixed(2)}", 
+                                  "NGN ${(amount ?? 0.0).toStringAsFixed(2)}",
                                   style: TextStyle(color: mainTextColor, fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                               ],
